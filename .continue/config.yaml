@@ -1,0 +1,10 @@
+name: Local AI
+
+models:
+  - provider: ollama
+    model: deepseek-r1:8b
+    name: DeepSeek R1
+
+  - provider: ollama
+    model: qwen2.5-coder:7b
+    name: Qwen Coder

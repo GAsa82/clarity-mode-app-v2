@@ -1,0 +1,60 @@
+import { Link } from "react-router-dom";
+import { Instagram, Twitter, Youtube } from "lucide-react";
+
+export const Footer = () => {
+  return (
+    <footer className="relative border-t border-border/60 py-16 mt-12 backdrop-blur-sm bg-background/20">
+      <div className="container">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+          <div className="col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-full bg-primary-gradient" />
+              <span className="font-display text-lg">Clarity Mode</span>
+            </div>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              A premium platform for mental clarity, confidence, and focused living.
+            </p>
+            <div className="flex gap-3 mt-6">
+              {[Instagram, Twitter, Youtube].map((Icon, i) => (
+                <a
+                  key={i}
+                  href="#"
+                  className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+                  aria-label="Social"
+                >
+                  <Icon className="w-4 h-4" />
+                </a>
+              ))}
+            </div>
+          </div>
+          {[
+            { title: "Product", links: ["Library", "Store", "Dashboard", "Pricing"] },
+            { title: "Company", links: ["About", "Manifesto", "Contact"] },
+            { title: "Legal", links: ["Privacy", "Terms", "Refunds"] },
+          ].map((col) => (
+            <div key={col.title}>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+                {col.title}
+              </p>
+              <ul className="space-y-3">
+                {col.links.map((l) => (
+                  <li key={l}>
+                    <Link to={`/${l.toLowerCase()}`} className="text-sm hover:text-primary transition-colors">{l}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="pt-8 border-t border-border flex flex-col md:flex-row gap-4 justify-between items-center">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Clarity Mode. Built quietly.
+          </p>
+          <p className="text-xs text-muted-foreground italic font-display">
+            Clear mind. Strong self. Focused life.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+};

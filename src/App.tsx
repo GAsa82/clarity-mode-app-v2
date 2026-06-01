@@ -1,0 +1,84 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import AdminLayout from "@/components/AdminLayout";
+
+import Index from "./pages/Index";
+import LoginPage from "./pages/LoginPage";
+import AICoachPage from "./pages/AICoachPage";
+import InsightsPage from "./pages/InsightsPage";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Refunds from "./pages/Refunds";
+import { FocusRoomPage } from "./pages/FocusRoomPage";
+import AIPage from "./pages/AIPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import NotFound from "./pages/NotFound";
+
+// Admin pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUpload from "./pages/admin/AdminUpload";
+import AdminKnowledge from "./pages/admin/AdminKnowledge";
+import AdminTraining from "./pages/admin/AdminTraining";
+import AdminDocuments from "./pages/admin/AdminDocuments";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminSettings from "./pages/admin/AdminSettings";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/ai-coach" element={<AICoachPage />} />
+              <Route path="/insights" element={<InsightsPage />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/refunds" element={<Refunds />} />
+              <Route path="/ai" element={<AIPage />} />
+              <Route path="/room/:slug" element={<FocusRoomPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+              {/* Admin routes - protected */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboard />} />
+                <Route path="upload" element={<AdminUpload />} />
+                <Route path="knowledge" element={<AdminKnowledge />} />
+                <Route path="training" element={<AdminTraining />} />
+                <Route path="documents" element={<AdminDocuments />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
+);
+
+export default App;
