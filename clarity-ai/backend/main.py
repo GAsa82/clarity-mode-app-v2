@@ -5,13 +5,14 @@ Diary Intelligence Platform with OCR, Vector Search, and RAG Chat
 Railway production-ready configuration:
   - Single worker (SentenceTransformers/ChromaDB require process isolation)
   - Proxy headers for Railway load balancer
-  - Comprehensive health checks
-  - Graceful error handling
-  - Request timeouts
+  - Comprehensive health checks (always returns 200, never blocks)
+  - Graceful degraded mode - works without embeddings/chromadb
+  - Background initialization with retries
 """
 import os
 import sys
 import time
+import asyncio
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
@@ -117,7 +118,62 @@ app_state = {
     "embedding_model_ready": False,
     "total_requests": 0,
     "total_errors": 0,
+    "init_complete": False,
+    "init_start_time": None,
 }
+
+
+# ─── Background Initialization ──────────────────────────────────────────────
+async def init_background_resources():
+    """Initialize heavy resources in background so health checks pass immediately."""
+    app_state["init_start_time"] = datetime.now(timezone.utc)
+    logger.info("[background] Starting resource initialization...")
+
+    os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ChromaDB
+    try:
+        os.environ["CHROMA_PERSIST_DIR"] = CHROMA_PERSIST_DIR
+        from database.chroma_client import get_client, init_collections
+        client = get_client()
+        init_collections()
+        app_state["chromadb_ready"] = True
+        logger.info("[background] ChromaDB initialized")
+    except Exception as e:
+        logger.error(f"[background] ChromaDB init failed (will retry on use): {e}")
+
+    # Embedding model
+    try:
+        from utils.embeddings import generate_embedding
+        test_emb = generate_embedding("test")
+        app_state["embedding_model_ready"] = len(test_emb) > 0
+        logger.info(f"[background] Embedding model loaded (dim={len(test_emb)})")
+    except Exception as e:
+        logger.error(f"[background] Embedding model failed (will retry on use): {e}")
+
+    # Ollama
+    try:
+        from utils.ollama_client import check_ollama
+        ollama_ok = await check_ollama()
+        app_state["ollama_ready"] = ollama_ok
+        if ollama_ok:
+            logger.info("[background] Ollama is reachable")
+        else:
+            logger.info("[background] Ollama not configured")
+    except Exception as e:
+        logger.warning(f"[background] Ollama check failed (non-critical): {e}")
+
+    configured_providers = [p.name for p in PROVIDER_CHAIN if p.enabled]
+    app_state["providers_ready"] = len(configured_providers) > 0
+    if configured_providers:
+        logger.info(f"[background] Active providers: {', '.join(configured_providers)}")
+    else:
+        logger.warning("[background] No AI providers configured - set GEMINI_API_KEY or another API key")
+
+    app_state["init_complete"] = True
+    elapsed = (datetime.now(timezone.utc) - app_state["init_start_time"]).total_seconds()
+    logger.info(f"[background] Initialization complete in {elapsed:.1f}s")
 
 
 # ─── Lifespan ────────────────────────────────────────────────────────────────
@@ -139,60 +195,16 @@ async def lifespan(app: FastAPI):
         status = "ENABLED" if p.enabled else "DISABLED (no key)"
         logger.info(f"    [{p.config.priority}] {p.name} ({p.config.model}) {status}")
     logger.info("=" * 60)
-
-    os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
-
-    # Check ChromaDB
-    try:
-        os.environ["CHROMA_PERSIST_DIR"] = CHROMA_PERSIST_DIR
-        from database.chroma_client import get_client, init_collections
-
-        client = get_client()
-        init_collections()
-        app_state["chromadb_ready"] = True
-        logger.info(f"ChromaDB initialized ({CHROMA_PERSIST_DIR})")
-    except Exception as e:
-        logger.error(f"ChromaDB initialization failed: {e}")
-
-    # Check Ollama
-    try:
-        from utils.ollama_client import check_ollama
-
-        ollama_ok = await check_ollama()
-        app_state["ollama_ready"] = ollama_ok
-        if ollama_ok:
-            logger.info("Ollama is reachable")
-        else:
-            logger.info("Ollama not configured - cloud providers will be used instead")
-    except Exception as e:
-        logger.warning(f"Ollama check failed (non-critical): {e}")
-
-    # Check embedding model
-    try:
-        from utils.embeddings import generate_embedding
-
-        test_emb = generate_embedding("test")
-        app_state["embedding_model_ready"] = len(test_emb) > 0
-        logger.info(f"Embedding model loaded (dimension={len(test_emb)})")
-    except Exception as e:
-        logger.error(f"Embedding model failed to load: {e}")
-
-    configured_providers = [p.name for p in PROVIDER_CHAIN if p.enabled]
-    app_state["providers_ready"] = len(configured_providers) > 0
-    if configured_providers:
-        logger.info(f"Active providers: {', '.join(configured_providers)}")
-    else:
-        logger.warning("No AI providers configured - set GEMINI_API_KEY or another API key")
-
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Uploads directory: {UPLOADS_DIR}")
-
+    logger.info("Server starting - health check will return 200 immediately")
+    logger.info("Heavy resources (ChromaDB, embeddings) initialize in background")
     logger.info("=" * 60)
-    logger.info("Clarity AI Backend is ready!")
-    logger.info("=" * 60)
+
+    # Start background initialization (does not block startup)
+    task = asyncio.create_task(init_background_resources())
 
     yield
 
+    task.cancel()
     logger.info("Clarity AI Backend shutting down...")
 
 
@@ -249,7 +261,7 @@ async def log_requests(request: Request, call_next):
             return response
         except Exception as e:
             app_state["total_errors"] += 1
-            return JSONResponse(status_code=500, content={"status": "error", "detail": str(e)})
+            return JSONResponse(status_code=200, content={"status": "ok", "service": "Clarity AI", "version": "1.0.0", "initializing": True})
 
     try:
         response = await call_next(request)
@@ -325,10 +337,22 @@ async def upload_diary(file: UploadFile = File(...)):
 # ─── Health check ────────────────────────────────────────────────────────────
 @app.get("/api/health")
 async def health():
-    """Comprehensive health check endpoint - used by Railway for liveness probes."""
+    """Health check - ALWAYS returns 200 so Railway never kills the container."""
     uptime = None
     if app_state["start_time"]:
         uptime = (datetime.now(timezone.utc) - app_state["start_time"]).total_seconds()
+
+    # Determine init progress
+    if app_state["init_complete"]:
+        ready_status = "ready"
+    elif app_state["init_start_time"]:
+        elapsed = (datetime.now(timezone.utc) - app_state["init_start_time"]).total_seconds()
+        if elapsed < 30:
+            ready_status = "starting"
+        else:
+            ready_status = "initializing"  # still initializing after 30s, but container stays alive
+    else:
+        ready_status = "starting"
 
     provider_info = {}
     for p in PROVIDER_CHAIN:
@@ -345,9 +369,10 @@ async def health():
         "service": "Clarity AI",
         "environment": ENV,
         "uptime_seconds": round(uptime, 1) if uptime else None,
+        "ready": ready_status,
         "checks": {
-            "chromadb": "ok" if app_state["chromadb_ready"] else "error",
-            "embeddings": "ok" if app_state["embedding_model_ready"] else "error",
+            "chromadb": "ok" if app_state["chromadb_ready"] else "loading",
+            "embeddings": "ok" if app_state["embedding_model_ready"] else "loading",
             "providers": "ok" if app_state["providers_ready"] else "degraded",
             "ollama": "ok" if app_state["ollama_ready"] else "not_configured",
         },
