@@ -3,7 +3,7 @@ Clarity AI Backend - FastAPI Application
 Diary Intelligence Platform with OCR, Vector Search, and RAG Chat
 
 Railway production-ready configuration:
-  - 4 workers for concurrency
+  - Single worker (SentenceTransformers/ChromaDB require process isolation)
   - Proxy headers for Railway load balancer
   - Comprehensive health checks
   - Graceful error handling
@@ -19,9 +19,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  LOAD ENVIRONMENT FIRST — before any other imports that need env vars
-# ═══════════════════════════════════════════════════════════════════════════════
+# Load environment FIRST before any other imports that need env vars
 load_dotenv()
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -38,22 +36,50 @@ ENV = os.getenv("ENV", "development")
 PORT = int(os.getenv("PORT", "8000"))
 IS_PRODUCTION = ENV == "production"
 
-# CORS: in production, only allow your frontend domain
-DEFAULT_ORIGINS = (
-    "https://claritymode.vercel.app,https://claritymode.com,https://www.claritymode.com"
-    if IS_PRODUCTION else
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://localhost:8081"
-)
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", DEFAULT_ORIGINS).split(",")
+# CORS allowlist. Production domains are always included so the
+# production frontend never gets a CORS error even if ALLOWED_ORIGINS
+# is left blank in the deploy platform.
+PRODUCTION_ORIGINS = [
+    "https://claritymode.vercel.app",
+    "https://claritymode.com",
+    "https://www.claritymode.com",
+]
+DEV_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8080",
+    "http://localhost:8081",
+]
+env_origins_raw = os.getenv("ALLOWED_ORIGINS", "")
+env_origins = [o.strip() for o in env_origins_raw.split(",") if o.strip()]
+ALLOWED_ORIGINS = list(dict.fromkeys(env_origins + PRODUCTION_ORIGINS + DEV_ORIGINS))
+
+# Log CORS configuration on startup so deployment issues are visible
+print(f"[clarity-ai] CORS allowed origins: {ALLOWED_ORIGINS}")
+print(f"[clarity-ai] Environment: {ENV}")
+print(f"[clarity-ai] Port: {PORT}")
+# Warn on missing API keys
+if not (os.getenv("GEMINI_API_KEY") or os.getenv("DEEPSEEK_API_KEY")
+        or os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")):
+    print("[clarity-ai] WARNING: No AI provider API keys configured! Chat will fail.")
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 
 # ChromaDB persistence (critical for Railway volumes)
-CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", os.path.join(os.path.dirname(__file__), "chroma_db"))
+CHROMA_PERSIST_DIR = os.getenv(
+    "CHROMA_PERSIST_DIR", os.path.join(os.path.dirname(__file__), "chroma_db")
+)
 
 # Upload directory
-UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")))
+UPLOADS_DIR = Path(
+    os.getenv(
+        "UPLOADS_DIR",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads"),
+    )
+)
 
 # ─── Logging Setup ───────────────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -69,7 +95,11 @@ logging.basicConfig(
     datefmt=date_format,
     handlers=[
         logging.StreamHandler(sys.stdout),
-        *([logging.FileHandler(LOG_DIR / "clarity-ai.log", encoding="utf-8")] if not IS_PRODUCTION else []),
+        *(
+            [logging.FileHandler(LOG_DIR / "clarity-ai.log", encoding="utf-8")]
+            if not IS_PRODUCTION
+            else []
+        ),
     ],
 )
 
@@ -110,52 +140,52 @@ async def lifespan(app: FastAPI):
         logger.info(f"    [{p.config.priority}] {p.name} ({p.config.model}) {status}")
     logger.info("=" * 60)
 
-    # Ensure ChromaDB directory
     os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
 
     # Check ChromaDB
     try:
         os.environ["CHROMA_PERSIST_DIR"] = CHROMA_PERSIST_DIR
         from database.chroma_client import get_client, init_collections
+
         client = get_client()
         init_collections()
         app_state["chromadb_ready"] = True
-        logger.info(f"✓ ChromaDB initialized ({CHROMA_PERSIST_DIR})")
+        logger.info(f"ChromaDB initialized ({CHROMA_PERSIST_DIR})")
     except Exception as e:
-        logger.error(f"✗ ChromaDB initialization failed: {e}")
+        logger.error(f"ChromaDB initialization failed: {e}")
 
-    # Check Ollama (optional, only for local Qwen)
+    # Check Ollama
     try:
         from utils.ollama_client import check_ollama
+
         ollama_ok = await check_ollama()
         app_state["ollama_ready"] = ollama_ok
         if ollama_ok:
-            logger.info("✓ Ollama is reachable")
+            logger.info("Ollama is reachable")
         else:
-            logger.info("ℹ Ollama not configured — cloud providers will be used instead")
+            logger.info("Ollama not configured - cloud providers will be used instead")
     except Exception as e:
-        logger.warning(f"ℹ Ollama check failed (non-critical): {e}")
+        logger.warning(f"Ollama check failed (non-critical): {e}")
 
     # Check embedding model
     try:
         from utils.embeddings import generate_embedding
+
         test_emb = generate_embedding("test")
         app_state["embedding_model_ready"] = len(test_emb) > 0
-        logger.info(f"✓ Embedding model loaded (dimension={len(test_emb)})")
+        logger.info(f"Embedding model loaded (dimension={len(test_emb)})")
     except Exception as e:
-        logger.error(f"✗ Embedding model failed to load: {e}")
+        logger.error(f"Embedding model failed to load: {e}")
 
-    # Check if any providers are configured
     configured_providers = [p.name for p in PROVIDER_CHAIN if p.enabled]
     app_state["providers_ready"] = len(configured_providers) > 0
     if configured_providers:
-        logger.info(f"✓ Active providers: {', '.join(configured_providers)}")
+        logger.info(f"Active providers: {', '.join(configured_providers)}")
     else:
-        logger.warning("⚠ No AI providers configured — set GEMINI_API_KEY or another API key")
+        logger.warning("No AI providers configured - set GEMINI_API_KEY or another API key")
 
-    # Ensure uploads directory
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info(f"✓ Uploads directory: {UPLOADS_DIR}")
+    logger.info(f"Uploads directory: {UPLOADS_DIR}")
 
     logger.info("=" * 60)
     logger.info("Clarity AI Backend is ready!")
@@ -163,7 +193,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
     logger.info("Clarity AI Backend shutting down...")
 
 
@@ -199,7 +228,6 @@ if IS_PRODUCTION:
         ],
     )
 
-# ─── Ensure directories exist ────────────────────────────────────────────────
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── Register routers ────────────────────────────────────────────────────────
@@ -215,7 +243,6 @@ async def log_requests(request: Request, call_next):
     start = time.time()
     app_state["total_requests"] += 1
 
-    # Skip health check logs in production to reduce noise
     if IS_PRODUCTION and request.url.path == "/api/health":
         try:
             response = await call_next(request)
@@ -228,14 +255,14 @@ async def log_requests(request: Request, call_next):
         response = await call_next(request)
         duration = (time.time() - start) * 1000
         logger.info(
-            f"{request.method} {request.url.path} → {response.status_code} ({duration:.0f}ms)"
+            f"{request.method} {request.url.path} -> {response.status_code} ({duration:.0f}ms)"
         )
         return response
     except Exception as e:
         app_state["total_errors"] += 1
         duration = (time.time() - start) * 1000
         logger.error(
-            f"{request.method} {request.url.path} → ERROR ({duration:.0f}ms): {e}"
+            f"{request.method} {request.url.path} -> ERROR ({duration:.0f}ms): {e}"
         )
         return JSONResponse(
             status_code=500,
@@ -261,14 +288,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ─── Simple upload endpoint ─────────────────────────────────────────────────
 @app.post("/api/upload-diary")
 async def upload_diary(file: UploadFile = File(...)):
-    """
-    Simple MVP upload endpoint.
-    Accepts an image file, saves it, returns success.
-    """
+    """Simple MVP upload endpoint. Accepts an image file, saves it, returns success."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    # Validate extension
     allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".txt"}
     ext = Path(file.filename).suffix.lower()
     if ext not in allowed_extensions:
@@ -277,7 +300,6 @@ async def upload_diary(file: UploadFile = File(...)):
             detail=f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(allowed_extensions))}",
         )
 
-    # Save file
     safe_name = f"{os.urandom(4).hex()}_{file.filename}"
     file_path = UPLOADS_DIR / safe_name
     content = await file.read()
@@ -303,12 +325,11 @@ async def upload_diary(file: UploadFile = File(...)):
 # ─── Health check ────────────────────────────────────────────────────────────
 @app.get("/api/health")
 async def health():
-    """Comprehensive health check endpoint — used by Railway for liveness probes."""
+    """Comprehensive health check endpoint - used by Railway for liveness probes."""
     uptime = None
     if app_state["start_time"]:
         uptime = (datetime.now(timezone.utc) - app_state["start_time"]).total_seconds()
 
-    # Get provider chain status
     provider_info = {}
     for p in PROVIDER_CHAIN:
         provider_info[p.name] = {
@@ -338,10 +359,9 @@ async def health():
     }
 
 
-# ─── Root redirect ──────────────────────────────────────────────────────────
+# ─── Root ────────────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
-    """Root endpoint."""
     return {
         "service": "Clarity AI API",
         "version": "1.0.0",
@@ -370,7 +390,7 @@ if __name__ == "__main__":
         port=PORT,
         reload=reload,
         log_level=LOG_LEVEL.lower(),
-        workers=1 if reload else 4,
+        workers=1,
         proxy_headers=True,
         forwarded_allow_ips="*",
     )
