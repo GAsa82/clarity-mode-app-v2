@@ -19,12 +19,6 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 
 from .base import AIProvider, ProviderResponse, UsageStats, ProviderConfig
-from .gemini_provider import create_gemini_free, create_gemini_paid
-from .deepseek_provider import create_deepseek, create_deepseek_v4_free
-from .qwen_provider import create_qwen
-from .openrouter_provider import create_openrouter
-from .openai_provider import create_openai
-from .claude_provider import create_claude
 
 logger = logging.getLogger(__name__)
 
@@ -62,35 +56,121 @@ def get_remaining_free_chats() -> int:
     used = _load_free_chat_count()
     return max(0, _FREE_CHAT_LIMIT - used)
 
-# ─── Provider Chain Configuration ─────────────────────────────────────────────
-# Ordered by priority (lower number = tried first)
-# First 5 chats: DeepSeek V3 Flash (free) → Gemini Free → rest
-# After 5 chats: Gemini Free → DeepSeek (paid) → rest
-_free_chats_used = _load_free_chat_count()
+# ─── Lazy Provider Chain Building ────────────────────────────────────────────
+# Each factory is a lambda so SDK imports happen on first call, not at import time
 
-if _free_chats_used < _FREE_CHAT_LIMIT:
-    logger.info(f"Free chat mode: {_FREE_CHAT_LIMIT - _free_chats_used} free chats remaining (using DeepSeek V3 Flash)")
-    PROVIDER_CHAIN = [
-        create_deepseek_v4_free(),  # Priority 1 - DeepSeek V3 Flash (FREE, first 5 chats)
-        create_gemini_free(),       # Priority 2 - Free
-        create_deepseek(),          # Priority 3 - Very cheap (paid)
-        create_qwen(),              # Priority 4 - Free (local)
-        create_gemini_paid(),       # Priority 5 - Paid
-        create_openrouter(),        # Priority 6 - Free/cheap
-        create_openai(),            # Priority 7 - Paid
-        create_claude(),            # Priority 8 - Paid
-    ]
-else:
-    logger.info("Paid chat mode: using full provider chain")
-    PROVIDER_CHAIN = [
-        create_gemini_free(),      # Priority 1 - Free
-        create_deepseek(),         # Priority 2 - Very cheap
-        create_qwen(),             # Priority 3 - Free (local)
-        create_gemini_paid(),      # Priority 4 - Paid
-        create_openrouter(),       # Priority 5 - Free/cheap
-        create_openai(),           # Priority 6 - Paid
-        create_claude(),           # Priority 7 - Paid
-    ]
+def _build_provider_chain():
+    """Build the provider chain with lazy SDK imports.
+    
+    This runs at module level but each provider SDK is imported only
+    when its factory is called, preventing import-time failures from
+    blocking server startup.
+    """
+    _free_chats_used = _load_free_chat_count()
+
+    if _free_chats_used < _FREE_CHAT_LIMIT:
+        logger.info(f"Free chat mode: {_FREE_CHAT_LIMIT - _free_chats_used} free chats remaining (using DeepSeek V3 Flash)")
+        return _lazy_chain([
+            ("deepseek_v4_free",        1),
+            ("gemini_free",             2),
+            ("deepseek",                3),
+            ("qwen",                    4),
+            ("gemini_paid",             5),
+            ("openrouter",              6),
+            ("openai",                  7),
+            ("claude",                  8),
+        ])
+    else:
+        logger.info("Paid chat mode: using full provider chain")
+        return _lazy_chain([
+            ("gemini_free",             1),
+            ("deepseek",                2),
+            ("qwen",                    3),
+            ("gemini_paid",             4),
+            ("openrouter",              5),
+            ("openai",                  6),
+            ("claude",                  7),
+        ])
+
+
+def _lazy_chain(specs):
+    """Build a provider chain from (name, priority) specs with lazy SDK loading.
+    
+    Each provider's SDK is imported only when create_*() is called.
+    If an SDK is missing (not installed), the provider is simply skipped
+    rather than crashing the entire server.
+    """
+    chain = []
+    for name, priority in specs:
+        try:
+            provider = _create_provider(name, priority)
+            if provider is not None:
+                chain.append(provider)
+        except Exception as e:
+            logger.warning(f"Failed to initialize provider '{name}' (lazy): {e}")
+    return chain
+
+
+def _create_provider(name, priority):
+    """Import and call a provider's factory function lazily."""
+    factories = {
+        "gemini_free": lambda: _import_gemini("free"),
+        "gemini_paid": lambda: _import_gemini("paid"),
+        "deepseek": lambda: _import_deepseek(),
+        "deepseek_v4_free": lambda: _import_deepseek_v4_free(),
+        "qwen": lambda: _import_qwen(),
+        "openrouter": lambda: _import_openrouter(),
+        "openai": lambda: _import_openai(),
+        "claude": lambda: _import_claude(),
+    }
+    factory = factories.get(name)
+    if factory is None:
+        logger.error(f"Unknown provider: {name}")
+        return None
+    try:
+        return factory()
+    except Exception as e:
+        logger.warning(f"Failed to create provider '{name}': {e}")
+        return None
+
+
+def _import_gemini(mode="free"):
+    from .gemini_provider import create_gemini_free, create_gemini_paid
+    return create_gemini_free() if mode == "free" else create_gemini_paid()
+
+
+def _import_deepseek():
+    from .deepseek_provider import create_deepseek
+    return create_deepseek()
+
+
+def _import_deepseek_v4_free():
+    from .deepseek_provider import create_deepseek_v4_free
+    return create_deepseek_v4_free()
+
+
+def _import_qwen():
+    from .qwen_provider import create_qwen
+    return create_qwen()
+
+
+def _import_openrouter():
+    from .openrouter_provider import create_openrouter
+    return create_openrouter()
+
+
+def _import_openai():
+    from .openai_provider import create_openai
+    return create_openai()
+
+
+def _import_claude():
+    from .claude_provider import create_claude
+    return create_claude()
+
+
+# Build provider chain ONCE at import time, but each SDK loads lazily
+PROVIDER_CHAIN = _build_provider_chain()
 
 # In-memory usage stats (reset daily)
 _provider_stats: Dict[str, UsageStats] = {}
