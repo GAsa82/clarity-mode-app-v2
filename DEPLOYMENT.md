@@ -1,259 +1,253 @@
-# Clarity Mode — Deployment Guide
+# Clarity Mode — Production Deployment Guide
 
-## Architecture
-
-```
-Vercel (Frontend — static SPA)
-  └── https://claritymode.vercel.app
-        │
-        │  API calls via VITE_API_URL
-        ▼
-Railway (Backend — FastAPI Python)
-  └── https://your-project.railway.app
-        ├── FastAPI + Uvicorn (4 workers)
-        ├── ChromaDB (vector store, persistent volume)
-        ├── sentence-transformers (embeddings)
-        ├── Supabase (auth + PostgreSQL)
-        └── 7 AI Providers with auto-fallback
-```
-
-## Prerequisites
-
-1. **GitHub account** — push your repo
-2. **Vercel account** — https://vercel.com
-3. **Railway account** — https://railway.app
-4. **Supabase project** — https://supabase.com
-5. **At least one AI API key** — recommend Gemini (free tier)
+This is the complete production deployment guide for the Clarity Mode app (Vercel frontend + Railway backend).
 
 ---
 
-## Step 1: Deploy Backend to Railway
+## 🏗️ Architecture
 
-### 1a. Push to GitHub
-```bash
-git add .
-git commit -m "Ready for production"
-git push
+```
+┌──────────────────────┐      ┌──────────────────────────┐
+│   VERCEL (Frontend)  │ ───▶ │  RAILWAY (Backend API)   │
+│   React + Vite       │      │  FastAPI + Python        │
+│   Static + CDN       │      │  ChromaDB + AI providers │
+└──────────────────────┘      └──────────────────────────┘
+         ▲                                 ▲
+         │                                 │
+         └──── Supabase (Auth + DB) ───────┘
 ```
 
-### 1b. Create Railway Project
-1. Go to https://railway.app/new
-2. Click **Deploy from GitHub repo**
-3. Select your repository
-4. Set **Root Directory** to `clarity-ai/backend`
-5. Railway auto-detects `nixpacks.toml`, `requirements.txt`, `Procfile`, `start.sh`
+| Service | Platform | Purpose |
+|---|---|---|
+| Frontend | Vercel | Static React app, CDN-served |
+| Backend | Railway | FastAPI + ChromaDB + AI providers |
+| Auth + DB | Supabase | User accounts, profiles, diary metadata |
+| Vector Store | Railway Volume | ChromaDB embeddings (persisted) |
 
-### 1c. Configure Environment Variables
-In Railway dashboard → Variables:
+---
 
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `ENV` | `production` | Enables production mode |
-| `GEMINI_API_KEY` | `your-key` | At least one AI key required |
-| `SUPABASE_URL` | `https://xxxxx.supabase.co` | From Supabase Settings → API |
-| `SUPABASE_ANON_KEY` | `your-anon-key` | From Supabase Settings → API |
-| `ALLOWED_ORIGINS` | `https://claritymode.vercel.app` | Your Vercel frontend domain |
-| `CHROMA_PERSIST_DIR` | `/data/chroma_db` | ChromaDB volume path |
-| `UPLOADS_DIR` | `/data/uploads` | Upload storage path |
-| `LOG_LEVEL` | `INFO` | Logging level |
+## 🔐 Environment Variables
 
-### 1d. Create Railway Volume (for ChromaDB persistence)
-1. Go to your Railway project → **Volumes**
-2. Click **New Volume**
-3. Name: `chroma-data`
-4. Mount path: `/data`
-5. Size: 1 GB (sufficient for 10,000+ diary entries)
+### Frontend (Vercel → Project Settings → Environment Variables)
 
-### 1e. Verify Deployment
-```bash
-# Check health endpoint
-curl https://your-project.railway.app/api/health
+| Variable | Required | Description | Example |
+|---|---|---|---|
+| `VITE_API_URL` | ✅ | Full backend URL, no trailing slash | `https://clarity-ai-prod.up.railway.app` |
+| `VITE_SUPABASE_URL` | ✅ | Supabase project URL | `https://xxx.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | ✅ | Supabase anon public key | `eyJhbGciOiJIUzI1...` |
+| `VITE_SITE_URL` | ✅ | Frontend URL for auth redirects | `https://claritymode.vercel.app` |
 
-# Expected response:
-{
-  "status": "ok",
-  "service": "Clarity AI",
-  "checks": {
-    "chromadb": "ok",
-    "embeddings": "ok",
-    "providers": "ok"
-  }
-}
+### Backend (Railway → Variables Tab)
 
-# Check provider status
-curl https://your-project.railway.app/api/chat/providers/status
+| Variable | Required | Description | Default |
+|---|---|---|---|
+| `ENV` | ✅ | Set to `production` | `production` |
+| `PORT` | ❌ | Railway auto-assigns | `8000` |
+| `ALLOWED_ORIGINS` | ✅ | Comma-separated CORS allowlist | (see below) |
+| `LOG_LEVEL` | ❌ | `INFO` recommended | `INFO` |
+| `GEMINI_API_KEY` | ✅ | At least one AI key | from aistudio.google.com |
+| `DEEPSEEK_API_KEY` | ✅ | At least one AI key | from platform.deepseek.com |
+| `OPENAI_API_KEY` | ❌ | Optional fallback | from platform.openai.com |
+| `OPENROUTER_API_KEY` | ❌ | Optional | from openrouter.ai |
+| `ANTHROPIC_API_KEY` | ❌ | Optional | from console.anthropic.com |
+| `SUPABASE_URL` | ✅ | For profile queries | `https://xxx.supabase.co` |
+| `SUPABASE_ANON_KEY` | ✅ | For profile queries | (anon key) |
+| `SUPABASE_SERVICE_ROLE_KEY` | ❌ | Admin ops only | (service role key) |
+| `CHROMA_PERSIST_DIR` | ✅ | Use a Railway Volume path | `/data/chroma_db` |
+| `UPLOADS_DIR` | ✅ | Use a Railway Volume path | `/data/uploads` |
+| `EMBEDDING_MODEL` | ❌ | Sentence-transformers model | `all-MiniLM-L6-v2` |
+| `SITE_URL` | ❌ | Frontend URL for CORS | (matches Vercel URL) |
 
-# Test chat endpoint
-curl -X POST https://your-project.railway.app/api/chat/ \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Hello"}'
+**`ALLOWED_ORIGINS` example:**
+```
+https://claritymode.vercel.app,https://claritymode.com,https://www.claritymode.com
 ```
 
 ---
 
-## Step 2: Deploy Frontend to Vercel
+## 🚀 Step 1 — Deploy Backend to Railway
 
-### 2a. Via Vercel Dashboard
-1. Go to https://vercel.com/new
+### 1.1 Create Railway Project
+1. Go to [railway.app](https://railway.app/) → **New Project** → **Deploy from GitHub repo**
+2. Select your repo
+3. Set the **Root Directory** to `clarity-ai/backend`
+
+### 1.2 Add a Volume (for ChromaDB persistence)
+1. In your Railway service → **Settings** → **Volumes**
+2. Click **+ New Volume**
+3. Mount path: `/data`
+4. This persists ChromaDB data across deployments
+
+### 1.3 Set Environment Variables
+1. In your Railway service → **Variables** tab
+2. Copy the values from `clarity-ai/backend/.env.railway` (replace placeholders with real keys)
+
+### 1.4 Deploy
+- Railway will auto-deploy using `railway.json` and `start.sh`
+- Watch the logs for the startup banner:
+  ```
+  [clarity-ai] CORS allowed origins: [...]
+  [clarity-ai] ✓ ChromaDB initialized
+  [clarity-ai] ✓ Active providers: Gemini Flash, DeepSeek, ...
+  Clarity AI Backend is ready!
+  ```
+
+### 1.5 Get Your Backend URL
+- Go to **Settings** → **Domains** → **Generate Domain**
+- Copy the URL (e.g., `https://clarity-ai-production.up.railway.app`)
+
+### 1.6 Verify Health
+```bash
+curl https://clarity-ai-production.up.railway.app/api/health
+```
+Should return `{"status":"ok",...}`.
+
+---
+
+## 🌐 Step 2 — Deploy Frontend to Vercel
+
+### 2.1 Connect Repo
+1. Go to [vercel.com](https://vercel.com/) → **Add New Project**
 2. Import your GitHub repo
-3. Set **Framework Preset** → `Vite`
-4. **Build Command**: `npm run build`
-5. **Output Directory**: `dist`
-6. Add environment variables (below)
-7. Click **Deploy**
+3. Framework Preset: **Vite** (auto-detected)
+4. Root Directory: `./` (repo root)
 
-### 2b. Set Vercel Environment Variables
+### 2.2 Set Environment Variables
+In Vercel → **Settings** → **Environment Variables**, add:
 
 | Variable | Value |
-|----------|-------|
-| `VITE_API_URL` | `https://your-project.railway.app/api` |
-| `VITE_SUPABASE_URL` | `https://xxxxx.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | `your-anon-key` |
+|---|---|
+| `VITE_API_URL` | `https://clarity-ai-production.up.railway.app` (your Railway URL) |
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key |
+| `VITE_SITE_URL` | `https://claritymode.vercel.app` (your Vercel URL) |
 
-### 2c. Verify Frontend
-```bash
-curl https://claritymode.vercel.app/          # Should return HTML
-curl https://claritymode.vercel.app/login      # Should load login page
-curl https://claritymode.vercel.app/admin      # Should redirect to login
-```
+### 2.3 Deploy
+- Vercel will auto-detect Vite and run `npm run build`
+- The `vercel.json` rewrites SPA routes to `index.html` while preserving `/api/` calls
+- Visit `https://claritymode.vercel.app` to see the live app
+
+### 2.4 Verify
+- Open the site → should load without errors
+- Check the AI Coach page → the error should be **gone**
+- Open DevTools → Network tab → POST `/api/chat/` should go directly to Railway
 
 ---
 
-## Step 3: Configure Supabase
+## 🗄️ Step 3 — Set Up Supabase
 
-### 3a. Create Project
-1. Go to https://supabase.com → **New Project**
-2. Note your **Project URL** and **anon key** from Settings → API
-
-### 3b. Run Schema
-1. Go to **SQL Editor**
-2. Copy contents of `supabase-schema.sql`
-3. Click **Run**
-
-### 3c. Configure Auth
-1. Go to **Authentication** → **Settings** → **Auth Providers**
-2. Enable **Email** (passwordless sign-in)
-3. Go to **URL Configuration**:
+1. Create a project at [supabase.com](https://supabase.com/)
+2. Go to **SQL Editor** → paste the contents of `supabase-schema.sql` → **Run**
+3. Go to **Authentication** → **Settings**:
    - Site URL: `https://claritymode.vercel.app`
    - Redirect URLs: `https://claritymode.vercel.app/**`
-   - Add: `https://claritymode.vercel.app/reset-password`
+4. Go to **Settings** → **API**:
+   - Copy **Project URL** → use as `VITE_SUPABASE_URL` (frontend) and `SUPABASE_URL` (backend)
+   - Copy **anon public** key → use as `VITE_SUPABASE_ANON_KEY` (frontend)
+   - Copy **anon public** key → use as `SUPABASE_ANON_KEY` (backend)
+   - Copy **service_role** key → use as `SUPABASE_SERVICE_ROLE_KEY` (backend only)
+
+5. Create your admin user:
+   - **Authentication** → **Users** → **Add user** → email: `admin@claritymode.com`
+   - Then **SQL Editor** → run:
+   ```sql
+   UPDATE profiles SET role = 'admin' WHERE email = 'admin@claritymode.com';
+   ```
 
 ---
 
-## Step 4: Verify Production Readiness
+## 🔑 Step 4 — Configure AI Provider Keys
 
-### Health Check
-```bash
-curl https://your-project.railway.app/api/health
-# Expect: {"status":"ok", "checks":{"chromadb":"ok","embeddings":"ok","providers":"ok"}}
-```
+Get at least one of these:
 
-### AI Provider Chain
-```bash
-curl https://your-project.railway.app/api/chat/providers/status
-# Expect:
-#   Gemini Flash (enabled)
-#   Qwen (Local) (disabled — no Ollama in production)
-#   DeepSeek (disabled — no key)
-#   etc.
-```
+| Provider | Free Tier | URL |
+|---|---|---|
+| **Gemini (recommended)** | Yes (Flash) | https://aistudio.google.com/app/apikey |
+| **DeepSeek** | ~$0.14/M tokens | https://platform.deepseek.com/api_keys |
+| OpenAI | Pay-as-you-go | https://platform.openai.com/api-keys |
+| Claude | Pay-as-you-go | https://console.anthropic.com/ |
 
-### File Processing (RAG Pipeline)
-The full pipeline is verified working:
-```
-Upload (.txt, .pdf, .jpg) → OCR (PaddleOCR/pdf2image) →
-  Chunk (500-word overlap) → Embeddings (all-MiniLM-L6-v2) →
-  ChromaDB (vector store) → Entity extraction (configurable AI provider)
-  
-Chat query → Embeddings → ChromaDB similarity search →
-  Provider-agnostic AI (auto-fallback chain) → Response
-```
-
-### Auth Flow
-```bash
-# Login page loads
-curl https://claritymode.vercel.app/login
-
-# Admin pages are protected
-curl https://claritymode.vercel.app/admin  # Redirects to /login
-
-# Password reset available
-curl https://claritymode.vercel.app/reset-password
-```
+Add the keys to Railway backend variables.
 
 ---
 
-## Step 5: Production Checklist
+## 🧪 Step 5 — Test End-to-End
 
-### Backend (Railway)
-- [ ] `ENV=production` set
-- [ ] At least one AI provider API key configured (`GEMINI_API_KEY`)
-- [ ] `SUPABASE_URL` and `SUPABASE_ANON_KEY` set
-- [ ] `CHROMA_PERSIST_DIR=/data/chroma_db` set
-- [ ] Railway Volume "chroma-data" mounted at `/data`
-- [ ] `ALLOWED_ORIGINS` includes your Vercel domain
-- [ ] `start.sh` is executable
-- [ ] Health endpoint returns `"status":"ok"`
-- [ ] Provider status shows at least one enabled
-
-### Frontend (Vercel)
-- [ ] `VITE_API_URL` points to Railway backend
-- [ ] `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` set
-- [ ] SPA routing works (all paths load index.html)
-- [ ] Build completes without errors
-- [ ] Cache headers configured (1 year for assets)
-
-### Supabase
-- [ ] SQL schema applied (profiles, diaries, upload_history tables)
-- [ ] RLS policies enabled
-- [ ] Auth configured with correct Site URL and redirects
-- [ ] Email auth provider enabled
-
-### Domain (Optional)
-- [ ] Custom domain configured in Vercel
-- [ ] Custom domain configured in Railway
-- [ ] SSL certificates active
-- [ ] DNS records updated
-
----
-
-## Verifying AI Endpoints
-
-### Test Chat
 ```bash
-curl -X POST https://your-project.railway.app/api/chat/ \
+# 1. Health check
+curl https://clarity-ai-production.up.railway.app/api/health
+
+# 2. Test chat
+curl -X POST https://clarity-ai-production.up.railway.app/api/chat/ \
   -H "Content-Type: application/json" \
-  -d '{"query":"How are you?"}'
-```
-Expected response includes: `model_used`, `provider_name`, `fallback_occurred`, `latency_ms`
+  -d '{"query":"Hello","n_results":3,"include_philosophy":false}'
 
-### Test Provider Dashboard
-```bash
-# Active provider stats
-curl https://your-project.railway.app/api/chat/providers/stats
-
-# Provider chain status
-curl https://your-project.railway.app/api/chat/providers/status
+# 3. Open browser
+open https://claritymode.vercel.app
+# Go to AI Coach → send a message → should get a real AI response
 ```
-
-### Test File Upload
-```bash
-# Upload a text file
-curl -X POST https://your-project.railway.app/api/upload/ \
-  -F "file=@test_diary.txt"
-```
-Expected: `{"status":"completed", "chunks_count":N}`
 
 ---
 
-## Local Development
+## 🛠️ Local Development
 
 ```bash
-# Terminal 1: Start backend
+# Terminal 1: Backend
 cd clarity-ai/backend
-python main.py
-# → http://localhost:8000 | docs at /docs
+pip install -r requirements.txt
+set PYTHONPATH=%CD%
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 
-# Terminal 2: Start frontend
+# Terminal 2: Frontend
+cd (repo root)
+npm install
 npm run dev
-# → http://localhost:8080 | API proxied to backend
+# Open http://localhost:8080
+```
+
+The Vite dev server proxies `/api` to `http://localhost:8000` automatically.
+
+---
+
+## 🐛 Troubleshooting
+
+### AI Coach says "Unable to connect to AI backend"
+- ✅ Check that `VITE_API_URL` is set in Vercel to your Railway URL (no trailing slash)
+- ✅ Check that Railway backend `/api/health` returns 200
+- ✅ Check CORS: `ALLOWED_ORIGINS` in Railway must include your Vercel URL
+
+### ChromaDB errors on startup
+- ✅ Ensure Railway has a **Volume** mounted at `/data`
+- ✅ Set `CHROMA_PERSIST_DIR=/data/chroma_db` and `UPLOADS_DIR=/data/uploads`
+
+### "No AI providers configured"
+- ✅ At least one of `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, etc. must be set
+- ✅ Keys must be valid — test directly with the provider's API
+
+### Auth errors
+- ✅ Verify Supabase Site URL matches your deployed frontend
+- ✅ Verify Redirect URLs include `https://yourdomain.com/**`
+- ✅ Check the Supabase logs for failed login attempts
+
+---
+
+## 📊 Monitoring
+
+- **Railway Metrics**: CPU, memory, request count, error rate
+- **Health endpoint**: `GET /api/health` — returns provider status, ChromaDB, embeddings
+- **Logs**: `clarity-ai` logger writes to stdout (Railway captures)
+- **Vercel Analytics**: Built-in Web Vitals + function logs
+
+---
+
+## 💰 Cost Estimate (free tier)
+
+| Service | Free Tier | Notes |
+|---|---|---|
+| Vercel | 100 GB bandwidth/mo | Frontend hosting |
+| Railway | $5 credit/mo | Enough for ~1 backend instance |
+| Supabase | 500 MB DB, 50k auth users | Auth + storage |
+| Gemini Flash | 15 RPM, 1M tokens/day | AI chat |
+| DeepSeek | ~$0.14/M tokens | Cheap fallback |
+
+**Total estimated cost: $0–5/month** for low-traffic production.
