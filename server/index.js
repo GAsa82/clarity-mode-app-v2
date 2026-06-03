@@ -141,7 +141,95 @@ app.post('/api/signin', requireApiKey, async (req, res) => {
   res.json({ ok: true, sent: false });
 });
 
+// ─── Proxy: forward AI/API routes to FastAPI backend ──────────────────────────
+// The Express server handles: /api/send-whatsapp, /api/subscribe, /api/signin
+// All other /api/* routes are proxied to the FastAI backend on port 8000.
+// This is only used in local development (npm run server).
+// In production, Vercel rewrites /api/* directly to the Railway backend.
+const BACKEND_PORT = process.env.BACKEND_PORT || 8000;
+const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
+
+app.use("/api/chat", async (req, res) => {
+  try {
+    const response = await axios({
+      method: req.method,
+      url: `${BACKEND_URL}${req.originalUrl}`,
+      data: req.body,
+      headers: { "Content-Type": "application/json" },
+      timeout: 60000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    const status = err?.response?.status || 502;
+    const data = err?.response?.data || { detail: "Backend unavailable" };
+    console.error(`[proxy] ${req.method} ${req.originalUrl} -> ${status}`);
+    res.status(status).json(data);
+  }
+});
+
+app.use("/api/health", async (req, res) => {
+  try {
+    const response = await axios.get(`${BACKEND_URL}/api/health`, { timeout: 5000 });
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    res.status(200).json({ status: "ok", service: "Clarity AI (degraded)", version: "1.0.0" });
+  }
+});
+
+app.use("/api/upload", async (req, res) => {
+  try {
+    const response = await axios({
+      method: req.method,
+      url: `${BACKEND_URL}${req.originalUrl}`,
+      data: req.body,
+      headers: { "Content-Type": "application/json" },
+      timeout: 120000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    const status = err?.response?.status || 502;
+    const data = err?.response?.data || { detail: "Backend unavailable" };
+    res.status(status).json(data);
+  }
+});
+
+app.use("/api/upload-diary", async (req, res) => {
+  try {
+    // Forward multipart form data
+    const response = await axios({
+      method: req.method,
+      url: `${BACKEND_URL}${req.originalUrl}`,
+      data: req.body,
+      headers: { "Content-Type": req.headers["content-type"] || "application/json" },
+      timeout: 120000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    const status = err?.response?.status || 502;
+    const data = err?.response?.data || { detail: "Backend unavailable" };
+    res.status(status).json(data);
+  }
+});
+
+app.use("/api/dashboard", async (req, res) => {
+  try {
+    const response = await axios({
+      method: req.method,
+      url: `${BACKEND_URL}${req.originalUrl}`,
+      data: req.body,
+      timeout: 30000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    const status = err?.response?.status || 502;
+    const data = err?.response?.data || { detail: "Backend unavailable" };
+    res.status(status).json(data);
+  }
+});
+
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, () => {
-  console.log(`API server running on http://localhost:${port}`);
+  console.log(`\n  Clarity Mode local server running on http://localhost:${port}`);
+  console.log(`  Proxying /api/chat, /api/health, /api/upload, /api/dashboard -> ${BACKEND_URL}`);
+  console.log();
 });
