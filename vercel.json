@@ -1,7 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "https://clarity-mode-app-v2-production.up.railway.app/api/$1"
+    },
+    {
+      "source": "/((?!api/|assets/|favicon|robots|bg-cover|placeholder).*)",
       "destination": "/index.html"
     }
   ],
@@ -29,6 +33,10 @@
         {
           "key": "Referrer-Policy",
           "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
         }
       ]
     }
