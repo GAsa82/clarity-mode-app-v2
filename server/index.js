@@ -142,12 +142,36 @@ app.post('/api/signin', requireApiKey, async (req, res) => {
 });
 
 // ─── Proxy: forward AI/API routes to FastAPI backend ──────────────────────────
-// The Express server handles: /api/send-whatsapp, /api/subscribe, /api/signin
-// All other /api/* routes are proxied to the FastAI backend on port 8000.
-// This is only used in local development (npm run server).
-// In production, Vercel rewrites /api/* directly to the Railway backend.
 const BACKEND_PORT = process.env.BACKEND_PORT || 8000;
 const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
+
+// ─── Debug endpoint: test connectivity to Express + FastAPI ───────────────────
+app.get("/api/debug", async (req, res) => {
+  const result = { express: "ok", fastapi: "unknown", ai_provider: "unknown" };
+  try {
+    const resp = await axios.get(`${BACKEND_URL}/health`, { timeout: 5000 });
+    result.fastapi = resp.data?.status === "ok" ? "ok" : `error: ${resp.data?.status}`;
+    // Try to get provider status
+    try {
+      const pResp = await axios.get(`${BACKEND_URL}/api/chat/providers/status`, { timeout: 5000 });
+      result.ai_provider = pResp.data?.count > 0 ? "ok" : "no providers enabled";
+    } catch {
+      result.ai_provider = "unreachable";
+    }
+  } catch (err) {
+    result.fastapi = `unreachable: ${err?.message}`;
+    result.ai_provider = "unreachable";
+  }
+  res.json(result);
+});
+
+// ─── Request logger (for debugging) ─────────────────────────────────────────
+app.use("/api", (req, res, next) => {
+  console.log(`[express] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// ─── Proxy targets (local dev only — in production Vercel rewrites to Railway)
 
 app.use("/api/chat", async (req, res) => {
   try {

@@ -1,4 +1,21 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// ─────────────────────────────────────────────────────────────────────────────
+// Clarity AI — Frontend API Client (Production-Ready)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// In dev mode: Vite proxy matches /api/* and forwards to Express (3001) → FastAPI (8000)
+// In production: vercel.json rewrites /api/* to Railway backend
+// API_BASE is always "" because the paths below already include /api/
+const API_BASE: string =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") || "";
+
+// ─── Logging helper (production-safe) ────────────────────────────────────────
+const isProd = import.meta.env.MODE === "production";
+function log(level: "info" | "warn" | "error", msg: string, extra?: unknown) {
+  const line = `[ClarityAI] [${level.toUpperCase()}] ${msg}`;
+  if (level === "error") console.error(line, extra ?? "");
+  else if (level === "warn") console.warn(line, extra ?? "");
+  else if (!isProd) console.info(line, extra ?? "");
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -18,12 +35,15 @@ export interface HealthStatus {
     total_requests: number;
     total_errors: number;
   };
-  providers: Record<string, {
-    enabled: boolean;
-    model: string;
-    free: boolean;
-    priority: number;
-  }>;
+  providers: Record<
+    string,
+    {
+      enabled: boolean;
+      model: string;
+      free: boolean;
+      priority: number;
+    }
+  >;
 }
 
 export interface UploadResult {
@@ -89,87 +109,193 @@ export interface ProviderStats {
   last_error: string | null;
 }
 
-// ─── API Functions ───────────────────────────────────────────────────────────
+// ─── Internal fetch wrapper with timeout + retry ─────────────────────────────
+
+interface FetchOptions {
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  body?: unknown;
+  formData?: FormData;
+  timeoutMs?: number;
+  retries?: number;
+  retryDelayMs?: number;
+}
+
+const DEFAULT_TIMEOUT = 30_000; // 30s
+const DEFAULT_RETRIES = 2;
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof TypeError) {
+    const msg = (err.message || "").toLowerCase();
+    return (
+      msg.includes("failed to fetch") ||
+      msg.includes("networkerror") ||
+      msg.includes("load failed")
+    );
+  }
+  return false;
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  const {
+    method = "GET",
+    body,
+    formData,
+    timeoutMs = DEFAULT_TIMEOUT,
+    retries = DEFAULT_RETRIES,
+    retryDelayMs = 1000,
+  } = opts;
+
+  const url = `${API_BASE}${path}`;
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: formData
+          ? undefined
+          : { "Content-Type": "application/json", Accept: "application/json" },
+        body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
+        signal: controller.signal,
+        credentials: "omit",
+        mode: "cors",
+      });
+      clearTimeout(timer);
+
+      if (res.ok) {
+        // 204 No Content
+        if (res.status === 204) return undefined as T;
+        return (await res.json()) as T;
+      }
+
+      // Try to read JSON error
+      const errBody = await res
+        .json()
+        .catch(() => ({ detail: res.statusText || `HTTP ${res.status}` }));
+      const errMsg = errBody?.detail || `HTTP ${res.status}`;
+
+      if (RETRYABLE_STATUS.has(res.status) && attempt < retries) {
+        log(
+          "warn",
+          `Retryable ${res.status} on ${path} (attempt ${attempt + 1}/${retries})`,
+        );
+        await sleep(retryDelayMs * Math.pow(2, attempt));
+        continue;
+      }
+      throw new Error(errMsg);
+    } catch (err: any) {
+      clearTimeout(timer);
+      lastErr = err;
+      const retryable =
+        isNetworkError(err) || err?.name === "AbortError" || RETRYABLE_STATUS.has(0);
+      if (retryable && attempt < retries) {
+        log(
+          "warn",
+          `Retrying ${path} (attempt ${attempt + 1}/${retries}): ${err?.message || err}`,
+        );
+        await sleep(retryDelayMs * Math.pow(2, attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr ?? new Error("Unknown API error");
+}
+
+// ─── Public API Functions ────────────────────────────────────────────────────
 
 export async function healthCheck(): Promise<HealthStatus> {
-  const res = await fetch(`${API_BASE}/health`);
-  if (!res.ok) throw new Error(`Backend offline: ${res.status}`);
-  return res.json();
+  return apiFetch<HealthStatus>("/api/health", { timeoutMs: 8000, retries: 1 });
 }
 
 export async function uploadDiary(file: File): Promise<UploadResult> {
   const formData = new FormData();
-  formData.append('file', file);
-  const res = await fetch(`${API_BASE}/upload-diary`, {
-    method: 'POST',
-    body: formData,
+  formData.append("file", file);
+  return apiFetch<UploadResult>("/api/upload-diary", {
+    method: "POST",
+    formData,
+    timeoutMs: 120_000,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Upload failed: ${res.status}`);
-  }
-  return res.json();
 }
 
 export async function uploadFile(file: File): Promise<FullUploadResult> {
   const formData = new FormData();
-  formData.append('file', file);
-  const res = await fetch(`${API_BASE}/upload/`, {
-    method: 'POST',
-    body: formData,
+  formData.append("file", file);
+  return apiFetch<FullUploadResult>("/api/upload/", {
+    method: "POST",
+    formData,
+    timeoutMs: 120_000,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Upload failed: ${res.status}`);
-  }
-  return res.json();
 }
 
 export async function chatWithAI(
   query: string,
-  n_results = 10
+  n_results = 10,
 ): Promise<ChatResponse> {
-  const res = await fetch(`${API_BASE}/chat/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, n_results, include_philosophy: true }),
+  return apiFetch<ChatResponse>("/api/chat/", {
+    method: "POST",
+    body: { query, n_results, include_philosophy: true },
+    timeoutMs: 60_000,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Chat failed: ${res.status}`);
-  }
-  return res.json();
 }
 
 export async function getDashboard(): Promise<DashboardStats> {
-  const res = await fetch(`${API_BASE}/dashboard/`);
-  if (!res.ok) throw new Error(`Dashboard fetch failed: ${res.status}`);
-  return res.json();
+  return apiFetch<DashboardStats>("/api/dashboard/");
 }
 
-export async function getPatterns(period = 'monthly'): Promise<{
-  period: string;
-  patterns: { type: string; data: Record<string, number> }[];
-  emotional_trends: Record<string, unknown>;
-  insights: string[];
-}> {
-  const res = await fetch(`${API_BASE}/dashboard/patterns?period=${period}`);
-  if (!res.ok) throw new Error(`Patterns fetch failed: ${res.status}`);
-  return res.json();
+export async function getPatterns(period = "monthly") {
+  return apiFetch<{
+    period: string;
+    patterns: { type: string; data: Record<string, number> }[];
+    emotional_trends: Record<string, unknown>;
+    insights: string[];
+  }>(`/api/dashboard/patterns?period=${period}`);
 }
 
 export async function getProviderStats(): Promise<Record<string, ProviderStats>> {
-  const res = await fetch(`${API_BASE}/chat/providers/stats`);
-  if (!res.ok) throw new Error(`Provider stats fetch failed: ${res.status}`);
-  return res.json();
+  return apiFetch<Record<string, ProviderStats>>("/api/chat/providers/stats");
 }
 
-export async function getProviderStatus(): Promise<{
-  providers: { name: string; model: string; enabled: boolean; is_free: boolean; priority: number }[];
-  count: number;
-  chain_description: string;
-}> {
-  const res = await fetch(`${API_BASE}/chat/providers/status`);
-  if (!res.ok) throw new Error(`Provider status fetch failed: ${res.status}`);
-  return res.json();
+export async function getProviderStatus() {
+  return apiFetch<{
+    providers: { name: string; model: string; enabled: boolean; is_free: boolean; priority: number }[];
+    count: number;
+    chain_description: string;
+  }>("/api/chat/providers/status");
+}
+
+// ─── Health probe for frontend status banner ─────────────────────────────────
+
+export interface BackendHealthState {
+  online: boolean;
+  message: string;
+  lastChecked: number;
+}
+
+export async function probeBackend(): Promise<BackendHealthState> {
+  try {
+    const h = await healthCheck();
+    return {
+      online: h.status === "ok",
+      message:
+        h.status === "ok"
+          ? "AI backend connected"
+          : `Backend returned: ${h.status}`,
+      lastChecked: Date.now(),
+    };
+  } catch (err: any) {
+    return {
+      online: false,
+      message:
+        "Unable to connect to AI backend. Please make sure the clarity-ai server is running.",
+      lastChecked: Date.now(),
+    };
+  }
 }
