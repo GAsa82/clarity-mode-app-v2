@@ -16,31 +16,38 @@ export interface Subscription {
 export function useSubscription() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchSubscription = useCallback(async () => {
     if (!user || !isSupabaseReady()) { setLoading(false); return; }
 
     setLoading(true);
-    const { data } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .in("status", ["active", "trialing"])
-      .gte("current_period_end", new Date().toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+
+    const [{ data: profile }, { data: sub }] = await Promise.all([
+      supabase.from("profiles").select("role").eq("id", user.id).single(),
+      supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["active", "trialing"])
+        .gte("current_period_end", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    setIsAdmin(profile?.role === "admin");
 
     setSubscription(
-      data
+      sub
         ? {
-            plan:                   data.plan as Plan,
-            status:                 data.status,
-            currentPeriodEnd:       data.current_period_end,
-            cancelAtPeriodEnd:      data.cancel_at_period_end,
-            provider:               data.provider,
-            providerSubscriptionId: data.provider_subscription_id,
+            plan:                   sub.plan as Plan,
+            status:                 sub.status,
+            currentPeriodEnd:       sub.current_period_end,
+            cancelAtPeriodEnd:      sub.cancel_at_period_end,
+            provider:               sub.provider,
+            providerSubscriptionId: sub.provider_subscription_id,
           }
         : null
     );
@@ -51,8 +58,8 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  const isPremium = !loading && subscription !== null;
-  const plan: Plan = subscription?.plan ?? "free";
+  const isPremium = !loading && (subscription !== null || isAdmin);
+  const plan: Plan = isAdmin ? "annual" : (subscription?.plan ?? "free");
 
-  return { subscription, isPremium, plan, loading, refetch: fetchSubscription };
+  return { subscription, isPremium, isAdmin, plan, loading, refetch: fetchSubscription };
 }
