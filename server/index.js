@@ -7,8 +7,15 @@ import sgMail from "@sendgrid/mail";
 dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+// Permissive CORS for local dev — Vite proxy at 8080-8090, any localhost
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+}));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID?.trim();
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
@@ -169,6 +176,15 @@ app.get("/api/debug", async (req, res) => {
 app.use("/api", (req, res, next) => {
   console.log(`[express] ${req.method} ${req.originalUrl}`);
   next();
+});
+
+// ─── Handle CORS preflight for all /api/* routes ─────────────────────────────
+app.options("/api/*", (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,x-api-key");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.sendStatus(204);
 });
 
 // ─── Proxy targets (local dev only — in production Vercel rewrites to Railway)
