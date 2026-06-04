@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { getVerifiedUserId } from "../_auth.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -12,19 +13,28 @@ const PRICES = {
   annual:  process.env.STRIPE_PRICE_ANNUAL,
 };
 
+const ORIGIN = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).end();
 
-  const { plan, userId, userEmail } = req.body;
+  const userId = await getVerifiedUserId(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
+  const { plan } = req.body;
   if (!PRICES[plan]) return res.status(400).json({ error: "Invalid plan" });
-  if (!userId)       return res.status(400).json({ error: "userId required" });
 
-  const siteUrl = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .single();
+
+  const siteUrl = ORIGIN;
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -33,7 +43,7 @@ export default async function handler(req, res) {
       line_items: [{ price: PRICES[plan], quantity: 1 }],
       success_url: `${siteUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${siteUrl}/pricing`,
-      customer_email: userEmail,
+      customer_email: profile?.email,
       metadata: { userId, plan },
       subscription_data: { metadata: { userId, plan } },
     });
@@ -41,6 +51,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: session.url, sessionId: session.id });
   } catch (err) {
     console.error("[Stripe checkout]", err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Checkout failed" });
   }
 }

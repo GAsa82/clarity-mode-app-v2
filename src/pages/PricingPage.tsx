@@ -85,7 +85,7 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 export default function PricingPage() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { isPremium, plan: currentPlan, refetch } = useSubscription();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
@@ -96,8 +96,11 @@ export default function PricingPage() {
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, userId: user.id, userEmail: user.email }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ plan }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -119,8 +122,11 @@ export default function PricingPage() {
     try {
       const res = await fetch("/api/razorpay/order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, userId: user.id }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ plan }),
       });
       const order = await res.json();
       if (order.error) throw new Error(order.error);
@@ -135,12 +141,14 @@ export default function PricingPage() {
         handler: async (response: any) => {
           const verify = await fetch("/api/razorpay/verify", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.access_token}`,
+            },
             body: JSON.stringify({
               razorpay_order_id:   response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature:  response.razorpay_signature,
-              userId: user.id,
               plan,
             }),
           });
@@ -170,8 +178,11 @@ export default function PricingPage() {
     setLoading("portal");
     const res = await fetch("/api/stripe/portal", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({}),
     });
     const data = await res.json();
     if (data.url) window.location.href = data.url;

@@ -92,6 +92,17 @@ export default async function handler(req, res) {
         }).eq("user_id", userId);
       }
     }
+
+    // ── Payment failed → mark past_due ─────────────────────────
+    if (event.type === "invoice.payment_failed") {
+      const customerId = obj.customer;
+      if (customerId) {
+        await supabase.from("subscriptions").update({
+          status:     "past_due",
+          updated_at: new Date().toISOString(),
+        }).eq("provider_customer_id", customerId);
+      }
+    }
   } catch (err) {
     console.error("[Stripe webhook] db error:", err);
   }

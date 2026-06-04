@@ -1,4 +1,5 @@
 import Razorpay from "razorpay";
+import { getVerifiedUserId } from "../_auth.js";
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,
@@ -8,16 +9,20 @@ const razorpay = new Razorpay({
 // INR pricing (paise): premium ₹999/mo · annual ₹7399/yr
 const AMOUNTS = { premium: 99900, annual: 739900 };
 
+const ORIGIN = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).end();
 
-  const { plan, userId } = req.body;
+  const userId = await getVerifiedUserId(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  const { plan } = req.body;
   if (!AMOUNTS[plan]) return res.status(400).json({ error: "Invalid plan" });
-  if (!userId)        return res.status(400).json({ error: "userId required" });
 
   try {
     const order = await razorpay.orders.create({
@@ -30,10 +35,9 @@ export default async function handler(req, res) {
       orderId:  order.id,
       amount:   order.amount,
       currency: order.currency,
-      keyId:    process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) {
     console.error("[Razorpay order]", err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Order creation failed" });
   }
 }

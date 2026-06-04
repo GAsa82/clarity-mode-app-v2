@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { getVerifiedUserId } from "../_auth.js";
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -7,19 +8,22 @@ const supabase = createClient(
 );
 
 const AMOUNTS = { premium: 99900, annual: 739900 };
+const ORIGIN  = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).end();
+
+  const userId = await getVerifiedUserId(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const {
     razorpay_order_id,
     razorpay_payment_id,
     razorpay_signature,
-    userId,
     plan,
   } = req.body;
 
@@ -27,10 +31,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing payment fields" });
 
   // Verify HMAC signature
-  const body = `${razorpay_order_id}|${razorpay_payment_id}`;
   const expected = crypto
     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-    .update(body)
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
     .digest("hex");
 
   if (expected !== razorpay_signature)
