@@ -1,5 +1,15 @@
 {
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/api/keep-alive",
+      "destination": "/api/keep-alive"
+    },
     {
       "source": "/api/(.*)",
       "destination": "https://clarity-mode-app-v2-production.up.railway.app/api/$1"

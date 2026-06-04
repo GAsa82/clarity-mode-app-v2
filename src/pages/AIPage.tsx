@@ -64,12 +64,44 @@ const suggestedPrompts = [
 export default function AIPage() {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [healthError, setHealthError] = useState(false);
+  const [healthState, setHealthState] = useState<"checking" | "starting" | "online" | "offline">("checking");
 
   useEffect(() => {
-    healthCheck()
-      .then(setHealth)
-      .catch(() => setHealthError(true));
+    let retries = 0;
+    const MAX_RETRIES = 12; // 12 × 10 s = 2 min before giving up
+    let pollTimer: ReturnType<typeof setInterval>;
+    let keepAliveTimer: ReturnType<typeof setInterval>;
+
+    const poll = () => {
+      healthCheck()
+        .then((h) => {
+          setHealth(h);
+          setHealthState("online");
+          clearInterval(pollTimer);
+        })
+        .catch(() => {
+          retries++;
+          if (retries >= MAX_RETRIES) {
+            setHealthState("offline");
+            clearInterval(pollTimer);
+          } else {
+            setHealthState("starting");
+          }
+        });
+    };
+
+    poll();
+    pollTimer = setInterval(poll, 10_000);
+
+    // Keep Railway alive while this page is open (ping every 4 min)
+    keepAliveTimer = setInterval(() => {
+      healthCheck().then(setHealth).catch(() => {});
+    }, 4 * 60_000);
+
+    return () => {
+      clearInterval(pollTimer);
+      clearInterval(keepAliveTimer);
+    };
   }, []);
 
   return (
@@ -82,10 +114,12 @@ export default function AIPage() {
           <div className="text-center mb-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-4">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              {health ? (
+              {healthState === "online" && health ? (
                 <span>AI Online — {health.checks.providers === "ok" ? health.service : "Limited Mode"}</span>
-              ) : healthError ? (
-                <span>AI Offline — Start the backend</span>
+              ) : healthState === "offline" ? (
+                <span>AI Unavailable — Try again later</span>
+              ) : healthState === "starting" ? (
+                <span>Starting AI engine...</span>
               ) : (
                 <span>Connecting...</span>
               )}

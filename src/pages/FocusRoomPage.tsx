@@ -271,7 +271,7 @@ export const FocusRoomPage = () => {
                   transition={{ duration: 0.5, delay: 0.1 }}
                   className="rounded-2xl bg-card-elevated border border-border p-4"
                 >
-                  <WebcamGrid />
+                  <WebcamGrid roomSlug={room.slug} />
                 </motion.div>
               </div>
 

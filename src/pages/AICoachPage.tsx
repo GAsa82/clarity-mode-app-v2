@@ -53,7 +53,7 @@ export default function AICoachPage() {
         {
           role: "assistant",
           content:
-            "I'm having trouble connecting to the AI backend. Please make sure the clarity-ai server is running, or try again later.",
+            "I'm having trouble reaching the AI engine right now. It may be waking up — please wait a moment and try again.",
         },
       ]);
     } finally {
