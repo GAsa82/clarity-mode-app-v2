@@ -4,6 +4,7 @@ import { Footer } from "@/components/Footer";
 import { WhatsAppChat } from "@/components/WhatsAppChat";
 import { Sparkles, Send, Bot, User, BookOpen, Lightbulb, TrendingUp } from "lucide-react";
 import { chatWithAI, type ChatResponse } from "@/lib/clarity-ai-api";
+import { PremiumGate } from "@/components/PremiumGate";
 
 interface Message {
   role: "user" | "assistant";
@@ -64,7 +65,7 @@ export default function AICoachPage() {
   return (
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
       <Navbar />
-
+      <PremiumGate feature="AI Coach">
       <div className="pt-24 pb-12 px-4">
         <div className="max-w-3xl mx-auto">
           {/* Header */}
@@ -199,6 +200,7 @@ export default function AICoachPage() {
         </div>
       </div>
 
+      </PremiumGate>
       <Footer />
       <WhatsAppChat />
     </main>

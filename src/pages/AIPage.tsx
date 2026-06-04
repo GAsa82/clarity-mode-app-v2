@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type ChangeEvent, type DragEvent } from "r
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { WhatsAppChat } from "@/components/WhatsAppChat";
+import { PremiumGate } from "@/components/PremiumGate";
 import {
   healthCheck,
   uploadDiary,
@@ -107,7 +108,7 @@ export default function AIPage() {
   return (
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
       <Navbar />
-
+      <PremiumGate feature="AI Insights &amp; diary analysis">
       <div className="pt-24 pb-12 px-4">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -187,6 +188,7 @@ export default function AIPage() {
         </div>
       </div>
 
+      </PremiumGate>
       <Footer />
       <WhatsAppChat />
     </main>

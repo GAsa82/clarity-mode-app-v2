@@ -21,6 +21,8 @@ import { FocusRoomPage } from "./pages/FocusRoomPage";
 import AIPage from "./pages/AIPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
+import PricingPage from "./pages/PricingPage";
+import PaymentSuccess from "./pages/payment/PaymentSuccess";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -45,14 +47,18 @@ const App = () => (
               {/* Public routes */}
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/ai-coach" element={<AICoachPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
               <Route path="/insights" element={<InsightsPage />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/refunds" element={<Refunds />} />
-              <Route path="/ai" element={<AIPage />} />
               <Route path="/room/:slug" element={<FocusRoomPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+              {/* Premium-gated routes (gate handled inside each page) */}
+              <Route path="/ai-coach" element={<AICoachPage />} />
+              <Route path="/ai" element={<AIPage />} />
 
               {/* Admin routes - protected */}
               <Route
