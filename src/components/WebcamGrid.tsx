@@ -227,8 +227,19 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
     }
 
     stream.getAudioTracks().forEach(t => { t.enabled = false; });
+
+    // ── Debug: confirm stream from getUserMedia ──
+    console.log('[cam:start] getUserMedia succeeded', {
+      streamId: stream.id,
+      active: stream.active,
+      videoTracks: stream.getVideoTracks().map(t => ({
+        label: t.label, enabled: t.enabled, muted: t.muted, readyState: t.readyState,
+      })),
+      audioTracks: stream.getAudioTracks().map(t => ({ enabled: t.enabled })),
+    });
+
     localStreamRef.current = stream;
-    setLocalStream(stream);   // React state — triggers re-render with stream available
+    setLocalStream(stream);
     setCameraOn(true);
     setupChannel(stream);
   }
@@ -415,23 +426,48 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
 };
 
 // ── LocalVideo ─────────────────────────────────────────────────────────────────
-// Mirrors RemoteVideo — separate stable component so srcObject is set once on mount
+// Uses a useCallback ref so srcObject is attached synchronously during React's
+// commit phase — before the first browser paint — preventing the black-frame flash.
+// useCallback([stream]) means the ref only re-fires when the stream object changes.
 function LocalVideo({ stream, blur }: { stream: MediaStream; blur: boolean }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const el = ref.current;
+  const videoRef = useCallback((el: HTMLVideoElement | null) => {
     if (!el) return;
+
+    // ── Debug: verify stream health ──
+    const vtracks = stream.getVideoTracks();
+    console.log('[cam:local] attaching stream', {
+      streamId: stream.id,
+      active: stream.active,
+      videoTracks: vtracks.map(t => ({
+        label: t.label,
+        enabled: t.enabled,
+        muted: t.muted,        // system-level mute (true = no frames)
+        readyState: t.readyState,
+      })),
+    });
+
     el.srcObject = stream;
-    el.muted = true;
-    el.play().catch(() => {});
-    return () => { el.srcObject = null; };
+    el.muted = true;           // must be true for autoplay without gesture
+
+    el.play()
+      .then(() => console.log('[cam:local] play() succeeded, readyState:', el.readyState))
+      .catch(err => console.warn('[cam:local] play() failed:', err.name, err.message));
+
+    console.log('[cam:local] video element after attach', {
+      srcObject: el.srcObject,
+      readyState: el.readyState,
+      paused: el.paused,
+    });
   }, [stream]);
+
   return (
     <video
-      ref={ref}
+      ref={videoRef}
       autoPlay
       muted
       playsInline
+      // Safety net: if autoPlay or the ref didn't start playback, canPlay will
+      onCanPlay={e => { (e.currentTarget as HTMLVideoElement).play().catch(() => {}); }}
       className={`w-full h-full object-cover ${blur ? "blur-md" : ""}`}
     />
   );
