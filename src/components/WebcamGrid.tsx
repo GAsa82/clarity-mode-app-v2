@@ -19,23 +19,53 @@ interface Props {
 }
 
 export const WebcamGrid = ({ roomSlug }: Props) => {
-  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraOn, setCameraOn]     = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [micOn, setMicOn] = useState(false);
-  const [blurBg, setBlurBg] = useState(false);
+  const [micOn, setMicOn]           = useState(false);
+  const [blurBg, setBlurBg]         = useState(false);
   const [fullscreenId, setFullscreenId] = useState<string | null>(null);
-  const [peers, setPeers] = useState<Peer[]>([]);
-  const [permError, setPermError] = useState<string | null>(null);
+  const [peers, setPeers]           = useState<Peer[]>([]);
+  const [permError, setPermError]   = useState<string | null>(null);
 
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  // localVideoRef lives HERE (parent), not in a child component.
+  // This prevents any sub-component lifecycle from racing with srcObject.
+  const localVideoRef  = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const pcsRef = useRef(new Map<string, RTCPeerConnection>());
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const iceBuf = useRef(new Map<string, RTCIceCandidateInit[]>());
+  const pcsRef         = useRef(new Map<string, RTCPeerConnection>());
+  const channelRef     = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const iceBuf         = useRef(new Map<string, RTCIceCandidateInit[]>());
 
   const userName = getAnonymousUsername();
   const myId = useRef(`${userName}_${Math.random().toString(36).slice(2, 8)}`).current;
 
-  // ── WebRTC helpers ─────────────────────────────────────────────────────────
+  // ── Attach local stream to video element ─────────────────────────────────
+  // Runs after every render where localStream changes.
+  // Because localVideoRef lives in the parent, the element is guaranteed to
+  // be in the DOM by the time this effect fires — no sub-component timing gap.
+  useEffect(() => {
+    const el = localVideoRef.current;
+    if (!el) return;
+
+    if (localStream) {
+      console.log("[cam] attaching stream", {
+        id: localStream.id,
+        active: localStream.active,
+        videoTracks: localStream.getVideoTracks().map(t => ({
+          label: t.label, enabled: t.enabled, muted: t.muted, readyState: t.readyState,
+        })),
+      });
+      el.srcObject = localStream;
+      el.muted = true;
+      el.play()
+        .then(() => console.log("[cam] play() OK, readyState:", el.readyState))
+        .catch(err => console.warn("[cam] play() failed:", err.name, err.message));
+    } else {
+      el.srcObject = null;
+    }
+  }, [localStream]);
+
+  // ── WebRTC helpers ────────────────────────────────────────────────────────
 
   const makePeerConnection = useCallback((peerId: string): RTCPeerConnection => {
     const pc = new RTCPeerConnection(ICE_CONFIG);
@@ -46,23 +76,20 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
     );
 
     pc.ontrack = ({ streams }) => {
-      setPeers(prev =>
-        prev.map(p => p.id === peerId ? { ...p, stream: streams[0] } : p)
-      );
+      setPeers(prev => prev.map(p => p.id === peerId ? { ...p, stream: streams[0] } : p));
     };
 
     pc.onicecandidate = ({ candidate }) => {
       if (!candidate) return;
       channelRef.current?.send({
-        type: "broadcast",
-        event: "ice",
+        type: "broadcast", event: "ice",
         payload: { from: myId, to: peerId, candidate },
       });
     };
 
     pc.onconnectionstatechange = () => {
-      const state = pc.connectionState;
-      if (state === "disconnected" || state === "failed" || state === "closed") {
+      const s = pc.connectionState;
+      if (s === "disconnected" || s === "failed" || s === "closed") {
         pc.close();
         pcsRef.current.delete(peerId);
         setPeers(prev => prev.filter(p => p.id !== peerId));
@@ -80,23 +107,17 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
       const offer = await pc.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: true });
       await pc.setLocalDescription(offer);
       channelRef.current?.send({
-        type: "broadcast",
-        event: "offer",
+        type: "broadcast", event: "offer",
         payload: { from: myId, fromName: userName, to: peerId, sdp: offer },
       });
-    } catch (err) {
-      console.error("[WebRTC] offer failed:", err);
-    }
+    } catch (err) { console.error("[WebRTC] offer failed:", err); }
   }, [makePeerConnection, myId, userName]);
 
   const setupChannel = useCallback((stream: MediaStream | null) => {
     if (!isSupabaseReady()) return;
 
     const ch = supabase.channel(`webcam:${roomSlug}`, {
-      config: {
-        broadcast: { self: false },
-        presence: { key: myId },
-      },
+      config: { broadcast: { self: false }, presence: { key: myId } },
     });
     channelRef.current = ch;
 
@@ -125,33 +146,27 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
       const pc = makePeerConnection(payload.from);
       setPeers(prev =>
         prev.some(p => p.id === payload.from)
-          ? prev
-          : [...prev, { id: payload.from, name: payload.fromName, stream: null }]
+          ? prev : [...prev, { id: payload.from, name: payload.fromName, stream: null }]
       );
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-        for (const c of iceBuf.current.get(payload.from) ?? []) {
+        for (const c of iceBuf.current.get(payload.from) ?? [])
           await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-        }
         iceBuf.current.delete(payload.from);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         ch.send({
-          type: "broadcast",
-          event: "answer",
+          type: "broadcast", event: "answer",
           payload: { from: myId, to: payload.from, sdp: answer },
         });
-      } catch (err) {
-        console.error("[WebRTC] answer failed:", err);
-      }
+      } catch (err) { console.error("[WebRTC] answer failed:", err); }
     });
 
     ch.on("broadcast", { event: "answer" }, async ({ payload }: any) => {
       if (payload.to !== myId) return;
       const pc = pcsRef.current.get(payload.from);
-      if (pc && pc.signalingState !== "stable") {
+      if (pc && pc.signalingState !== "stable")
         await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp)).catch(console.error);
-      }
     });
 
     ch.on("broadcast", { event: "ice" }, async ({ payload }: any) => {
@@ -167,13 +182,11 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
     });
 
     ch.subscribe(async (status: string) => {
-      if (status === "SUBSCRIBED") {
-        await ch.track({ name: userName, cameraOn: !!stream });
-      }
+      if (status === "SUBSCRIBED") await ch.track({ name: userName, cameraOn: !!stream });
     });
   }, [roomSlug, myId, userName, makePeerConnection, offerTo]);
 
-  // ── Camera controls ────────────────────────────────────────────────────────
+  // ── Camera controls ───────────────────────────────────────────────────────
 
   async function startCamera() {
     setPermError(null);
@@ -212,7 +225,7 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
 
     if (!stream) {
       const n = lastErr?.name ?? "";
-      const msg =
+      setPermError(
         n === "NotAllowedError" || n === "PermissionDeniedError"
           ? "Camera permission denied — click the camera icon in your address bar and allow access."
           : n === "NotFoundError" || n === "DevicesNotFoundError"
@@ -221,24 +234,14 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
           ? "Camera is in use by another app — close it and try again."
           : n === "OverconstrainedError"
           ? "Camera doesn't support the requested settings — try a different browser."
-          : "Camera unavailable — make sure no other app is using it, then try again.";
-      setPermError(msg);
+          : "Camera unavailable — make sure no other app is using it, then try again."
+      );
       return;
     }
 
     stream.getAudioTracks().forEach(t => { t.enabled = false; });
-
-    // ── Debug: confirm stream from getUserMedia ──
-    console.log('[cam:start] getUserMedia succeeded', {
-      streamId: stream.id,
-      active: stream.active,
-      videoTracks: stream.getVideoTracks().map(t => ({
-        label: t.label, enabled: t.enabled, muted: t.muted, readyState: t.readyState,
-      })),
-      audioTracks: stream.getAudioTracks().map(t => ({ enabled: t.enabled })),
-    });
-
     localStreamRef.current = stream;
+    // setLocalStream triggers the useEffect above which attaches srcObject
     setLocalStream(stream);
     setCameraOn(true);
     setupChannel(stream);
@@ -272,12 +275,12 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
     };
   }, []);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   type Tile = Peer & { isLocal: boolean };
   const localTile: Tile = { id: "local", name: `${userName} (you)`, stream: localStream, isLocal: true };
-  const allTiles: Tile[] = cameraOn ? [localTile, ...peers.map(p => ({ ...p, isLocal: false }))] : [];
-  const visibleTiles = fullscreenId ? allTiles.filter(t => t.id === fullscreenId) : allTiles;
+  const allTiles: Tile[]  = cameraOn ? [localTile, ...peers.map(p => ({ ...p, isLocal: false }))] : [];
+  const visibleTiles      = fullscreenId ? allTiles.filter(t => t.id === fullscreenId) : allTiles;
 
   return (
     <div className="relative">
@@ -353,23 +356,44 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
                 className="relative rounded-2xl overflow-hidden bg-card-elevated border border-border group"
               >
                 <div className={`relative ${fullscreenId ? "aspect-video" : "aspect-[4/3]"}`}>
-                  {tile.isLocal && localStream ? (
-                    <LocalVideo stream={localStream} blur={blurBg} />
-                  ) : !tile.isLocal && tile.stream ? (
+
+                  {/* ── LOCAL tile: video element lives here, driven by parent ref+effect ── */}
+                  {tile.isLocal ? (
+                    <>
+                      {/* Always rendered when camera is on — no conditional mount/unmount */}
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className={`w-full h-full object-cover ${blurBg ? "blur-md" : ""} ${localStream ? "" : "hidden"}`}
+                      />
+                      {/* Avatar shown only while stream is initialising */}
+                      {!localStream && (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-secondary gap-1.5">
+                          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-lg font-semibold">
+                            {tile.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-[8px] text-muted-foreground/60">Camera starting…</span>
+                        </div>
+                      )}
+                    </>
+
+                  ) : tile.stream ? (
+                    /* ── REMOTE tile with active stream ── */
                     <RemoteVideo stream={tile.stream} />
+
                   ) : (
+                    /* ── REMOTE tile waiting for stream ── */
                     <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-secondary gap-1.5">
                       <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-lg font-semibold">
                         {tile.name.charAt(0).toUpperCase()}
                       </div>
-                      {tile.isLocal ? (
-                        <span className="text-[8px] text-muted-foreground/60">Camera starting...</span>
-                      ) : (
-                        <span className="text-[8px] text-muted-foreground/60 animate-pulse">Connecting...</span>
-                      )}
+                      <span className="text-[8px] text-muted-foreground/60 animate-pulse">Connecting…</span>
                     </div>
                   )}
 
+                  {/* ── Name bar ── */}
                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] text-white/90 truncate max-w-[80%]">{tile.name}</span>
@@ -381,8 +405,7 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
                       >
                         {fullscreenId
                           ? <Minimize2 className="w-3 h-3 text-white/70" />
-                          : <Maximize2 className="w-3 h-3 text-white/70" />
-                        }
+                          : <Maximize2 className="w-3 h-3 text-white/70" />}
                       </button>
                     </div>
                   </div>
@@ -399,8 +422,7 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
           onClick={() => setFullscreenId(null)}
           className="mt-2 text-[9px] text-primary hover:underline flex items-center gap-1"
         >
-          <Minimize2 className="w-3 h-3" />
-          Show all participants
+          <Minimize2 className="w-3 h-3" /> Show all participants
         </button>
       )}
 
@@ -418,62 +440,14 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
 
       {cameraOn && peers.length === 0 && !permError && (
         <p className="text-center py-3 text-[10px] text-muted-foreground/60">
-          Waiting for others to turn on their camera...
+          Waiting for others to turn on their camera…
         </p>
       )}
     </div>
   );
 };
 
-// ── LocalVideo ─────────────────────────────────────────────────────────────────
-// Uses a useCallback ref so srcObject is attached synchronously during React's
-// commit phase — before the first browser paint — preventing the black-frame flash.
-// useCallback([stream]) means the ref only re-fires when the stream object changes.
-function LocalVideo({ stream, blur }: { stream: MediaStream; blur: boolean }) {
-  const videoRef = useCallback((el: HTMLVideoElement | null) => {
-    if (!el) return;
-
-    // ── Debug: verify stream health ──
-    const vtracks = stream.getVideoTracks();
-    console.log('[cam:local] attaching stream', {
-      streamId: stream.id,
-      active: stream.active,
-      videoTracks: vtracks.map(t => ({
-        label: t.label,
-        enabled: t.enabled,
-        muted: t.muted,        // system-level mute (true = no frames)
-        readyState: t.readyState,
-      })),
-    });
-
-    el.srcObject = stream;
-    el.muted = true;           // must be true for autoplay without gesture
-
-    el.play()
-      .then(() => console.log('[cam:local] play() succeeded, readyState:', el.readyState))
-      .catch(err => console.warn('[cam:local] play() failed:', err.name, err.message));
-
-    console.log('[cam:local] video element after attach', {
-      srcObject: el.srcObject,
-      readyState: el.readyState,
-      paused: el.paused,
-    });
-  }, [stream]);
-
-  return (
-    <video
-      ref={videoRef}
-      autoPlay
-      muted
-      playsInline
-      // Safety net: if autoPlay or the ref didn't start playback, canPlay will
-      onCanPlay={e => { (e.currentTarget as HTMLVideoElement).play().catch(() => {}); }}
-      className={`w-full h-full object-cover ${blur ? "blur-md" : ""}`}
-    />
-  );
-}
-
-// ── RemoteVideo ────────────────────────────────────────────────────────────────
+// ── RemoteVideo ───────────────────────────────────────────────────────────────
 function RemoteVideo({ stream }: { stream: MediaStream }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -484,11 +458,6 @@ function RemoteVideo({ stream }: { stream: MediaStream }) {
     return () => { el.srcObject = null; };
   }, [stream]);
   return (
-    <video
-      ref={ref}
-      autoPlay
-      playsInline
-      className="w-full h-full object-cover"
-    />
+    <video ref={ref} autoPlay playsInline className="w-full h-full object-cover" />
   );
 }
