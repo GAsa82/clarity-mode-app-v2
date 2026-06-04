@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, CameraOff, Mic, MicOff, Eye, EyeOff, Maximize2, Minimize2 } from "lucide-react";
 import { getAnonymousUsername } from "@/lib/focus-streak";
@@ -40,29 +41,32 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
   const myId = useRef(`${userName}_${Math.random().toString(36).slice(2, 8)}`).current;
 
   // ── Attach local stream to video element ─────────────────────────────────
-  // Runs after every render where localStream changes.
-  // Because localVideoRef lives in the parent, the element is guaranteed to
-  // be in the DOM by the time this effect fires — no sub-component timing gap.
+  // useLayoutEffect fires synchronously after DOM mutations, before browser
+  // paint — guarantees no black frame even on the very first render.
+  useLayoutEffect(() => {
+    const el = localVideoRef.current;
+    if (!el || !localStream) return;
+    if (el.srcObject === localStream) return; // already attached
+
+    console.log("[cam] useLayoutEffect: attaching stream", {
+      id: localStream.id, active: localStream.active,
+      tracks: localStream.getVideoTracks().map(t => `${t.label} enabled=${t.enabled} readyState=${t.readyState}`),
+    });
+    el.srcObject = localStream;
+    el.muted = true;
+    el.play()
+      .then(() => console.log("[cam] play() OK, readyState:", el.readyState))
+      .catch(err => console.warn("[cam] play() failed:", err.name, err.message));
+  }, [localStream]);
+
+  // useEffect backup — covers edge cases where layout effect fires before element mounts
   useEffect(() => {
     const el = localVideoRef.current;
-    if (!el) return;
-
-    if (localStream) {
-      console.log("[cam] attaching stream", {
-        id: localStream.id,
-        active: localStream.active,
-        videoTracks: localStream.getVideoTracks().map(t => ({
-          label: t.label, enabled: t.enabled, muted: t.muted, readyState: t.readyState,
-        })),
-      });
-      el.srcObject = localStream;
-      el.muted = true;
-      el.play()
-        .then(() => console.log("[cam] play() OK, readyState:", el.readyState))
-        .catch(err => console.warn("[cam] play() failed:", err.name, err.message));
-    } else {
-      el.srcObject = null;
-    }
+    if (!el || !localStream || el.srcObject === localStream) return;
+    el.srcObject = localStream;
+    el.muted = true;
+    el.play().catch(() => {});
+    console.log("[cam] useEffect backup: attached stream");
   }, [localStream]);
 
   // ── WebRTC helpers ────────────────────────────────────────────────────────
@@ -241,9 +245,26 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
 
     stream.getAudioTracks().forEach(t => { t.enabled = false; });
     localStreamRef.current = stream;
-    // setLocalStream triggers the useEffect above which attaches srcObject
-    setLocalStream(stream);
-    setCameraOn(true);
+
+    // flushSync forces React to render and commit synchronously right now.
+    // After this line, localVideoRef.current is the live <video> DOM element.
+    flushSync(() => {
+      setLocalStream(stream);
+      setCameraOn(true);
+    });
+
+    // Directly attach after guaranteed commit — belt-and-suspenders over the effects
+    const el = localVideoRef.current;
+    if (el) {
+      el.srcObject = stream;
+      el.muted = true;
+      el.play()
+        .then(() => console.log("[cam] flushSync direct play OK"))
+        .catch(err => console.warn("[cam] flushSync play failed:", err.name, err.message));
+    } else {
+      console.warn("[cam] localVideoRef.current is null after flushSync — unexpected");
+    }
+
     setupChannel(stream);
   }
 
