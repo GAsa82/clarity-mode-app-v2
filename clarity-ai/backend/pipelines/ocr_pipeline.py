@@ -1,145 +1,165 @@
 import os
-from typing import Optional, List
-from PIL import Image
-import io
 import logging
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# Try to import PaddleOCR, fall back to a simpler approach if not installed
-_ocr = None
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.pdf', '.txt', '.docx'}
 
-ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.pdf', '.txt'}
 
-def get_ocr():
-    global _ocr
-    if _ocr is None:
-        try:
-            from paddleocr import PaddleOCR
-            _ocr = PaddleOCR(
-                use_angle_cls=True,
-                lang='en',
-                use_gpu=False,
-                show_log=False
-            )
-            logger.info("PaddleOCR initialized successfully")
-        except ImportError:
-            logger.warning("PaddleOCR not installed. Using basic text extraction fallback.")
-            _ocr = False
-        except Exception as e:
-            logger.warning(f"PaddleOCR init failed: {e}. Using fallback.")
-            _ocr = False
-    return _ocr
+def allowed_file(filename: str) -> bool:
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
+
+
+# ── Image OCR via tesseract ──────────────────────────────────────────────────
 
 def extract_text_from_image(image_path: str) -> str:
-    """Extract text from a single image using PaddleOCR."""
-    ocr = get_ocr()
-
-    if ocr is False:
-        return "[OCR not available. Install PaddleOCR: pip install paddleocr paddlepaddle]"
-
     try:
-        result = ocr.ocr(image_path, cls=True)
-        lines = []
-        for page in result:
-            if page is None:
-                continue
-            for line in page:
-                if line and len(line) >= 2:
-                    text = line[1][0] if isinstance(line[1], (list, tuple)) else str(line[1])
-                    confidence = line[1][1] if isinstance(line[1], (list, tuple)) and len(line[1]) > 1 else 0
-                    if confidence > 0.3:  # Filter low confidence
-                        lines.append(text)
-        return '\n'.join(lines)
+        import pytesseract
+        img = Image.open(image_path).convert("RGB")
+        text = pytesseract.image_to_string(img, lang="eng")
+        text = text.strip()
+        if text:
+            return text
+        return "[OCR: no text detected in image]"
+    except ImportError:
+        logger.warning("pytesseract not installed — image OCR unavailable")
+        return "[OCR not available: install pytesseract and tesseract-ocr]"
     except Exception as e:
-        logger.error(f"OCR extraction failed: {e}")
-        return f"[OCR Error: {str(e)}]"
+        logger.error(f"Image OCR failed for {image_path}: {e}")
+        return f"[OCR Error: {e}]"
 
-def extract_text_from_pdf(pdf_path: str) -> str:
-    """Extract text from PDF. Tries pdfplumber first (pure Python), then pypdf, then OCR fallback."""
-    # Try pdfplumber first — handles text-based PDFs well
+
+# ── PDF extraction ───────────────────────────────────────────────────────────
+
+def _pdf_pdfplumber(pdf_path: str) -> str | None:
     try:
         import pdfplumber
-        all_text = []
+        pages = []
         with pdfplumber.open(pdf_path) as pdf:
             for i, page in enumerate(pdf.pages):
-                text = page.extract_text() or ""
-                if text.strip():
-                    all_text.append(f"--- Page {i+1} ---\n{text}")
-        if all_text:
-            return '\n\n'.join(all_text)
-        logger.info("pdfplumber found no text, trying pypdf fallback")
+                t = page.extract_text() or ""
+                if t.strip():
+                    pages.append(f"--- Page {i+1} ---\n{t.strip()}")
+        return "\n\n".join(pages) if pages else None
     except ImportError:
-        logger.warning("pdfplumber not installed, trying pypdf")
+        return None
     except Exception as e:
-        logger.warning(f"pdfplumber failed: {e}, trying pypdf")
+        logger.warning(f"pdfplumber failed: {e}")
+        return None
 
-    # Try pypdf as second fallback
+
+def _pdf_pypdf(pdf_path: str) -> str | None:
     try:
         from pypdf import PdfReader
         reader = PdfReader(pdf_path)
-        all_text = []
+        pages = []
         for i, page in enumerate(reader.pages):
-            text = page.extract_text() or ""
-            if text.strip():
-                all_text.append(f"--- Page {i+1} ---\n{text}")
-        if all_text:
-            return '\n\n'.join(all_text)
-        logger.info("pypdf found no text (likely scanned PDF), trying OCR")
+            t = (page.extract_text() or "").strip()
+            if t:
+                pages.append(f"--- Page {i+1} ---\n{t}")
+        return "\n\n".join(pages) if pages else None
     except ImportError:
-        logger.warning("pypdf not installed")
+        return None
     except Exception as e:
         logger.warning(f"pypdf failed: {e}")
+        return None
 
-    # Last resort: try pdf2image + PaddleOCR (requires poppler)
+
+def _pdf_ocr(pdf_path: str) -> str | None:
+    """Convert PDF pages to images, then OCR each page."""
     try:
         from pdf2image import convert_from_path
         images = convert_from_path(pdf_path, dpi=200)
-        all_text = []
+        pages = []
         for i, img in enumerate(images):
-            temp_path = pdf_path.replace('.pdf', f'_page_{i}.png')
-            img.save(temp_path, 'PNG')
-            text = extract_text_from_image(temp_path)
-            all_text.append(f"--- Page {i+1} ---\n{text}")
+            temp_path = f"{pdf_path}_page_{i}.png"
             try:
-                os.remove(temp_path)
-            except:
-                pass
-        return '\n\n'.join(all_text)
+                img.save(temp_path, "PNG")
+                text = extract_text_from_image(temp_path)
+                if text and not text.startswith("[OCR"):
+                    pages.append(f"--- Page {i+1} ---\n{text}")
+            finally:
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+        return "\n\n".join(pages) if pages else None
     except ImportError:
-        return "[PDF Error: Could not extract text. The PDF may be scanned. Try converting to TXT first.]"
+        logger.warning("pdf2image not installed — cannot OCR scanned PDFs")
+        return None
     except Exception as e:
-        return f"[PDF Error: {str(e)}]"
+        logger.error(f"PDF OCR failed: {e}")
+        return None
+
+
+def extract_text_from_pdf(pdf_path: str) -> str:
+    # 1. Try native text extraction (fast, no OCR needed)
+    text = _pdf_pdfplumber(pdf_path)
+    if text:
+        logger.info(f"PDF extracted via pdfplumber: {len(text)} chars")
+        return text
+
+    text = _pdf_pypdf(pdf_path)
+    if text:
+        logger.info(f"PDF extracted via pypdf: {len(text)} chars")
+        return text
+
+    # 2. Scanned PDF — use OCR
+    logger.info("No text layer found, attempting OCR on PDF pages")
+    text = _pdf_ocr(pdf_path)
+    if text:
+        logger.info(f"PDF OCR result: {len(text)} chars")
+        return text
+
+    return "[PDF Error: Could not extract text. The PDF may be a scanned image with no readable text layer. Try uploading the image pages directly as JPG/PNG.]"
+
+
+# ── DOCX extraction ──────────────────────────────────────────────────────────
+
+def extract_text_from_docx(docx_path: str) -> str:
+    try:
+        from docx import Document
+        doc = Document(docx_path)
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        if not paragraphs:
+            return "[DOCX: document appears to be empty]"
+        return "\n".join(paragraphs)
+    except ImportError:
+        return "[DOCX not supported: install python-docx]"
+    except Exception as e:
+        logger.error(f"DOCX extraction failed: {e}")
+        return f"[DOCX Error: {e}]"
+
+
+# ── TXT extraction ───────────────────────────────────────────────────────────
 
 def extract_text_from_txt(txt_path: str) -> str:
-    """Extract text from a plain text file."""
-    try:
-        encodings = ['utf-8', 'latin-1', 'cp1252']
-        for encoding in encodings:
-            try:
-                with open(txt_path, 'r', encoding=encoding) as f:
-                    content = f.read()
-                if content.strip():
-                    return content
-            except UnicodeDecodeError:
-                continue
-        return "[Error: Could not decode text file with any supported encoding]"
-    except Exception as e:
-        return f"[Text file error: {str(e)}]"
+    for encoding in ("utf-8", "latin-1", "cp1252"):
+        try:
+            with open(txt_path, "r", encoding=encoding) as f:
+                content = f.read()
+            if content.strip():
+                return content
+        except UnicodeDecodeError:
+            continue
+        except Exception as e:
+            return f"[Text file error: {e}]"
+    return "[Error: could not decode text file]"
+
+
+# ── Main dispatcher ──────────────────────────────────────────────────────────
 
 def extract_text(file_path: str) -> str:
-    """Extract text from image, PDF, or text file."""
     ext = os.path.splitext(file_path)[1].lower()
-    if ext in ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff']:
+    if ext in (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"):
         return extract_text_from_image(file_path)
-    elif ext == '.pdf':
+    elif ext == ".pdf":
         return extract_text_from_pdf(file_path)
-    elif ext == '.txt':
+    elif ext == ".docx":
+        return extract_text_from_docx(file_path)
+    elif ext == ".txt":
         return extract_text_from_txt(file_path)
     else:
         return f"[Unsupported file format: {ext}]"
-
-def allowed_file(filename: str) -> bool:
-    """Check if file has an allowed extension."""
-    ext = os.path.splitext(filename)[1].lower()
-    return ext in ALLOWED_EXTENSIONS

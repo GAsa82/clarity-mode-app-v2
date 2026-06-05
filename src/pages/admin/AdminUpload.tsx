@@ -33,7 +33,7 @@ export default function AdminUpload() {
   const [loadingDocs, setLoadingDocs] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const acceptedMime = "text/plain,application/pdf,.docx,image/jpeg,image/png,image/gif,image/webp";
+  const acceptedMime = "text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff";
 
   const loadIndexedDocs = useCallback(() => {
     setLoadingDocs(true);
@@ -225,7 +225,7 @@ export default function AdminUpload() {
         <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
         <p className="font-medium">Drop files here or click to browse</p>
         <p className="text-sm text-muted-foreground mt-1">
-          TXT, PDF, DOCX, JPG, PNG supported • Multiple files allowed
+          JPG, PNG, PDF, TXT, DOCX, BMP, TIFF supported • Multiple files allowed
         </p>
       </div>
 
