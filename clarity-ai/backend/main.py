@@ -42,6 +42,7 @@ IS_PRODUCTION = ENV == "production"
 # is left blank in the deploy platform.
 PRODUCTION_ORIGINS = [
     "https://claritymode.vercel.app",
+    "https://clarity-mode-app-v2-gq26.vercel.app",
     "https://claritymode.com",
     "https://www.claritymode.com",
 ]
@@ -233,6 +234,7 @@ if IS_PRODUCTION:
         TrustedHostMiddleware,
         allowed_hosts=[
             "claritymode.vercel.app",
+            "clarity-mode-app-v2-gq26.vercel.app",
             "claritymode.com",
             "www.claritymode.com",
             "*.railway.app",

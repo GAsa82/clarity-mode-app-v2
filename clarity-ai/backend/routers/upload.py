@@ -109,6 +109,33 @@ async def upload_file(file: UploadFile = File(...)):
     )
 
 
+@router.get("/documents")
+async def list_documents():
+    """Returns list of unique documents indexed in ChromaDB (Full Pipeline uploads only)."""
+    from database.chroma_client import get_all_entries
+    entries = get_all_entries()
+
+    docs: dict = {}
+    if entries and entries.get("metadatas"):
+        for meta in entries["metadatas"]:
+            if not meta or not isinstance(meta, dict):
+                continue
+            file_id = meta.get("file_id", "")
+            filename = meta.get("filename", "unknown")
+            if not file_id:
+                continue
+            if file_id not in docs:
+                docs[file_id] = {
+                    "file_id": file_id,
+                    "filename": filename,
+                    "chunks_count": 0,
+                }
+            docs[file_id]["chunks_count"] += 1
+
+    result = sorted(docs.values(), key=lambda d: d["filename"])
+    return {"documents": result, "total": len(result)}
+
+
 @router.post("/batch", response_model=BatchUploadResponse)
 async def upload_batch(files: List[UploadFile] = File(...)):
     results = []

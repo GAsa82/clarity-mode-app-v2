@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload,
   FileText,
@@ -8,8 +8,11 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  AlertTriangle,
+  Brain,
+  RefreshCw,
 } from "lucide-react";
-import { uploadDiary, uploadFile, type UploadResult } from "@/lib/clarity-ai-api";
+import { uploadDiary, uploadFile, getDocuments, type UploadResult, type IndexedDocument } from "@/lib/clarity-ai-api";
 
 interface UploadedFile {
   id: string;
@@ -26,10 +29,23 @@ export default function AdminUpload() {
   const [dragOver, setDragOver] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pipeline, setPipeline] = useState<"quick" | "full">("full");
+  const [indexedDocs, setIndexedDocs] = useState<IndexedDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const acceptedTypes = [".txt", ".pdf", ".docx", ".jpg", ".jpeg", ".png", ".gif", ".webp"];
   const acceptedMime = "text/plain,application/pdf,.docx,image/jpeg,image/png,image/gif,image/webp";
+
+  const loadIndexedDocs = useCallback(() => {
+    setLoadingDocs(true);
+    getDocuments()
+      .then((res) => setIndexedDocs(res.documents))
+      .catch(() => setIndexedDocs([]))
+      .finally(() => setLoadingDocs(false));
+  }, []);
+
+  useEffect(() => {
+    loadIndexedDocs();
+  }, [loadIndexedDocs]);
 
   const addFiles = useCallback((fileList: FileList | File[]) => {
     const newFiles: UploadedFile[] = Array.from(fileList).map((f) => ({
@@ -41,7 +57,6 @@ export default function AdminUpload() {
     }));
     setFiles((prev) => [...newFiles, ...prev]);
 
-    // Upload each file
     Array.from(fileList).forEach((file, idx) => {
       const uploadFn = pipeline === "quick" ? uploadDiary : uploadFile;
       uploadFn(file)
@@ -49,10 +64,14 @@ export default function AdminUpload() {
           setFiles((prev) =>
             prev.map((f) =>
               f.id === newFiles[idx].id
-                ? { ...f, uploading: false, result }
+                ? { ...f, uploading: false, result: result as UploadResult }
                 : f
             )
           );
+          // Refresh indexed docs list after a Full Pipeline upload
+          if (pipeline === "full") {
+            setTimeout(loadIndexedDocs, 1500);
+          }
         })
         .catch((err) => {
           setFiles((prev) =>
@@ -64,7 +83,7 @@ export default function AdminUpload() {
           );
         });
     });
-  }, [pipeline]);
+  }, [pipeline, loadIndexedDocs]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -80,6 +99,10 @@ export default function AdminUpload() {
 
   const filteredFiles = files.filter((f) =>
     f.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredIndexed = indexedDocs.filter((d) =>
+    d.filename.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const formatSize = (bytes: number) => {
@@ -124,6 +147,34 @@ export default function AdminUpload() {
         </div>
       </div>
 
+      {/* Warning for Quick Upload */}
+      {pipeline === "quick" && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+          <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-yellow-400">Quick Upload — AI cannot read this file</p>
+            <p className="text-xs text-yellow-400/80 mt-1">
+              Quick Upload only saves the file to disk. It does NOT extract text, does NOT index it, and the AI Coach will have zero knowledge of its contents.
+              <br />
+              <span className="font-semibold">Use Full Pipeline (OCR + AI) to make files searchable by AI Coach.</span>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Info for Full Pipeline */}
+      {pipeline === "full" && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
+          <Brain className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-primary">Full Pipeline — AI will learn from this file</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Text is extracted (OCR for images/PDFs), split into chunks, embedded, and stored in the AI knowledge base. AI Coach can then answer questions about it.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Drop Zone */}
       <div
         className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 ${
@@ -152,25 +203,24 @@ export default function AdminUpload() {
       </div>
 
       {/* Search */}
-      {files.length > 0 && (
+      {(files.length > 0 || indexedDocs.length > 0) && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search uploaded files..."
+            placeholder="Search files..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border focus:border-primary outline-none text-sm transition-colors"
           />
         </div>
       )}
 
-      {/* File List */}
+      {/* This-session uploads */}
       {filteredFiles.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            {filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}
-            {searchQuery && ` matching "${searchQuery}"`}
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+            This session — {filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}
           </p>
           {filteredFiles.map((file) => (
             <div
@@ -209,6 +259,52 @@ export default function AdminUpload() {
           ))}
         </div>
       )}
+
+      {/* AI-Indexed Documents (persisted in ChromaDB) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide flex items-center gap-1.5">
+            <Brain className="w-3.5 h-3.5" />
+            AI Knowledge Base — {loadingDocs ? "loading…" : `${indexedDocs.length} document${indexedDocs.length !== 1 ? "s" : ""}`}
+          </p>
+          <button
+            onClick={loadIndexedDocs}
+            className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            title="Refresh list"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingDocs ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+
+        {loadingDocs ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground p-3">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading indexed documents…
+          </div>
+        ) : filteredIndexed.length === 0 ? (
+          <div className="p-4 rounded-xl border border-dashed border-border text-center text-xs text-muted-foreground">
+            {indexedDocs.length === 0
+              ? "No documents indexed yet. Upload using Full Pipeline to make files searchable by AI Coach."
+              : `No documents match "${searchQuery}"`}
+          </div>
+        ) : (
+          filteredIndexed.map((doc) => (
+            <div
+              key={doc.file_id}
+              className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border"
+            >
+              <Brain className="w-5 h-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{doc.filename}</p>
+                <p className="text-xs text-muted-foreground">
+                  {doc.chunks_count} chunk{doc.chunks_count !== 1 ? "s" : ""} indexed • AI can search this
+                </p>
+              </div>
+              <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

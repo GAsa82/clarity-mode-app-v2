@@ -246,6 +246,16 @@ export async function chatWithAI(
   });
 }
 
+export interface IndexedDocument {
+  file_id: string;
+  filename: string;
+  chunks_count: number;
+}
+
+export async function getDocuments(): Promise<{ documents: IndexedDocument[]; total: number }> {
+  return apiFetch<{ documents: IndexedDocument[]; total: number }>("/api/upload/documents");
+}
+
 export async function getDashboard(): Promise<DashboardStats> {
   return apiFetch<DashboardStats>("/api/dashboard/");
 }
