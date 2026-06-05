@@ -14,3 +14,5 @@ sentence-transformers>=3.0.0,<4.0
 Pillow>=10.0
 aiofiles>=24.0
 supabase>=2.0.0,<3.0
+pdfplumber>=0.11.0
+pypdf>=4.0.0

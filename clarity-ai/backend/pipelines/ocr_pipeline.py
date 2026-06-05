@@ -56,25 +56,58 @@ def extract_text_from_image(image_path: str) -> str:
         return f"[OCR Error: {str(e)}]"
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    """Extract text from PDF by converting each page to image first."""
+    """Extract text from PDF. Tries pdfplumber first (pure Python), then pypdf, then OCR fallback."""
+    # Try pdfplumber first — handles text-based PDFs well
+    try:
+        import pdfplumber
+        all_text = []
+        with pdfplumber.open(pdf_path) as pdf:
+            for i, page in enumerate(pdf.pages):
+                text = page.extract_text() or ""
+                if text.strip():
+                    all_text.append(f"--- Page {i+1} ---\n{text}")
+        if all_text:
+            return '\n\n'.join(all_text)
+        logger.info("pdfplumber found no text, trying pypdf fallback")
+    except ImportError:
+        logger.warning("pdfplumber not installed, trying pypdf")
+    except Exception as e:
+        logger.warning(f"pdfplumber failed: {e}, trying pypdf")
+
+    # Try pypdf as second fallback
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(pdf_path)
+        all_text = []
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            if text.strip():
+                all_text.append(f"--- Page {i+1} ---\n{text}")
+        if all_text:
+            return '\n\n'.join(all_text)
+        logger.info("pypdf found no text (likely scanned PDF), trying OCR")
+    except ImportError:
+        logger.warning("pypdf not installed")
+    except Exception as e:
+        logger.warning(f"pypdf failed: {e}")
+
+    # Last resort: try pdf2image + PaddleOCR (requires poppler)
     try:
         from pdf2image import convert_from_path
         images = convert_from_path(pdf_path, dpi=200)
         all_text = []
         for i, img in enumerate(images):
-            # Save temp image
             temp_path = pdf_path.replace('.pdf', f'_page_{i}.png')
             img.save(temp_path, 'PNG')
             text = extract_text_from_image(temp_path)
             all_text.append(f"--- Page {i+1} ---\n{text}")
-            # Clean up temp
             try:
                 os.remove(temp_path)
             except:
                 pass
         return '\n\n'.join(all_text)
     except ImportError:
-        return "[PDF extraction requires pdf2image. Install: pip install pdf2image poppler]"
+        return "[PDF Error: Could not extract text. The PDF may be scanned. Try converting to TXT first.]"
     except Exception as e:
         return f"[PDF Error: {str(e)}]"
 

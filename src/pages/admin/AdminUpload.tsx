@@ -19,7 +19,7 @@ interface UploadedFile {
   name: string;
   size: number;
   type: string;
-  result?: UploadResult;
+  result?: UploadResult | { success?: boolean; status?: string; message?: string; error?: string; chunks_count?: number };
   error?: string;
   uploading?: boolean;
 }
@@ -58,30 +58,57 @@ export default function AdminUpload() {
     setFiles((prev) => [...newFiles, ...prev]);
 
     Array.from(fileList).forEach((file, idx) => {
-      const uploadFn = pipeline === "quick" ? uploadDiary : uploadFile;
-      uploadFn(file)
-        .then((result) => {
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === newFiles[idx].id
-                ? { ...f, uploading: false, result: result as UploadResult }
-                : f
-            )
-          );
-          // Refresh indexed docs list after a Full Pipeline upload
-          if (pipeline === "full") {
-            setTimeout(loadIndexedDocs, 1500);
-          }
-        })
-        .catch((err) => {
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === newFiles[idx].id
-                ? { ...f, uploading: false, error: err.message || "Upload failed" }
-                : f
-            )
-          );
-        });
+      if (pipeline === "quick") {
+        uploadDiary(file)
+          .then((result) => {
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === newFiles[idx].id ? { ...f, uploading: false, result } : f
+              )
+            );
+          })
+          .catch((err) => {
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === newFiles[idx].id
+                  ? { ...f, uploading: false, error: err.message || "Upload failed" }
+                  : f
+              )
+            );
+          });
+      } else {
+        uploadFile(file)
+          .then((result) => {
+            const isError = result.status === "error" || !!result.error;
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === newFiles[idx].id
+                  ? {
+                      ...f,
+                      uploading: false,
+                      result: {
+                        success: !isError,
+                        message: isError
+                          ? (result.error ?? "OCR/extraction failed")
+                          : `Indexed — ${result.chunks_count ?? 0} chunks`,
+                      },
+                      error: isError ? (result.error ?? "OCR/extraction failed") : undefined,
+                    }
+                  : f
+              )
+            );
+            if (!isError) setTimeout(loadIndexedDocs, 1500);
+          })
+          .catch((err) => {
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === newFiles[idx].id
+                  ? { ...f, uploading: false, error: err.message || "Upload failed" }
+                  : f
+              )
+            );
+          });
+      }
     });
   }, [pipeline, loadIndexedDocs]);
 
