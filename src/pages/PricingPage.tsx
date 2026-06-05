@@ -102,6 +102,10 @@ export default function PricingPage() {
         },
         body: JSON.stringify({ plan }),
       });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Payments only work on the live site. Open clarity-mode-app-v2-gq26.vercel.app to checkout.");
+      }
       const data = await res.json();
       if (data.url) window.location.href = data.url;
       else throw new Error(data.error || "Checkout failed");
@@ -128,6 +132,10 @@ export default function PricingPage() {
         },
         body: JSON.stringify({ plan }),
       });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Payments only work on the live site. Open clarity-mode-app-v2-gq26.vercel.app to checkout.");
+      }
       const order = await res.json();
       if (order.error) throw new Error(order.error);
 

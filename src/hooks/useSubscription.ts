@@ -14,9 +14,9 @@ export interface Subscription {
 }
 
 export function useSubscription() {
-  const { user } = useAuth();
+  const { user, isAdmin: isAdminFromAuth } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminFromDB, setIsAdminFromDB] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchSubscription = useCallback(async () => {
@@ -37,7 +37,7 @@ export function useSubscription() {
         .maybeSingle(),
     ]);
 
-    setIsAdmin(profile?.role === "admin");
+    setIsAdminFromDB(profile?.role === "admin");
 
     setSubscription(
       sub
@@ -58,6 +58,8 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
+  // isAdminFromAuth is set from profile loaded in AuthContext — use as fallback
+  const isAdmin = isAdminFromDB || isAdminFromAuth;
   const isPremium = !loading && (subscription !== null || isAdmin);
   const plan: Plan = isAdmin ? "annual" : (subscription?.plan ?? "free");
 
