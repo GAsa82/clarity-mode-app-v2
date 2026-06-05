@@ -14,6 +14,8 @@ if (!isSupabaseConfigured) {
 }
 
 // Create a safe client — if env vars are empty, pass a dummy URL to prevent crashes
+const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
 export const supabase: SupabaseClient = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key',
@@ -22,6 +24,7 @@ export const supabase: SupabaseClient = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true,
+      flowType: isLocalhost ? 'implicit' : 'pkce',
     },
   }
 );
