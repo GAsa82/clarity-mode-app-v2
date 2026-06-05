@@ -58,8 +58,8 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  // isAdminFromAuth is set from profile loaded in AuthContext — use as fallback
-  const isAdmin = isAdminFromDB || isAdminFromAuth;
+  const isEmailAdmin = (user as any)?.email === 'gauravsinghdata6@gmail.com';
+  const isAdmin = isAdminFromDB || isAdminFromAuth || isEmailAdmin;
   const isPremium = !loading && (subscription !== null || isAdmin);
   const plan: Plan = isAdmin ? "annual" : (subscription?.plan ?? "free");
 

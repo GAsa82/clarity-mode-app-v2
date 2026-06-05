@@ -52,9 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(p);
     } catch (err: any) {
       console.error('Failed to fetch profile:', err);
-      if (err.code === 'PGRST116') {
-        setProfile(null);
-      }
+      setProfile(null);
     }
   }, []);
 
