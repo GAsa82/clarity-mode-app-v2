@@ -10,10 +10,9 @@ import {
   getProfile,
   onAuthStateChange,
   getAuthErrorMessage,
-  inferRole,
 } from "@/lib/auth";
 import type { Profile } from "@/lib/supabase";
-import { supabase, isSupabaseReady } from "@/lib/supabase";
+import { isSupabaseReady } from "@/lib/supabase";
 import {
   getLocalUser,
   localSignIn,
@@ -124,18 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const localUser = localSignIn(email, password);
         setUser(localUser);
       } else {
-        try {
-          await authSignIn(email, password);
-        } catch (firstErr: any) {
-          // Stale PKCE/session state in localStorage causes "Invalid path" before the
-          // network request even fires. Clear local auth state and retry once.
-          if (firstErr.message?.includes('Invalid path') || firstErr.message?.includes('invalid_grant')) {
-            await supabase.auth.signOut({ scope: 'local' });
-            await authSignIn(email, password);
-          } else {
-            throw firstErr;
-          }
-        }
+        await authSignIn(email, password);
       }
     } catch (err: any) {
       const msg = isLocallyConfigured() ? err.message : getAuthErrorMessage(err);
