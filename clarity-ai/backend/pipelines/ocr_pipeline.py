@@ -68,12 +68,17 @@ def _pdf_pypdf(pdf_path: str) -> str | None:
 
 
 def _pdf_ocr(pdf_path: str) -> str | None:
-    """Convert PDF pages to images, then OCR each page."""
+    """Render PDF pages to images via pymupdf (no poppler needed), then OCR each page."""
     try:
-        from pdf2image import convert_from_path
-        images = convert_from_path(pdf_path, dpi=200)
+        import fitz  # pymupdf
+        import io
+        doc = fitz.open(pdf_path)
         pages = []
-        for i, img in enumerate(images):
+        for i, page in enumerate(doc):
+            mat = fitz.Matrix(2, 2)  # 2x zoom → better OCR accuracy
+            pix = page.get_pixmap(matrix=mat)
+            img_bytes = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             temp_path = f"{pdf_path}_page_{i}.png"
             try:
                 img.save(temp_path, "PNG")
@@ -85,9 +90,10 @@ def _pdf_ocr(pdf_path: str) -> str | None:
                     os.remove(temp_path)
                 except OSError:
                     pass
+        doc.close()
         return "\n\n".join(pages) if pages else None
     except ImportError:
-        logger.warning("pdf2image not installed — cannot OCR scanned PDFs")
+        logger.warning("pymupdf not installed — cannot render scanned PDF pages")
         return None
     except Exception as e:
         logger.error(f"PDF OCR failed: {e}")
