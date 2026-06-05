@@ -86,7 +86,7 @@ function loadRazorpayScript(): Promise<boolean> {
 
 export default function PricingPage() {
   const { user, session } = useAuth();
-  const { isPremium, plan: currentPlan, refetch } = useSubscription();
+  const { isPremium, isAdmin, plan: currentPlan, refetch } = useSubscription();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -210,11 +210,20 @@ export default function PricingPage() {
             </p>
           </div>
 
+          {/* Admin banner */}
+          {isAdmin && (
+            <div className="flex items-center justify-center gap-2 mb-4 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
+              <Crown className="w-4 h-4" /> Admin account — all features unlocked
+            </div>
+          )}
+
           {/* Plans */}
           <div className="grid md:grid-cols-3 gap-6">
             {PLANS.map(p => {
               const Icon = p.icon;
-              const isCurrentPlan = currentPlan === p.id && (p.id === "free" ? !isPremium : isPremium);
+              const isCurrentPlan = isAdmin
+                ? p.id === "annual"
+                : currentPlan === p.id && (p.id === "free" ? !isPremium : isPremium);
               const planLoading = loading?.includes(p.id);
 
               return (
@@ -226,9 +235,14 @@ export default function PricingPage() {
                       : "border-border bg-card-elevated"
                   }`}
                 >
-                  {p.featured && (
+                  {p.featured && !isAdmin && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
                       Most Popular
+                    </div>
+                  )}
+                  {isAdmin && p.id === "annual" && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                      Admin Access
                     </div>
                   )}
 
@@ -256,11 +270,15 @@ export default function PricingPage() {
                     ))}
                   </ul>
 
-                  {p.id === "free" ? (
+                  {isAdmin ? (
+                    <Button variant="glass" className="w-full" disabled>
+                      {p.id === "annual" ? "Active — Admin Access" : p.id === "free" ? "Included" : "Included"}
+                    </Button>
+                  ) : p.id === "free" ? (
                     <Button
                       variant="glass"
                       className="w-full"
-                      disabled={!user || (!isPremium)}
+                      disabled={!user || !isPremium}
                       onClick={() => navigate("/")}
                     >
                       {!user ? "Sign up free" : "Current plan"}
@@ -272,7 +290,6 @@ export default function PricingPage() {
                     </Button>
                   ) : (
                     <div className="space-y-2">
-                      {/* Stripe — card payments */}
                       <Button
                         variant={p.featured ? "hero" : "glass"}
                         className="w-full"
@@ -284,7 +301,6 @@ export default function PricingPage() {
                           : <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Pay with Card (USD)</>
                         }
                       </Button>
-                      {/* Razorpay — UPI / cards (INR) */}
                       <Button
                         variant="glass"
                         className="w-full text-xs"
