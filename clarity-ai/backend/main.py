@@ -136,11 +136,42 @@ async def init_background_resources():
     # ChromaDB
     try:
         os.environ["CHROMA_PERSIST_DIR"] = CHROMA_PERSIST_DIR
-        from database.chroma_client import get_client, init_collections
+        from database.chroma_client import get_client, init_collections, get_entry_count, add_diary_entry
         client = get_client()
         init_collections()
         app_state["chromadb_ready"] = True
         logger.info("[background] ChromaDB initialized")
+
+        # Re-index from Supabase if ChromaDB is empty (survives Railway restarts)
+        try:
+            count = get_entry_count()
+            if count == 0:
+                logger.info("[background] ChromaDB empty — re-indexing from Supabase...")
+                from services.supabase_client import load_all_diary_chunks
+                chunks = load_all_diary_chunks()
+                if chunks:
+                    for row in chunks:
+                        emb = row.get("embedding")
+                        if not emb or not isinstance(emb, list):
+                            continue
+                        meta = {
+                            "file_id": row.get("file_id", ""),
+                            "filename": row.get("filename", ""),
+                            "chunk_index": row.get("chunk_index", 0),
+                            "total_chunks": row.get("total_chunks", 1),
+                            "language": row.get("language", "en"),
+                            "emotions": row.get("emotions", ""),
+                            "themes": row.get("themes", ""),
+                            "beliefs": row.get("beliefs", ""),
+                            "entry_number": row.get("entry_number", 0),
+                            "date": str(row.get("created_at", "")),
+                        }
+                        add_diary_entry(row["id"], row.get("text", ""), emb, meta)
+                    logger.info(f"[background] Re-indexed {len(chunks)} chunks from Supabase")
+                else:
+                    logger.info("[background] No Supabase chunks to re-index")
+        except Exception as e:
+            logger.warning(f"[background] Re-index from Supabase failed (non-critical): {e}")
     except Exception as e:
         logger.error(f"[background] ChromaDB init failed (will retry on use): {e}")
 

@@ -3,7 +3,10 @@ from chromadb.config import Settings
 import os
 from typing import List, Dict, Any, Optional
 
-CHROMA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chroma_data")
+CHROMA_PATH = os.environ.get(
+    "CHROMA_PERSIST_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "chroma_data"),
+)
 
 DIARY_COLLECTION = "clarity_diary"
 PHILOSOPHY_COLLECTION = "clarity_philosophy"
@@ -61,7 +64,7 @@ def add_diary_entry(
     metadata: Dict[str, Any],
 ):
     col = get_diary_collection()
-    col.add(
+    col.upsert(
         ids=[entry_id],
         embeddings=[embedding],
         metadatas=[metadata],
@@ -95,6 +98,19 @@ def get_all_entries():
 def delete_entry(entry_id: str):
     col = get_diary_collection()
     col.delete(ids=[entry_id])
+
+
+def delete_entries_by_file_id(file_id: str) -> int:
+    """Delete all chunks for a given file_id. Returns number of chunks deleted."""
+    col = get_diary_collection()
+    try:
+        existing = col.get(where={"file_id": {"$eq": file_id}})
+        ids_to_delete = existing.get("ids", [])
+        if ids_to_delete:
+            col.delete(ids=ids_to_delete)
+        return len(ids_to_delete)
+    except Exception:
+        return 0
 
 
 def get_entry_count() -> int:

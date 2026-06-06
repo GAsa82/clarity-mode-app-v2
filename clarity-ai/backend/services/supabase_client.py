@@ -214,6 +214,73 @@ async def save_upload_history(
     return None
 
 
+# ─── Diary Chunk Persistence (survives Railway restarts) ──────────────────────
+
+def save_diary_chunk(
+    chunk_id: str,
+    file_id: str,
+    filename: str,
+    chunk_index: int,
+    total_chunks: int,
+    text: str,
+    embedding: list,
+    emotions: str,
+    themes: str,
+    beliefs: str,
+    language: str,
+    entry_number: int,
+) -> bool:
+    """Upsert a single diary chunk to Supabase for cross-restart persistence."""
+    client = get_client()
+    if not client:
+        return False
+    try:
+        client.table("diary_entries").upsert({
+            "id": chunk_id,
+            "file_id": file_id,
+            "filename": filename,
+            "chunk_index": chunk_index,
+            "total_chunks": total_chunks,
+            "text": text,
+            "embedding": embedding,
+            "emotions": emotions,
+            "themes": themes,
+            "beliefs": beliefs,
+            "language": language,
+            "entry_number": entry_number,
+        }).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save diary chunk {chunk_id}: {e}")
+        return False
+
+
+def load_all_diary_chunks() -> list:
+    """Load all diary chunks from Supabase (for re-indexing ChromaDB on startup)."""
+    client = get_client()
+    if not client:
+        return []
+    try:
+        result = client.table("diary_entries").select("*").order("created_at").execute()
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Failed to load diary chunks: {e}")
+        return []
+
+
+def delete_diary_chunks_by_file(file_id: str) -> bool:
+    """Delete all chunks for a file from Supabase."""
+    client = get_client()
+    if not client:
+        return False
+    try:
+        client.table("diary_entries").delete().eq("file_id", file_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete diary chunks for {file_id}: {e}")
+        return False
+
+
 async def get_upload_history(user_id: str, limit: int = 20) -> list:
     """Get upload history for a user."""
     client = get_client()

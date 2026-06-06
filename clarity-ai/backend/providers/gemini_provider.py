@@ -1,8 +1,8 @@
 """
-Google Gemini provider — uses the stable v1 REST API.
+Google Gemini provider — stable v1 REST API.
 
-Free tier:  gemini-1.5-flash  (fast, free, widely available)
-Paid tier:  gemini-1.5-pro    (higher quality, same key)
+Free:  gemini-1.5-flash  (fast, free)
+Paid:  gemini-1.5-pro    (higher quality, same key)
 
 Set GEMINI_API_KEY in Railway Variables (must start with AIzaSy...).
 """
@@ -52,16 +52,21 @@ class GeminiProvider(AIProvider):
         model = config.model
         url = f"{_BASE}/models/{model}:generateContent?key={api_key}"
 
+        # Embed system prompt into the conversation — works for all Gemini models
+        # (systemInstruction field is not consistently supported across v1 models)
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n---\n\n{prompt}"
+        else:
+            full_prompt = prompt
+
         payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
+            "contents": [{"parts": [{"text": full_prompt}]}],
             "generationConfig": {
                 "maxOutputTokens": config.max_tokens,
                 "temperature": config.temperature,
                 "topP": config.top_p,
             },
         }
-        if system_prompt:
-            payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
 
         try:
             async with httpx.AsyncClient(timeout=config.timeout) as client:
@@ -77,8 +82,9 @@ class GeminiProvider(AIProvider):
 
             candidates = data.get("candidates", [])
             if not candidates:
+                finish = data.get("promptFeedback", {}).get("blockReason", "unknown")
                 return ProviderResponse(text="", model_used=model,
-                                        error="No candidates returned from Gemini")
+                                        error=f"No candidates returned (blockReason: {finish})")
 
             parts = candidates[0].get("content", {}).get("parts", [])
             full_text = "".join(p.get("text", "") for p in parts).strip()
@@ -87,7 +93,7 @@ class GeminiProvider(AIProvider):
             return ProviderResponse(
                 text=full_text,
                 model_used=model,
-                tokens_in=usage.get("promptTokenCount", len(prompt) // 4),
+                tokens_in=usage.get("promptTokenCount", len(full_prompt) // 4),
                 tokens_out=usage.get("candidatesTokenCount", len(full_text) // 4),
             )
 

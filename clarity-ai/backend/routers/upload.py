@@ -15,8 +15,9 @@ from models.schemas import UploadResponse, BatchUploadResponse
 from pipelines.ocr_pipeline import extract_text, allowed_file
 from utils.text_chunker import chunk_text, extract_metadata, detect_language
 from utils.embeddings import generate_embeddings
-from database.chroma_client import add_diary_entry, get_entry_count
+from database.chroma_client import add_diary_entry, get_entry_count, delete_entry, delete_entries_by_file_id
 from providers import get_active_provider, PROVIDER_CHAIN
+from services.supabase_client import save_diary_chunk, delete_diary_chunks_by_file
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/upload", tags=["Upload"])
@@ -79,9 +80,14 @@ async def upload_file(file: UploadFile = File(...)):
     language = detect_language(extracted_text)
     total_entries = get_entry_count()
 
-    # Generate embeddings and store in ChromaDB
+    # Generate embeddings and store in ChromaDB + Supabase
     embeddings = generate_embeddings(chunks)
+    emotions_str = ",".join(entities.get("emotions", []))
+    themes_str = ",".join(entities.get("themes", []))
+    beliefs_str = ",".join(entities.get("beliefs", []))
+
     for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+        chunk_id = f"{file_id}_chunk_{i}"
         meta = {
             **base_meta,
             "file_id": file_id,
@@ -90,13 +96,28 @@ async def upload_file(file: UploadFile = File(...)):
             "total_chunks": len(chunks),
             "language": language,
             "date": str(uuid.uuid1().time),
-            "emotions": ",".join(entities.get("emotions", [])),
-            "themes": ",".join(entities.get("themes", [])),
-            "beliefs": ",".join(entities.get("beliefs", [])),
+            "emotions": emotions_str,
+            "themes": themes_str,
+            "beliefs": beliefs_str,
             "entry_number": total_entries + 1,
         }
-        chunk_id = f"{file_id}_chunk_{i}"
+        # Store in ChromaDB (fast search)
         add_diary_entry(chunk_id, chunk, emb, meta)
+        # Store in Supabase (persistent across restarts)
+        save_diary_chunk(
+            chunk_id=chunk_id,
+            file_id=file_id,
+            filename=file.filename,
+            chunk_index=i,
+            total_chunks=len(chunks),
+            text=chunk,
+            embedding=emb,
+            emotions=emotions_str,
+            themes=themes_str,
+            beliefs=beliefs_str,
+            language=language,
+            entry_number=total_entries + 1,
+        )
 
     logger.info(f"Uploaded {file.filename}: {len(chunks)} chunks, lang={language}, entities_by={provider.name if provider else 'none'}")
 
@@ -134,6 +155,20 @@ async def list_documents():
 
     result = sorted(docs.values(), key=lambda d: d["filename"])
     return {"documents": result, "total": len(result)}
+
+
+@router.delete("/{file_id}")
+async def delete_document(file_id: str):
+    """Delete a document and all its chunks from ChromaDB and Supabase."""
+    chroma_deleted = delete_entries_by_file_id(file_id)
+    supabase_deleted = delete_diary_chunks_by_file(file_id)
+    logger.info(f"Deleted file_id={file_id}: chroma={chroma_deleted} chunks, supabase={supabase_deleted}")
+    return {
+        "file_id": file_id,
+        "status": "deleted",
+        "chroma_chunks_removed": chroma_deleted,
+        "supabase_deleted": supabase_deleted,
+    }
 
 
 @router.post("/batch", response_model=BatchUploadResponse)
