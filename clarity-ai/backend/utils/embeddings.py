@@ -15,7 +15,7 @@ def _gemini_embed_batch(texts: List[str]) -> List[List[float]] | None:
     try:
         import httpx
         url = (
-            f"https://generativelanguage.googleapis.com/v1beta"
+            f"https://generativelanguage.googleapis.com/v1"
             f"/models/text-embedding-004:batchEmbedContents?key={api_key}"
         )
         requests_body = [
