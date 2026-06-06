@@ -3,7 +3,7 @@ set -e
 
 echo "=== Clarity AI Backend - Production Startup ==="
 
-PORT="${PORT:-8000}"
+PORT="${PORT:-8080}"
 ENV="${ENV:-production}"
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
 CHROMA_DIR="${CHROMA_PERSIST_DIR:-/data/chroma_db}"
