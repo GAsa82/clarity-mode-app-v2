@@ -184,8 +184,8 @@ export default function AdminDashboard() {
           <div>
             <p className="text-sm font-medium text-amber-400">AI Backend Offline</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Start the clarity-ai backend on port 8000 to enable AI features.
-              Run: <code className="px-1 py-0.5 rounded bg-secondary text-foreground/70">cd clarity-ai/backend && python main.py</code>
+              The AI backend is not responding. It may still be starting up — please wait 30 seconds and refresh the page.
+              If the issue persists, check the Railway deployment logs.
             </p>
           </div>
         </div>

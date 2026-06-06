@@ -67,10 +67,14 @@ def search_diary(
 ):
     """Search diary entries by embedding similarity."""
     col = get_diary_collection()
+    count = col.count()
+    if count == 0:
+        return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
+    actual_n = min(n_results, count)
     results = col.query(
         query_embeddings=[query_embedding],
-        n_results=n_results,
-        where=filter_dict
+        n_results=actual_n,
+        where=filter_dict,
     )
     return results
 

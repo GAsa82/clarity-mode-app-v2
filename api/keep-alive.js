@@ -1,4 +1,4 @@
-const RAILWAY_URL = "https://clarity-mode-app-v2-production.up.railway.app";
+const RAILWAY_URL = "https://clarity-mode-app-v2-production-1982.up.railway.app";
 
 export default async function handler(req, res) {
   // CORS headers so the frontend can also call this directly
