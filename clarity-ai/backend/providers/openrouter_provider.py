@@ -106,23 +106,21 @@ class OpenRouterProvider(AIProvider):
         models_to_try = [config.model] + [m for m in self._FREE_FALLBACKS if m != config.model]
 
         last_error = ""
-        try:
-            for model in models_to_try:
-                try:
-                    result = await self._call_model(model, messages, config, api_key)
-                    if result.error and "no endpoints" in result.error.lower():
-                        logger.warning(f"OpenRouter: {model} has no endpoints, trying next")
-                        last_error = result.error
-                        continue
+        for model in models_to_try:
+            try:
+                result = await self._call_model(model, messages, config, api_key)
+                if result.text:  # Got a real response — success
                     return result
-                except Exception as e:
-                    last_error = str(e)
-                    continue
-            return ProviderResponse(text="", model_used=config.model, error=f"All free models failed: {last_error}")
-        except httpx.TimeoutException:
-            return ProviderResponse(text="", model_used=config.model, error="OpenRouter request timed out")
-        except Exception as e:
-            return ProviderResponse(text="", model_used=config.model, error=str(e))
+                # Empty text or error — try next model
+                last_error = result.error or "empty response"
+                logger.warning(f"OpenRouter: {model} failed ({last_error}), trying next free model")
+            except httpx.TimeoutException:
+                last_error = f"{model} timed out"
+                logger.warning(f"OpenRouter: {model} timed out, trying next")
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"OpenRouter: {model} exception ({e}), trying next")
+        return ProviderResponse(text="", model_used=config.model, error=f"All OpenRouter free models failed. Last: {last_error}")
 
 
 # ─── Factory ──────────────────────────────────────────────────────────────────
