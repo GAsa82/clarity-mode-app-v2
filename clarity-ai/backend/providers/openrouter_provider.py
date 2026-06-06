@@ -44,13 +44,14 @@ class OpenRouterProvider(AIProvider):
         except Exception:
             return False
 
-    # Free models tried in order if the primary fails with "no endpoints"
+    # Free models tried in order — updated June 2025 based on OpenRouter availability
     _FREE_FALLBACKS = [
-        "mistralai/mistral-7b-instruct:free",
-        "google/gemma-2-9b-it:free",
-        "qwen/qwen-2.5-7b-instruct:free",
-        "deepseek/deepseek-chat:free",
-        "mistralai/mistral-small:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemma-4-31b-it:free",
+        "qwen/qwen3-next-80b-a3b-instruct:free",
+        "google/gemma-4-26b-a4b-it:free",
+        "openai/gpt-oss-20b:free",
+        "nvidia/nemotron-3-nano-30b-a3b:free",
     ]
 
     async def _call_model(self, model: str, messages: list, config: ProviderConfig, api_key: str) -> ProviderResponse:
@@ -131,7 +132,7 @@ def create_openrouter() -> OpenRouterProvider:
     config = ProviderConfig(
         name="OpenRouter",
         api_key_env="OPENROUTER_API_KEY",
-        model=os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free"),
+        model=os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free"),
         max_tokens=int(os.getenv("OPENROUTER_MAX_TOKENS", "2048")),
         temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
         is_free=True,
