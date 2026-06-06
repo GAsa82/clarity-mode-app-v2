@@ -107,7 +107,8 @@ def create_gemini_free() -> GeminiProvider:
     config = ProviderConfig(
         name="Gemini Flash",
         api_key_env="GEMINI_API_KEY",
-        model=os.getenv("GEMINI_FREE_MODEL", "gemini-2.0-flash"),
+        # gemini-1.5-flash: 15 RPM / 1500 RPD free tier, works with any valid key
+        model=os.getenv("GEMINI_FREE_MODEL", "gemini-1.5-flash"),
         max_tokens=int(os.getenv("GEMINI_MAX_TOKENS", "2048")),
         temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
         is_free=True,
@@ -121,7 +122,7 @@ def create_gemini_paid() -> GeminiProvider:
     config = ProviderConfig(
         name="Gemini Paid",
         api_key_env="GEMINI_API_KEY",
-        model=os.getenv("GEMINI_PAID_MODEL", "gemini-2.0-flash"),
+        model=os.getenv("GEMINI_PAID_MODEL", "gemini-1.5-flash"),
         max_tokens=int(os.getenv("GEMINI_MAX_TOKENS", "4096")),
         temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
         is_free=False,
