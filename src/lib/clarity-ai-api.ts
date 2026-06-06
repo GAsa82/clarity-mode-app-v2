@@ -281,6 +281,35 @@ export async function getProviderStatus() {
   }>("/api/chat/providers/status");
 }
 
+export async function getDailyReflection(): Promise<{ prompt: string; model_used: string }> {
+  return apiFetch<{ prompt: string; model_used: string }>("/api/chat/reflect", {
+    method: "POST",
+    body: {},
+    timeoutMs: 30_000,
+  });
+}
+
+export async function getProactiveInsights(): Promise<{
+  insight: string;
+  has_data: boolean;
+  emotions_detected?: string[];
+  themes_detected?: string[];
+}> {
+  return apiFetch("/api/chat/insights", { timeoutMs: 30_000 });
+}
+
+export async function deleteDocument(fileId: string): Promise<{
+  file_id: string;
+  status: string;
+  chroma_chunks_removed: number;
+  supabase_deleted: boolean;
+}> {
+  return apiFetch(`/api/upload/${encodeURIComponent(fileId)}`, {
+    method: "DELETE",
+    timeoutMs: 20_000,
+  });
+}
+
 // ─── Health probe for frontend status banner ─────────────────────────────────
 
 export interface BackendHealthState {

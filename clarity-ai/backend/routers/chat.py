@@ -1,10 +1,8 @@
 """
-Chat router — uses the provider-agnostic AI layer with automatic fallback.
-
-Replaced direct Ollama calls with the new provider registry system.
+Chat router — AI Coach with full diary RAG + standalone coaching mode.
 """
-from fastapi import APIRouter, HTTPException
 import logging
+from fastapi import APIRouter, HTTPException
 
 from models.schemas import ChatRequest, ChatResponse
 from database.chroma_client import search_diary, get_or_create_collection
@@ -15,82 +13,86 @@ from providers import chat_with_fallback, get_provider_stats, PROVIDER_CHAIN
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
+# ─── System prompts ───────────────────────────────────────────────────────────
 
-@router.post("/", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    # Generate query embedding
-    query_emb = generate_embedding(request.query)
+_DIARY_SYSTEM_PROMPT = """You are Clarity — a deeply insightful personal AI life coach with access to the user's diary entries.
 
-    # Search diary
-    diary_results = search_diary(query_emb, n_results=request.n_results)
-    diary_chunks = []
-    if diary_results and diary_results.get("documents"):
-        for i, doc_list in enumerate(diary_results["documents"]):
-            for j, doc in enumerate(doc_list):
-                meta = {}
-                if diary_results.get("metadatas") and len(diary_results["metadatas"]) > i:
-                    ml = diary_results["metadatas"][i]
-                    if j < len(ml):
-                        meta = ml[j] or {}
-                diary_chunks.append({
-                    "document": doc,
-                    "metadata": meta,
-                    "distance": diary_results["distances"][i][j] if diary_results.get("distances") else 0
-                })
+Your mission: Help users understand themselves, recognise patterns, and grow.
 
-    # Search philosophy
-    philosophy_chunks = []
-    if request.include_philosophy:
-        try:
-            phil_col = get_or_create_collection(PHIL_COL)
-            phil_results = phil_col.query(
-                query_embeddings=[query_emb],
-                n_results=3
-            )
-            if phil_results and phil_results.get("documents"):
-                for i, doc_list in enumerate(phil_results["documents"]):
-                    for j, doc in enumerate(doc_list):
-                        meta = {}
-                        if phil_results.get("metadatas") and len(phil_results["metadatas"]) > i:
-                            ml = phil_results["metadatas"][i]
-                            if j < len(ml):
-                                meta = ml[j] or {}
-                        philosophy_chunks.append({
-                            "document": doc,
-                            "metadata": meta
-                        })
-        except Exception as e:
-            logger.warning(f"Philosophy search failed: {e}")
+When diary entries are provided as context, always ground your response in those specific entries. Quote them directly when relevant. If patterns appear across multiple entries, highlight them explicitly.
 
-    # If no diary chunks found, return early
-    if not diary_chunks:
-        return ChatResponse(
-            answer="No diary entries found matching your query. Upload some diary pages first!",
-            sources=[],
-            model_used="Search Only",
-            provider_name="none",
-        )
+Core behaviours:
+- **Pattern recognition**: Point out recurring emotions, thoughts, beliefs, or situations across entries
+- **Growth tracking**: Compare older and newer entries; celebrate progress
+- **Honest reflection**: Name contradictions or self-limiting beliefs you spot — kindly but directly
+- **Actionable insight**: End with one concrete step or one powerful reflective question
+- **Language**: Respond in the same language the user writes (English, Hindi, or Hinglish)
 
-    # Get AI answer from the provider-agnostic layer with automatic fallback
-    provider_response = await chat_with_fallback(
-        prompt=request.query,
-        system_prompt=(
-            "You are Clarity AI, a personal diary intelligence assistant. "
-            "You answer questions based on the user's own diary entries, writings, and personal philosophy.\n\n"
-            "Rules:\n"
-            "1. ALWAYS base your answers on the provided diary entries. If the entries don't contain relevant information, say so.\n"
-            "2. Support Hindi, Hinglish, and English queries and respond in the same language.\n"
-            "3. Identify emotional patterns, recurring themes, and beliefs from the entries.\n"
-            "4. Be honest about contradictions you find in the user's thinking.\n"
-            "5. Be supportive, non-judgmental, and insightful.\n"
-            "6. Quote specific diary excerpts when relevant.\n"
-            "7. If the user asks about personal growth, compare past and recent entries when available."
-        ),
-        context_chunks=diary_chunks,
-        philosophy_chunks=philosophy_chunks if philosophy_chunks else None,
-    )
+Formatting (always apply):
+- Use **bold** for key insights or breakthroughs
+- Use bullet points for patterns, action steps, or lists
+- Keep responses 150–400 words — focused, not rambling
+- End with exactly ONE follow-up question to deepen self-reflection
 
-    # Build sources from diary chunks
+Tone: Like a wise, warm friend who has read every word the user has ever written."""
+
+_GENERAL_SYSTEM_PROMPT = """You are Clarity — a personal AI life coach specialising in emotional intelligence, mindfulness, and personal growth.
+
+The user hasn't uploaded diary entries yet (or their question is general), so draw on your deep knowledge of psychology, CBT, mindfulness, habit science, and human potential.
+
+Core behaviours:
+- Provide genuine, personalised insights — not generic advice
+- Ask questions that help the user discover their own answers
+- Acknowledge emotions before offering solutions
+- Offer frameworks the user can immediately apply (e.g. "Name the emotion, trace the trigger, choose the response")
+- Support Hindi, Hinglish, and English
+
+Formatting:
+- Use **bold** for key insights
+- Use bullet points for lists and action steps
+- Keep responses 150–350 words — sharp and useful
+- End with ONE powerful reflective question
+
+Tone: Warm, intelligent, direct — like a coach who believes in the user's potential."""
+
+_REFLECT_SYSTEM_PROMPT = """You are a reflective writing coach. Generate ONE powerful, open-ended journal prompt that:
+1. Sparks genuine self-inquiry
+2. Is specific enough to focus thought but open enough to allow surprise
+3. Relates to a meaningful life theme (identity, purpose, relationships, growth, fear, gratitude, etc.)
+4. Can be answered in 5–10 minutes of writing
+
+Return ONLY the prompt text — no preamble, no explanation, no quotation marks."""
+
+_INSIGHTS_SYSTEM_PROMPT = """You are an insightful therapist-coach analysing a user's diary patterns.
+
+Based on the diary excerpts provided, generate a brief "Pattern Insight" — a 2–3 sentence observation about what you see across the entries. Focus on:
+- Emotional patterns or recurring feelings
+- Behavioural loops (what triggers → what response)
+- Hidden strengths or resilience shown
+- One gentle challenge or invitation for growth
+
+Format: Plain prose, 2–3 sentences. No headers. Be specific, not generic."""
+
+
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+
+def _extract_chunks(results, key="documents"):
+    out = []
+    if not results or not results.get(key):
+        return out
+    for i, doc_list in enumerate(results[key]):
+        for j, doc in enumerate(doc_list):
+            meta = {}
+            if results.get("metadatas") and len(results["metadatas"]) > i:
+                ml = results["metadatas"][i]
+                if j < len(ml):
+                    meta = ml[j] or {}
+            dist = results["distances"][i][j] if results.get("distances") else 0
+            out.append({"document": doc, "metadata": meta, "distance": dist})
+    return out
+
+
+def _build_sources(diary_chunks):
     sources = []
     for c in diary_chunks[:5]:
         text = c.get("document", "")
@@ -101,29 +103,60 @@ async def chat(request: ChatRequest):
                 "filename": meta.get("filename", "unknown"),
                 "emotions": meta.get("emotions", ""),
                 "themes": meta.get("themes", ""),
-                "relevance": round(1 - c.get("distance", 0), 3) if c.get("distance") else 0
+                "relevance": round(1 - c.get("distance", 0), 3),
             })
         else:
-            sources.append({
-                "text": text[:200],
-                "filename": "unknown",
-                "emotions": "",
-                "themes": "",
-                "relevance": 0,
-            })
+            sources.append({"text": text[:200], "filename": "unknown", "emotions": "", "themes": "", "relevance": 0})
+    return sources
 
-    # Determine if fallback occurred
+
+# ─── Endpoints ───────────────────────────────────────────────────────────────
+
+@router.post("/", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    query_emb = generate_embedding(request.query)
+
+    diary_results = search_diary(query_emb, n_results=request.n_results)
+    diary_chunks = _extract_chunks(diary_results)
+
+    philosophy_chunks = []
+    if request.include_philosophy:
+        try:
+            phil_col = get_or_create_collection(PHIL_COL)
+            phil_results = phil_col.query(query_embeddings=[query_emb], n_results=3)
+            philosophy_chunks = _extract_chunks(phil_results)
+        except Exception as e:
+            logger.warning(f"Philosophy search failed: {e}")
+
+    # Choose system prompt based on whether diary context is available
+    system_prompt = _DIARY_SYSTEM_PROMPT if diary_chunks else _GENERAL_SYSTEM_PROMPT
+
+    provider_response = await chat_with_fallback(
+        prompt=request.query,
+        system_prompt=system_prompt,
+        context_chunks=diary_chunks if diary_chunks else None,
+        philosophy_chunks=philosophy_chunks if philosophy_chunks else None,
+    )
+
     provider_chain_names = [p.name for p in PROVIDER_CHAIN]
-    fallback_occurred = provider_response.provider_name != provider_chain_names[0] if provider_response.provider_name else False
+    fallback_occurred = (
+        provider_response.provider_name != provider_chain_names[0]
+        if provider_response.provider_name else False
+    )
 
-    return ChatResponse(
-        answer=provider_response.text if provider_response.success else (
+    if not provider_response.success:
+        answer = (
             "I wasn't able to generate an answer right now. "
             "This could be because all AI providers are temporarily unavailable. "
             "Please try again later, or check that at least one API key is configured.\n\n"
             f"Details: {provider_response.error}"
-        ),
-        sources=sources,
+        )
+    else:
+        answer = provider_response.text
+
+    return ChatResponse(
+        answer=answer,
+        sources=_build_sources(diary_chunks),
         model_used=provider_response.model_used or "unknown",
         provider_name=provider_response.provider_name or "none",
         provider_chain=provider_chain_names,
@@ -135,15 +168,84 @@ async def chat(request: ChatRequest):
     )
 
 
+@router.post("/reflect")
+async def daily_reflection():
+    """Generate a fresh daily journal reflection prompt."""
+    provider_response = await chat_with_fallback(
+        prompt="Generate one powerful journal reflection prompt for today.",
+        system_prompt=_REFLECT_SYSTEM_PROMPT,
+        context_chunks=None,
+    )
+    return {
+        "prompt": provider_response.text.strip() if provider_response.success else (
+            "What is one belief you hold about yourself that might not be completely true?"
+        ),
+        "model_used": provider_response.model_used or "unknown",
+    }
+
+
+@router.get("/insights")
+async def proactive_insights():
+    """Generate a proactive insight from the user's diary patterns."""
+    from database.chroma_client import get_all_entries
+
+    entries = get_all_entries()
+    docs = (entries or {}).get("documents", [])[:8]
+    metas = (entries or {}).get("metadatas", [])[:8]
+
+    if not docs:
+        return {
+            "insight": "Upload your first diary entry to get personalised pattern insights from your AI Coach.",
+            "has_data": False,
+        }
+
+    # Build a compact summary of what's in the entries
+    emotion_pool = []
+    theme_pool = []
+    for meta in metas:
+        if not meta or not isinstance(meta, dict):
+            continue
+        for e in (meta.get("emotions") or "").split(","):
+            if e.strip():
+                emotion_pool.append(e.strip())
+        for t in (meta.get("themes") or "").split(","):
+            if t.strip():
+                theme_pool.append(t.strip())
+
+    context_text = "\n\n".join(d[:400] for d in docs if d)
+    emotions_summary = ", ".join(set(emotion_pool[:10]))
+    themes_summary = ", ".join(set(theme_pool[:10]))
+
+    prompt = (
+        f"Diary excerpts:\n{context_text}\n\n"
+        f"Detected emotions: {emotions_summary or 'none yet'}\n"
+        f"Detected themes: {themes_summary or 'none yet'}\n\n"
+        "Generate a brief pattern insight."
+    )
+
+    provider_response = await chat_with_fallback(
+        prompt=prompt,
+        system_prompt=_INSIGHTS_SYSTEM_PROMPT,
+        context_chunks=None,
+    )
+
+    return {
+        "insight": provider_response.text.strip() if provider_response.success else (
+            "Keep journaling — patterns will emerge as you add more entries."
+        ),
+        "has_data": True,
+        "emotions_detected": list(set(emotion_pool))[:5],
+        "themes_detected": list(set(theme_pool))[:5],
+    }
+
+
 @router.get("/providers/stats")
 async def provider_stats():
-    """Get usage statistics for all providers."""
     return get_provider_stats()
 
 
 @router.get("/providers/status")
 async def provider_status():
-    """Get current provider chain status."""
     providers = []
     for p in PROVIDER_CHAIN:
         providers.append({
@@ -156,5 +258,5 @@ async def provider_status():
     return {
         "providers": providers,
         "count": len(providers),
-        "chain_description": "Gemini Free → DeepSeek → Qwen (Local) → Gemini Paid → OpenRouter → OpenAI → Claude"
+        "chain_description": "Gemini 2.0 Flash → DeepSeek → Qwen (Local) → Gemini Paid → OpenRouter → OpenAI → Claude",
     }
