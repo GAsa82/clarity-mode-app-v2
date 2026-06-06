@@ -147,7 +147,7 @@ def create_gemini_paid() -> GeminiProvider:
     config = ProviderConfig(
         name="Gemini Paid",
         api_key_env="GEMINI_API_KEY",
-        model=os.getenv("GEMINI_PAID_MODEL", "gemini-2.5-pro-preview-06-05"),
+        model=os.getenv("GEMINI_PAID_MODEL", "gemini-1.5-pro"),
         max_tokens=int(os.getenv("GEMINI_MAX_TOKENS", "2048")),
         temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
         is_free=False,
