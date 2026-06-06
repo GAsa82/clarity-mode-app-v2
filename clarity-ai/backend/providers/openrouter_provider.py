@@ -110,15 +110,15 @@ class OpenRouterProvider(AIProvider):
 # ─── Factory ──────────────────────────────────────────────────────────────────
 
 def create_openrouter() -> OpenRouterProvider:
-    """Create the OpenRouter provider — fifth in fallback chain."""
+    """Create the OpenRouter provider — free Llama 3.1 model, no billing needed."""
     config = ProviderConfig(
         name="OpenRouter",
         api_key_env="OPENROUTER_API_KEY",
-        model=os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct"),
-        max_tokens=int(os.getenv("OPENROUTER_MAX_TOKENS", "1024")),
+        model=os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
+        max_tokens=int(os.getenv("OPENROUTER_MAX_TOKENS", "2048")),
         temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
         is_free=True,
-        priority=5,  # Fifth in fallback chain (after Gemini Paid)
+        priority=2,  # High priority — free and reliable
         timeout=int(os.getenv("AI_TIMEOUT", "60")),
     )
     return OpenRouterProvider(config)

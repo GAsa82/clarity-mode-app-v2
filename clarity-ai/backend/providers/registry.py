@@ -18,7 +18,7 @@ import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 
-from .base import AIProvider, ProviderResponse, UsageStats, ProviderConfig
+from .base import AIProvider, ProviderResponse, UsageStats
 
 logger = logging.getLogger(__name__)
 
@@ -66,31 +66,19 @@ def _build_provider_chain():
     when its factory is called, preventing import-time failures from
     blocking server startup.
     """
-    _free_chats_used = _load_free_chat_count()
-
-    if _free_chats_used < _FREE_CHAT_LIMIT:
-        logger.info(f"Free chat mode: {_FREE_CHAT_LIMIT - _free_chats_used} free chats remaining (using DeepSeek V3 Flash)")
-        return _lazy_chain([
-            ("deepseek_v4_free",        1),
-            ("gemini_free",             2),
-            ("deepseek",                3),
-            ("qwen",                    4),
-            ("gemini_paid",             5),
-            ("openrouter",              6),
-            ("openai",                  7),
-            ("claude",                  8),
-        ])
-    else:
-        logger.info("Paid chat mode: using full provider chain")
-        return _lazy_chain([
-            ("gemini_free",             1),
-            ("deepseek",                2),
-            ("qwen",                    3),
-            ("gemini_paid",             4),
-            ("openrouter",              5),
-            ("openai",                  6),
-            ("claude",                  7),
-        ])
+    # Always try all available providers in priority order
+    # OpenRouter (free Llama 3.1) is included early as reliable fallback
+    logger.info("Building provider chain (Gemini → OpenRouter → DeepSeek → paid)")
+    return _lazy_chain([
+        ("gemini_free",             1),
+        ("openrouter",              2),
+        ("deepseek_v4_free",        3),
+        ("deepseek",                4),
+        ("qwen",                    5),
+        ("gemini_paid",             6),
+        ("openai",                  7),
+        ("claude",                  8),
+    ])
 
 
 def _lazy_chain(specs):
@@ -101,9 +89,9 @@ def _lazy_chain(specs):
     rather than crashing the entire server.
     """
     chain = []
-    for name, priority in specs:
+    for name, _ in specs:
         try:
-            provider = _create_provider(name, priority)
+            provider = _create_provider(name)
             if provider is not None:
                 chain.append(provider)
         except Exception as e:
@@ -111,7 +99,7 @@ def _lazy_chain(specs):
     return chain
 
 
-def _create_provider(name, priority):
+def _create_provider(name):
     """Import and call a provider's factory function lazily."""
     factories = {
         "gemini_free": lambda: _import_gemini("free"),
