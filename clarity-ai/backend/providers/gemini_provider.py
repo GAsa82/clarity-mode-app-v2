@@ -15,7 +15,7 @@ from .base import AIProvider, ProviderConfig, ProviderResponse
 
 logger = logging.getLogger(__name__)
 
-_BASE = "https://generativelanguage.googleapis.com/v1"
+_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
 class GeminiProvider(AIProvider):
