@@ -1,4 +1,5 @@
 import os
+import shutil
 import logging
 from PIL import Image
 
@@ -14,15 +15,40 @@ def allowed_file(filename: str) -> bool:
 
 # ── Image OCR via tesseract ──────────────────────────────────────────────────
 
+def _find_tesseract() -> str | None:
+    """Locate the tesseract binary regardless of OS/install path."""
+    # Explicit env override
+    custom = os.environ.get("TESSERACT_CMD")
+    if custom and os.path.isfile(custom):
+        return custom
+    # Search PATH
+    found = shutil.which("tesseract")
+    if found:
+        return found
+    # Common fallback paths
+    for p in ("/usr/bin/tesseract", "/usr/local/bin/tesseract", "/nix/var/nix/profiles/default/bin/tesseract"):
+        if os.path.isfile(p):
+            return p
+    return None
+
+
 def extract_text_from_image(image_path: str) -> str:
     try:
         import pytesseract
+        tess = _find_tesseract()
+        if tess:
+            pytesseract.pytesseract.tesseract_cmd = tess
+        else:
+            logger.warning("tesseract binary not found in PATH — OCR may fail")
+
         img = Image.open(image_path).convert("RGB")
-        text = pytesseract.image_to_string(img, lang="eng")
+        text = pytesseract.image_to_string(img, lang="eng+hin")
         text = text.strip()
         if text:
             return text
-        return "[OCR: no text detected in image]"
+        # Retry with just English if hindi data unavailable
+        text = pytesseract.image_to_string(img, lang="eng").strip()
+        return text if text else "[OCR: no text detected in image]"
     except ImportError:
         logger.warning("pytesseract not installed — image OCR unavailable")
         return "[OCR not available: install pytesseract and tesseract-ocr]"
@@ -119,7 +145,9 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         logger.info(f"PDF OCR result: {len(text)} chars")
         return text
 
-    return "[PDF Error: Could not extract text. The PDF may be a scanned image with no readable text layer. Try uploading the image pages directly as JPG/PNG.]"
+    tess = _find_tesseract()
+    logger.error(f"All PDF extraction methods failed. tesseract found: {tess}")
+    return "[PDF Error: Could not read this PDF. OCR failed — the file may be corrupted or the scanned quality too low. Try saving as JPG/PNG and re-uploading.]"
 
 
 # ── DOCX extraction ──────────────────────────────────────────────────────────
