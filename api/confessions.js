@@ -85,7 +85,9 @@ async function handleFeed(req, res) {
 async function handlePost(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { content, category } = req.body || {};
+  const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+  const { content, category } = body;
+
   if (!content || content.trim().length < 10)
     return res.status(400).json({ error: "Confession must be at least 10 characters." });
   if (content.length > 1000)
@@ -102,14 +104,16 @@ async function handlePost(req, res) {
     .select("id,anon_id,content,category,react_relate,react_support,react_advice,react_strong,reply_count,created_at")
     .single();
 
-  if (error) return res.status(500).json({ error: "Failed to post confession." });
+  if (error) return res.status(500).json({ error: error.message });
   return res.status(201).json({ confession: data });
 }
 
 async function handleReact(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { confessionId, reactionType, fingerprint } = req.body || {};
+  const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+  const { confessionId, reactionType, fingerprint } = body;
+
   if (!confessionId || !REACTION_COLS[reactionType])
     return res.status(400).json({ error: "Invalid request" });
 
@@ -161,7 +165,9 @@ async function handleReplies(req, res) {
   }
 
   if (req.method === "POST") {
-    const { confessionId, content } = req.body || {};
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    const { confessionId, content } = body;
+
     if (!confessionId || !content?.trim())
       return res.status(400).json({ error: "Missing fields" });
     if (content.length > 500)
@@ -176,7 +182,7 @@ async function handleReplies(req, res) {
       .select("id,anon_id,content,created_at")
       .single();
 
-    if (error) return res.status(500).json({ error: "Failed to post reply." });
+    if (error) return res.status(500).json({ error: error.message });
 
     const { data: cur } = await supabase
       .from("confessions").select("reply_count").eq("id", confessionId).single();
