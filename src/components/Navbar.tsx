@@ -9,7 +9,7 @@ const publicLinks = [
   { href: "/#library", label: "Library" },
   { href: "/ai-coach", label: "AI Coach" },
   { href: "/insights", label: "Insights" },
-  { href: "/#store", label: "Community" },
+  { href: "/confessions", label: "Secret Confessions" },
   { href: "/#pricing", label: "Pricing" },
 ];
 

@@ -29,6 +29,7 @@ import CoachingPage from "./pages/CoachingPage";
 import BookingPage from "./pages/coaching/BookingPage";
 import ConfirmationPage from "./pages/coaching/ConfirmationPage";
 import AdminCoaching from "./pages/admin/AdminCoaching";
+import ConfessionsPage from "./pages/ConfessionsPage";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/coaching" element={<CoachingPage />} />
               <Route path="/coaching/book" element={<BookingPage />} />
               <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
+              <Route path="/confessions" element={<ConfessionsPage />} />
 
               {/* Premium-gated routes (gate handled inside each page) */}
               <Route path="/ai-coach" element={<AICoachPage />} />
