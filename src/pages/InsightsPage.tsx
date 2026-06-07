@@ -11,7 +11,11 @@ import {
   BarChart3,
   Calendar,
   Lightbulb,
+  Shield,
+  CheckCircle,
+  ArrowRight,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   getDashboard,
   getPatterns,
@@ -215,6 +219,106 @@ export default function InsightsPage() {
         </div>
       </div>
       </PremiumGate>
+
+      {/* ── Satisfaction Guarantee & Trust Indicator ─────────────────── */}
+      <section className="py-16 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+
+          {/* Trust header */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-widest mb-4">
+              <Shield className="w-3.5 h-3.5" /> Your Investment Is Protected
+            </div>
+            <h2 className="text-2xl font-bold">
+              Satisfaction Guarantee & Coaching Standards
+            </h2>
+          </div>
+
+          {/* Guarantee card */}
+          <div className="glass border border-primary/20 rounded-2xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Shield className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base mb-2">Our Satisfaction Promise</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                  We take every session seriously and are committed to delivering genuine value.
+                  If you attend the full 120-minute session, actively participate, and genuinely
+                  feel you received no value from the coaching experience, you may contact support
+                  within 24 hours of the session for a review.
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                  After review, we may offer a complimentary follow-up session, a partial refund,
+                  or a full refund when appropriate. This policy exists to ensure fairness for
+                  both the client and the coach.
+                </p>
+                <p className="text-xs text-primary/80 italic">
+                  "Your investment is protected by our Satisfaction Promise. We are committed to
+                  creating a valuable coaching experience and standing behind the quality of our service."
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Refund policy two-column */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="glass border border-green-500/20 rounded-xl p-5">
+              <p className="text-xs font-semibold text-green-400 uppercase tracking-wider mb-3">
+                Eligible For Review
+              </p>
+              <div className="space-y-2">
+                {[
+                  "Client attended the complete session",
+                  "Request submitted within 24 hours",
+                  "Clear explanation provided",
+                ].map(t => (
+                  <div key={t} className="flex items-center gap-2 text-sm text-foreground/70">
+                    <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                    {t}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="glass border border-red-500/20 rounded-xl p-5">
+              <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3">
+                Not Eligible
+              </p>
+              <div className="space-y-2">
+                {[
+                  "Missed appointments",
+                  "Late cancellations",
+                  "Requests made after 24 hours",
+                  "Change of mind after session",
+                ].map(t => (
+                  <div key={t} className="flex items-center gap-2 text-sm text-foreground/70">
+                    <span className="w-3.5 h-3.5 rounded-full border border-red-400 flex items-center justify-center shrink-0 text-[9px] text-red-400 font-bold leading-none">✕</span>
+                    {t}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* CTA to coaching page */}
+          <div className="glass border border-white/10 rounded-2xl p-6 text-center">
+            <Sparkles className="w-8 h-8 text-primary mx-auto mb-3" />
+            <h3 className="font-semibold mb-2">Ready for a Breakthrough?</h3>
+            <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+              Book a private 1-on-1 session with your AI coach. 120 minutes of focused clarity,
+              a personal action plan, and 7 days of WhatsApp support.
+            </p>
+            <Link to="/coaching">
+              <button className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
+                See Coaching Sessions
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
+
+        </div>
+      </section>
 
       <Footer />
       <WhatsAppChat />

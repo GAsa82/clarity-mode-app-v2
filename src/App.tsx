@@ -25,6 +25,10 @@ import PricingPage from "./pages/PricingPage";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
+import CoachingPage from "./pages/CoachingPage";
+import BookingPage from "./pages/coaching/BookingPage";
+import ConfirmationPage from "./pages/coaching/ConfirmationPage";
+import AdminCoaching from "./pages/admin/AdminCoaching";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -59,6 +63,9 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/coaching" element={<CoachingPage />} />
+              <Route path="/coaching/book" element={<BookingPage />} />
+              <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
 
               {/* Premium-gated routes (gate handled inside each page) */}
               <Route path="/ai-coach" element={<AICoachPage />} />
@@ -80,6 +87,7 @@ const App = () => (
                 <Route path="documents" element={<AdminDocuments />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="settings" element={<AdminSettings />} />
+                <Route path="coaching" element={<AdminCoaching />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

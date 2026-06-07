@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronLeft,
   Sparkles,
+  CalendarCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import logoImg from "@/assets/logo.png";
@@ -23,6 +24,7 @@ const sidebarLinks = [
   { to: "/admin/knowledge", icon: Database, label: "Knowledge Base" },
   { to: "/admin/training", icon: Brain, label: "AI Training" },
   { to: "/admin/documents", icon: FileText, label: "Documents" },
+  { to: "/admin/coaching", icon: CalendarCheck, label: "Coaching" },
   { to: "/admin/users", icon: Users, label: "User Analytics" },
   { to: "/admin/settings", icon: Settings, label: "Settings" },
 ];
