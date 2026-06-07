@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import heroOrb from "@/assets/hero-orb.jpg";
 
 export const Hero = () => {
@@ -44,10 +44,6 @@ export const Hero = () => {
                 Start Free
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Link>
-            </Button>
-            <Button variant="glass" size="xl" className="group">
-              <Play className="w-4 h-4 mr-2 transition-transform group-hover:scale-110" />
-              Watch Demo
             </Button>
           </div>
 

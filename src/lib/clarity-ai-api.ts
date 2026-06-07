@@ -118,6 +118,7 @@ interface FetchOptions {
   timeoutMs?: number;
   retries?: number;
   retryDelayMs?: number;
+  authToken?: string;
 }
 
 const DEFAULT_TIMEOUT = 30_000; // 30s
@@ -148,6 +149,7 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     timeoutMs = DEFAULT_TIMEOUT,
     retries = DEFAULT_RETRIES,
     retryDelayMs = 1000,
+    authToken,
   } = opts;
 
   const url = `${API_BASE}${path}`;
@@ -157,11 +159,13 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      const baseHeaders: Record<string, string> = formData
+        ? {}
+        : { "Content-Type": "application/json", Accept: "application/json" };
+      if (authToken) baseHeaders["Authorization"] = `Bearer ${authToken}`;
       const res = await fetch(url, {
         method,
-        headers: formData
-          ? undefined
-          : { "Content-Type": "application/json", Accept: "application/json" },
+        headers: Object.keys(baseHeaders).length ? baseHeaders : undefined,
         body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
         signal: controller.signal,
         credentials: "omit",
@@ -225,24 +229,27 @@ export async function uploadDiary(file: File): Promise<UploadResult> {
   });
 }
 
-export async function uploadFile(file: File): Promise<FullUploadResult> {
+export async function uploadFile(file: File, token?: string): Promise<FullUploadResult> {
   const formData = new FormData();
   formData.append("file", file);
   return apiFetch<FullUploadResult>("/api/upload/", {
     method: "POST",
     formData,
     timeoutMs: 120_000,
+    authToken: token,
   });
 }
 
 export async function chatWithAI(
   query: string,
   n_results = 10,
+  token?: string,
 ): Promise<ChatResponse> {
   return apiFetch<ChatResponse>("/api/chat/", {
     method: "POST",
     body: { query, n_results, include_philosophy: true },
     timeoutMs: 60_000,
+    authToken: token,
   });
 }
 

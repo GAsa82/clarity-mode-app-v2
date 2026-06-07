@@ -229,6 +229,7 @@ def save_diary_chunk(
     beliefs: str,
     language: str,
     entry_number: int,
+    user_id: str = "",
 ) -> bool:
     """Upsert a single diary chunk to Supabase for cross-restart persistence."""
     client = get_client()
@@ -248,6 +249,7 @@ def save_diary_chunk(
             "beliefs": beliefs,
             "language": language,
             "entry_number": entry_number,
+            "user_id": user_id,
         }).execute()
         return True
     except Exception as e:

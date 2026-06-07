@@ -95,6 +95,15 @@ def get_all_entries():
     return col.get()
 
 
+def get_entries_by_user(user_id: str):
+    """Return all ChromaDB entries belonging to a specific user."""
+    col = get_diary_collection()
+    try:
+        return col.get(where={"user_id": {"$eq": user_id}})
+    except Exception:
+        return col.get()
+
+
 def delete_entry(entry_id: str):
     col = get_diary_collection()
     col.delete(ids=[entry_id])

@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         current_period_end:       periodEnd.toISOString(),
         updated_at:               now.toISOString(),
       },
-      { onConflict: "user_id" }
+      { onConflict: "provider_subscription_id" }
     );
 
     await supabase.from("payments").insert({

@@ -28,9 +28,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from routers import upload, chat, dashboard
 from providers import get_active_provider, chat_with_fallback, get_provider_stats, PROVIDER_CHAIN
+from utils.rate_limiter import limiter
 
 # ─── Environment ─────────────────────────────────────────────────────────────
 ENV = os.getenv("ENV", "development")
@@ -165,6 +168,7 @@ async def init_background_resources():
                             "beliefs": row.get("beliefs", ""),
                             "entry_number": row.get("entry_number", 0),
                             "date": str(row.get("created_at", "")),
+                            "user_id": row.get("user_id", ""),
                         }
                         add_diary_entry(row["id"], row.get("text", ""), emb, meta)
                     logger.info(f"[background] Re-indexed {len(chunks)} chunks from Supabase")
@@ -249,6 +253,8 @@ app = FastAPI(
     docs_url="/docs" if not IS_PRODUCTION else None,
     redoc_url="/redoc" if not IS_PRODUCTION else None,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ─── CORS ────────────────────────────────────────────────────────────────────
 app.add_middleware(

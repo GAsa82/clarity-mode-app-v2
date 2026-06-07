@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { WhatsAppChat } from "@/components/WhatsAppChat";
+import { PremiumGate } from "@/components/PremiumGate";
 import {
   Sparkles,
   TrendingUp,
@@ -40,6 +41,7 @@ export default function InsightsPage() {
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
       <Navbar />
 
+      <PremiumGate feature="AI Insights">
       <div className="pt-28 pb-12 px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
@@ -73,7 +75,7 @@ export default function InsightsPage() {
                 Unable to load insights
               </p>
               <p className="text-xs text-muted-foreground/70">
-                Make sure the AI backend is running on port 8000
+                The AI service is temporarily unavailable. Please try again in a moment.
               </p>
             </div>
           ) : (
@@ -212,6 +214,7 @@ export default function InsightsPage() {
           )}
         </div>
       </div>
+      </PremiumGate>
 
       <Footer />
       <WhatsAppChat />

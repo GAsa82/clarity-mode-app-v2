@@ -22,6 +22,8 @@ import AIPage from "./pages/AIPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import PricingPage from "./pages/PricingPage";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 
 // Admin pages
@@ -55,6 +57,8 @@ const App = () => (
               <Route path="/refunds" element={<Refunds />} />
               <Route path="/room/:slug" element={<FocusRoomPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
 
               {/* Premium-gated routes (gate handled inside each page) */}
               <Route path="/ai-coach" element={<AICoachPage />} />

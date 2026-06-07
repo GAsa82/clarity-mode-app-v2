@@ -1,7 +1,6 @@
 import { Check } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-
-const GUMROAD_URL = "https://gauravdata.gumroad.com/l/";
 
 const tiers = [
   {
@@ -91,14 +90,9 @@ export const Pricing = () => {
                 <span className="text-sm text-muted-foreground">{t.period}</span>
               </div>
               <Button asChild variant={t.variant} size="lg" className="w-full mb-8">
-                <a
-                  href={GUMROAD_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => window.open(GUMROAD_URL, "_blank", "noopener,noreferrer")}
-                >
+                <Link to={t.name === "Free" ? "/login" : "/pricing"}>
                   {t.cta}
-                </a>
+                </Link>
               </Button>
               <ul className="space-y-3">
                 {t.features.map((f) => (

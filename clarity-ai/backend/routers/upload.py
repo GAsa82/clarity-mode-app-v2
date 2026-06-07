@@ -9,7 +9,7 @@ import logging
 from typing import List
 import aiofiles
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 
 from models.schemas import UploadResponse, BatchUploadResponse
 from pipelines.ocr_pipeline import extract_text, allowed_file
@@ -25,19 +25,36 @@ router = APIRouter(prefix="/api/upload", tags=["Upload"])
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
 
 @router.post("/", response_model=UploadResponse)
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(request: Request, file: UploadFile = File(...)):
     if not allowed_file(file.filename):
         raise HTTPException(status_code=400, detail=f"File type not supported: {file.filename}")
+
+    # BUG-01 fix: extract user_id from JWT for data isolation
+    user_id = ""
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            from services.supabase_client import verify_token
+            token_info = verify_token(auth_header[7:])
+            if token_info:
+                user_id = token_info["id"]
+        except Exception:
+            pass
 
     file_id = str(uuid.uuid4())
     safe_name = f"{file_id}_{file.filename}"
     file_path = os.path.join(UPLOAD_DIR, safe_name)
 
-    # Save file
+    # BUG-07 fix: enforce 10 MB file size limit
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 10 MB.")
+
     async with aiofiles.open(file_path, 'wb') as f:
-        content = await file.read()
         await f.write(content)
 
     # OCR extraction
@@ -129,6 +146,7 @@ async def upload_file(file: UploadFile = File(...)):
             "skills":       skills_str,
             "summary":      summary,
             "entry_number": total_entries + 1,
+            "user_id":      user_id,
         }
         # Store in ChromaDB (fast search)
         add_diary_entry(chunk_id, chunk, emb, meta)
@@ -146,6 +164,7 @@ async def upload_file(file: UploadFile = File(...)):
             beliefs=beliefs_str,
             language=language,
             entry_number=total_entries + 1,
+            user_id=user_id,
         )
 
     # ── Store a special SUMMARY CHUNK for the whole document ─────────────────
@@ -189,6 +208,7 @@ async def upload_file(file: UploadFile = File(...)):
         "skills":       skills_str,
         "summary":      summary,
         "entry_number": total_entries + 1,
+        "user_id":      user_id,
     }
     summary_emb = generate_embeddings([summary_text])[0] if summary_text else embeddings[0]
     add_diary_entry(f"{file_id}_summary", summary_text, summary_emb, summary_meta)

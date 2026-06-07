@@ -2,13 +2,15 @@
 Chat router — AI Coach with full diary RAG + standalone coaching mode.
 """
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from typing import Optional
 
 from models.schemas import ChatRequest, ChatResponse
 from database.chroma_client import search_diary, get_or_create_collection, get_all_entries
 from utils.embeddings import generate_embedding
 from database.chroma_client import PHILOSOPHY_COLLECTION as PHIL_COL
 from providers import chat_with_fallback, get_provider_stats, PROVIDER_CHAIN
+from utils.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
@@ -114,11 +116,25 @@ def _build_sources(diary_chunks):
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 @router.post("/", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    query_emb = generate_embedding(request.query)
+@limiter.limit("20/minute")
+async def chat(request: Request, body: ChatRequest):
+    # BUG-01 fix: extract user_id from JWT for data isolation
+    user_id: Optional[str] = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            from services.supabase_client import verify_token
+            token_info = verify_token(auth_header[7:])
+            if token_info:
+                user_id = token_info["id"]
+        except Exception:
+            pass
 
-    # Step 1 — semantic search: find the most relevant chunks
-    diary_results = search_diary(query_emb, n_results=request.n_results)
+    query_emb = generate_embedding(body.query)
+
+    # Step 1 — semantic search filtered by user_id when authenticated
+    filter_dict = {"user_id": {"$eq": user_id}} if user_id else None
+    diary_results = search_diary(query_emb, n_results=body.n_results, filter_dict=filter_dict)
     diary_chunks = _extract_chunks(diary_results)
 
     # Step 2 — expand: pull ALL chunks from every matched document
@@ -132,7 +148,8 @@ async def chat(request: ChatRequest):
             if isinstance(c.get("metadata"), dict) and c["metadata"].get("file_id")
         }
         try:
-            all_entries = get_all_entries()
+            from database.chroma_client import get_entries_by_user
+            all_entries = get_entries_by_user(user_id) if user_id else get_all_entries()
             docs  = all_entries.get("documents", []) or []
             metas = all_entries.get("metadatas", []) or []
             ids   = all_entries.get("ids", []) or []
@@ -156,7 +173,7 @@ async def chat(request: ChatRequest):
     diary_chunks = diary_chunks[:20]
 
     philosophy_chunks = []
-    if request.include_philosophy:
+    if body.include_philosophy:
         try:
             phil_col = get_or_create_collection(PHIL_COL)
             phil_results = phil_col.query(query_embeddings=[query_emb], n_results=3)
@@ -168,7 +185,7 @@ async def chat(request: ChatRequest):
     system_prompt = _DIARY_SYSTEM_PROMPT if diary_chunks else _GENERAL_SYSTEM_PROMPT
 
     provider_response = await chat_with_fallback(
-        prompt=request.query,
+        prompt=body.query,
         system_prompt=system_prompt,
         context_chunks=diary_chunks if diary_chunks else None,
         philosophy_chunks=philosophy_chunks if philosophy_chunks else None,

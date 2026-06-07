@@ -26,6 +26,7 @@ dist-ssr
 .vercel
 
 # Secrets — never commit real keys
+.env
 .env.local
 .env.*.local
 .mcp.json

@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { Instagram, Twitter, Youtube } from "lucide-react";
 
 export const Footer = () => {
   return (
@@ -15,21 +14,19 @@ export const Footer = () => {
               A premium platform for mental clarity, confidence, and focused living.
             </p>
             <div className="flex gap-3 mt-6">
-              {[Instagram, Twitter, Youtube].map((Icon, i) => (
-                <a
-                  key={i}
-                  href="#"
-                  className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
-                  aria-label="Social"
-                >
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
+              <a
+                href="https://wa.me/919871927402"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                WhatsApp
+              </a>
             </div>
           </div>
           {[
             { title: "Product", links: ["Library", "Store", "Dashboard", "Pricing"] },
-            { title: "Company", links: ["About", "Manifesto", "Contact"] },
+            { title: "Company", links: ["About", "Contact"] },
             { title: "Legal", links: ["Privacy", "Terms", "Refunds"] },
           ].map((col) => (
             <div key={col.title}>

@@ -3,9 +3,6 @@ import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { addSubscriber, subscriberCount } from "@/lib/subscribers";
 
-const apiBase = (import.meta as any).env?.VITE_API_URL || "http://localhost:3001";
-const apiKey = (import.meta as any).env?.VITE_WHATSAPP_API_KEY || "";
-
 export const Newsletter = () => {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -31,21 +28,11 @@ export const Newsletter = () => {
     const savedEmail = email;
     setEmail("");
 
-    // try to notify server (optional). Configure VITE_API_URL to point to your server.
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (apiKey) headers["x-api-key"] = apiKey;
-    fetch(`${apiBase}/api/subscribe`, {
+    fetch("/api/subscribe", {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: savedEmail }),
-    }).then(async (res) => {
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        console.warn('Subscribe API responded with error', body);
-      }
-    }).catch((err) => {
-      console.warn('Subscribe API request failed', err);
-    });
+    }).catch(() => {/* non-critical — email already saved locally */});
   };
 
   return (

@@ -58,8 +58,7 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  const isEmailAdmin = (user as any)?.email === 'gauravsinghdata6@gmail.com';
-  const isAdmin = isAdminFromDB || isAdminFromAuth || isEmailAdmin;
+  const isAdmin = isAdminFromDB || isAdminFromAuth;
   const isPremium = !loading && (subscription !== null || isAdmin);
   const plan: Plan = isAdmin ? "annual" : (subscription?.plan ?? "free");
 

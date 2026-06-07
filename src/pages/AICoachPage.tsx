@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { WhatsAppChat } from "@/components/WhatsAppChat";
@@ -190,6 +191,7 @@ const STORAGE_KEY = "clarity_chat_history";
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AICoachPage() {
+  const { session } = useAuth();
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -264,7 +266,7 @@ export default function AICoachPage() {
     setSending(true);
 
     try {
-      const res = await chatWithAI(query);
+      const res = await chatWithAI(query, 10, session?.access_token ?? undefined);
       const botMsg: Message = {
         id: `a${Date.now()}`,
         role: "assistant",
