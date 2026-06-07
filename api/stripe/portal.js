@@ -24,7 +24,11 @@ export default async function handler(req, res) {
     .from("subscriptions")
     .select("provider_customer_id")
     .eq("user_id", userId)
-    .single();
+    .eq("provider", "stripe")
+    .in("status", ["active", "trialing"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (!sub?.provider_customer_id)
     return res.status(404).json({ error: "No Stripe subscription found" });

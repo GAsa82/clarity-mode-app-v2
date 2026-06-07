@@ -86,7 +86,7 @@ function loadRazorpayScript(): Promise<boolean> {
 
 export default function PricingPage() {
   const { user, session } = useAuth();
-  const { isPremium, isAdmin, plan: currentPlan, refetch } = useSubscription();
+  const { subscription, isPremium, isAdmin, plan: currentPlan, refetch } = useSubscription();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -181,20 +181,30 @@ export default function PricingPage() {
     }
   }
 
-  async function handleManageStripe() {
+  async function handleManagePlan() {
     if (!user) return;
+    if (subscription?.provider === "razorpay") {
+      alert("To manage your Razorpay subscription, contact support at gauravsinghdata6@gmail.com");
+      return;
+    }
     setLoading("portal");
-    const res = await fetch("/api/stripe/portal", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session?.access_token}`,
-      },
-      body: JSON.stringify({}),
-    });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    setLoading(null);
+    try {
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert(data.error || "Could not open billing portal. Contact support.");
+    } catch {
+      alert("Failed to open billing portal. Contact support.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   return (
@@ -292,7 +302,7 @@ export default function PricingPage() {
                       {!user ? "Sign up free" : "Current plan"}
                     </Button>
                   ) : isCurrentPlan ? (
-                    <Button variant="glass" className="w-full" onClick={handleManageStripe}
+                    <Button variant="glass" className="w-full" onClick={handleManagePlan}
                       disabled={loading === "portal"}>
                       {loading === "portal" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Manage plan"}
                     </Button>
