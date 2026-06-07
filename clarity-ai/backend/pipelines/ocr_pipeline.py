@@ -43,14 +43,23 @@ def _gemini_vision_extract(image_bytes: bytes, mime_type: str = "image/png") -> 
                     },
                     {
                         "text": (
-                            "Extract ALL text from this image exactly as it appears. "
-                            "Include every word, number, date, subject name, marks, grade, and any other text. "
-                            "Preserve the structure and layout. Output only the raw extracted text, nothing else."
+                            "Extract ALL text from this document image with complete accuracy.\n\n"
+                            "CRITICAL rules:\n"
+                            "1. For TABLES: output every cell. Format as 'Label: Value' pairs on separate lines. "
+                            "Never skip a cell even if it contains long descriptive text.\n"
+                            "2. For GRADES/SCORES: always include the label AND the value together "
+                            "(e.g. 'Emotional Skills Grade: A', 'Mathematics: 95/100').\n"
+                            "3. For DESCRIPTIVE TEXT in cells (like skill descriptions, indicators, remarks): "
+                            "copy the FULL text word for word — do not summarise or truncate.\n"
+                            "4. For HINDI text: reproduce exactly using Devanagari script.\n"
+                            "5. Preserve section headers and sub-section hierarchy.\n"
+                            "6. Include every number, date, name, code, and identifier.\n\n"
+                            "Output only the extracted text, preserving all structure. No commentary."
                         )
                     }
                 ]
             }],
-            "generationConfig": {"maxOutputTokens": 4096, "temperature": 0.0},
+            "generationConfig": {"maxOutputTokens": 8192, "temperature": 0.0},
         }
 
         with httpx.Client(timeout=60) as client:
@@ -72,6 +81,72 @@ def _gemini_vision_extract(image_bytes: bytes, mime_type: str = "image/png") -> 
     except Exception as e:
         logger.warning(f"Gemini vision extraction failed: {e}")
         return None
+
+
+# ── OpenRouter Vision extraction (fallback when Gemini key is unavailable) ────
+
+_OPENROUTER_VISION_MODELS = [
+    "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-31b-it:free",
+    "meta-llama/llama-3.2-11b-vision-instruct:free",
+]
+
+_OCR_INSTRUCTION = (
+    "Extract ALL text from this document image with complete accuracy.\n\n"
+    "CRITICAL rules:\n"
+    "1. For TABLES: output every cell as 'Label: Value' pairs on separate lines. "
+    "Never skip a cell even if it contains long descriptive text.\n"
+    "2. For GRADES/SCORES: include the label AND value together "
+    "(e.g. 'Emotional Skills Grade: A', 'Mathematics: 95/100').\n"
+    "3. For DESCRIPTIVE TEXT in cells (skill descriptions, indicators, remarks): "
+    "copy the FULL text word for word — do not summarise or truncate.\n"
+    "4. For HINDI text: reproduce exactly in Devanagari script.\n"
+    "5. Preserve section headers and hierarchy.\n"
+    "6. Include every number, date, name, code, and identifier.\n\n"
+    "Output only extracted text. No commentary."
+)
+
+
+def _openrouter_vision_extract(image_bytes: bytes, mime_type: str = "image/png") -> str | None:
+    """Extract text via OpenRouter vision models — free fallback when Gemini is unavailable."""
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        return None
+    try:
+        import httpx
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://claritymode.com",
+            "X-Title": "Clarity AI OCR",
+        }
+        for model in _OPENROUTER_VISION_MODELS:
+            payload = {
+                "model": model,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
+                        {"type": "text", "text": _OCR_INSTRUCTION},
+                    ],
+                }],
+                "max_tokens": 4096,
+                "temperature": 0.0,
+            }
+            with httpx.Client(timeout=90) as client:
+                resp = client.post("https://openrouter.ai/api/v1/chat/completions", json=payload, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                if text:
+                    logger.info(f"OpenRouter vision ({model}): {len(text)} chars")
+                    return text
+            else:
+                logger.warning(f"OpenRouter vision {model}: {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"OpenRouter vision extraction failed: {e}")
+    return None
 
 
 # ── Tesseract OCR (requires system tesseract binary) ─────────────────────────
@@ -124,13 +199,19 @@ def extract_text_from_image(image_path: str) -> str:
                 ".webp": "image/webp", ".bmp": "image/bmp", ".tiff": "image/tiff"}
     mime = mime_map.get(ext, "image/png")
 
-    # 1. Try Gemini Vision (best quality, no system deps)
+    # 1. Try Gemini Vision (best quality)
     text = _gemini_vision_extract(img_bytes, mime)
     if text:
         logger.info(f"Image read via Gemini Vision: {len(text)} chars")
         return text
 
-    # 2. Fall back to tesseract
+    # 2. Try OpenRouter Vision (free fallback — Gemma 4 / Llama 3.2 vision)
+    text = _openrouter_vision_extract(img_bytes, mime)
+    if text:
+        logger.info(f"Image read via OpenRouter Vision: {len(text)} chars")
+        return text
+
+    # 3. Fall back to Tesseract
     try:
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     except Exception as e:
@@ -138,7 +219,7 @@ def extract_text_from_image(image_path: str) -> str:
 
     text = _tesseract_ocr_image(img)
     if text:
-        logger.info(f"Image read via tesseract: {len(text)} chars")
+        logger.info(f"Image read via Tesseract: {len(text)} chars")
         return text
 
     return "[OCR: no text detected in image — try uploading a clearer scan]"
@@ -219,14 +300,21 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     for i, img_bytes in enumerate(page_images):
         page_num = i + 1
 
-        # 2a. Gemini Vision per page (best for scanned marksheets)
+        # 2a. Gemini Vision per page
         text = _gemini_vision_extract(img_bytes, "image/png")
         if text:
             logger.info(f"Page {page_num}: Gemini Vision — {len(text)} chars")
             extracted_pages.append(f"--- Page {page_num} ---\n{text}")
             continue
 
-        # 2b. Tesseract OCR per page
+        # 2b. OpenRouter Vision per page
+        text = _openrouter_vision_extract(img_bytes, "image/png")
+        if text:
+            logger.info(f"Page {page_num}: OpenRouter Vision — {len(text)} chars")
+            extracted_pages.append(f"--- Page {page_num} ---\n{text}")
+            continue
+
+        # 2c. Tesseract OCR per page
         try:
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
         except Exception:

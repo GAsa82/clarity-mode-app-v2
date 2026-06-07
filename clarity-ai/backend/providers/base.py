@@ -12,8 +12,8 @@ from __future__ import annotations
 import abc
 import logging
 import time
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, Callable, Awaitable
+from dataclasses import dataclass
+from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -137,14 +137,39 @@ def compress_context(
     compressed = []
     for chunk in sorted_diary:
         text = chunk.get("document", "")
-        meta = chunk.get("metadata", {})
-        date = meta.get("date", "unknown date") if isinstance(meta, dict) else "unknown date"
+        meta = chunk.get("metadata", {}) if isinstance(chunk.get("metadata"), dict) else {}
 
-        # Truncate
         if len(text) > max_chars_per_chunk:
             text = text[:max_chars_per_chunk] + "..."
 
-        compressed.append(f"[Diary, {date}]: {text}")
+        # Build a rich metadata header so the AI sees all extracted fields
+        doc_type    = meta.get("doc_type", "") or meta.get("document_type", "")
+        filename    = meta.get("filename", "")
+        emotions    = meta.get("emotions", "")
+        themes      = meta.get("themes", "")
+        skills      = meta.get("skills", "")
+        achievements = meta.get("achievements", "")
+        strengths   = meta.get("strengths", "")
+        growth      = meta.get("growth_areas", "")
+        key_facts   = meta.get("key_facts", "")
+        remarks     = meta.get("remarks", "")
+        summary     = meta.get("summary", "")
+
+        parts = []
+        if filename:   parts.append(f"File: {filename}")
+        if doc_type:   parts.append(f"Type: {doc_type}")
+        if emotions:   parts.append(f"Emotions: {emotions}")
+        if themes:     parts.append(f"Themes: {themes}")
+        if skills:     parts.append(f"Skills assessed: {skills}")
+        if achievements: parts.append(f"Achievements: {achievements}")
+        if strengths:  parts.append(f"Strengths: {strengths}")
+        if growth:     parts.append(f"Growth areas: {growth}")
+        if key_facts:  parts.append(f"Key facts: {key_facts}")
+        if remarks:    parts.append(f"Remarks: {remarks}")
+        if summary:    parts.append(f"Summary: {summary}")
+
+        header = " | ".join(parts) if parts else "Document"
+        compressed.append(f"[{header}]\n{text}")
 
     # Add philosophy if available
     if philosophy_chunks:
@@ -292,17 +317,29 @@ class AIProvider(abc.ABC):
         Subclasses can override for native entity extraction APIs.
         """
         extraction_prompt = (
-            'Analyze this diary entry and extract the following as JSON:\n'
+            'You are an expert document analyst. Analyze the text below and extract ALL meaningful information as JSON.\n\n'
+            'First detect the document type (diary entry, report card, marksheet, certificate, letter, note, etc.).\n'
+            'Then extract every relevant field for that type.\n\n'
+            'Always return this structure (fill what is relevant, leave others as empty list/object):\n'
             '{\n'
-            '  "emotions": ["list of top 3-5 emotions"],\n'
-            '  "themes": ["list of top 3-5 themes/topics"],\n'
-            '  "beliefs": ["any expressed beliefs"],\n'
-            '  "goals": ["any mentioned goals"],\n'
-            '  "fears": ["any mentioned fears"],\n'
-            '  "desires": ["any mentioned desires"],\n'
-            '  "recurring_patterns": ["any patterns you notice"]\n'
+            '  "document_type": "diary_entry | report_card | marksheet | certificate | letter | note | other",\n'
+            '  "emotions": ["emotions expressed or implied — e.g. anxious, proud, lonely"],\n'
+            '  "themes": ["main topics — e.g. relationships, studies, career, health"],\n'
+            '  "beliefs": ["beliefs or values expressed — e.g. hard work pays off"],\n'
+            '  "goals": ["mentioned goals or aspirations"],\n'
+            '  "achievements": ["accomplishments, grades, awards, scores mentioned"],\n'
+            '  "skills_assessed": {"skill_name": "grade or descriptor"},\n'
+            '  "key_facts": ["important facts, dates, scores, names, identifiers"],\n'
+            '  "strengths": ["strengths mentioned or implied"],\n'
+            '  "areas_for_growth": ["weaknesses or improvement areas"],\n'
+            '  "descriptive_remarks": ["full text of any evaluative/descriptive remarks — copy word for word"],\n'
+            '  "people_mentioned": ["names of people, teachers, institutions"],\n'
+            '  "summary": "one sentence summary of the entire document"\n'
             '}\n\n'
-            f'Diary entry:\n{text[:3000]}\n\n'
+            'IMPORTANT: For report cards and marksheets — extract EVERY subject, grade, and descriptive indicator.\n'
+            'For diary entries — focus on emotions, beliefs, and themes.\n'
+            'Copy descriptive remarks verbatim, do not paraphrase.\n\n'
+            f'Document text:\n{text[:4000]}\n\n'
             'Return ONLY valid JSON, no other text.'
         )
 

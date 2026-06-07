@@ -64,6 +64,7 @@ async def upload_file(file: UploadFile = File(...)):
 
     # Extract entities using the provider-agnostic AI layer
     entities = {"emotions": [], "themes": [], "beliefs": []}
+    provider = None
     try:
         provider = get_active_provider()
         if provider:
@@ -80,11 +81,31 @@ async def upload_file(file: UploadFile = File(...)):
     language = detect_language(extracted_text)
     total_entries = get_entry_count()
 
+    # Flatten all rich entity fields into searchable strings
+    def _join(lst) -> str:
+        if isinstance(lst, list):
+            return ",".join(str(x) for x in lst if x)
+        return str(lst) if lst else ""
+
+    emotions_str  = _join(entities.get("emotions", []))
+    themes_str    = _join(entities.get("themes", []))
+    beliefs_str   = _join(entities.get("beliefs", []))
+
+    # Extra rich fields from new entity extraction
+    doc_type      = entities.get("document_type", "")
+    achievements  = _join(entities.get("achievements", []))
+    strengths     = _join(entities.get("strengths", []))
+    growth_areas  = _join(entities.get("areas_for_growth", []))
+    key_facts     = _join(entities.get("key_facts", []))
+    remarks       = _join(entities.get("descriptive_remarks", []))
+    summary       = entities.get("summary", "")
+
+    # skills_assessed is a dict — flatten to "skill:grade, ..." string
+    skills_raw = entities.get("skills_assessed", {})
+    skills_str = ",".join(f"{k}:{v}" for k, v in skills_raw.items()) if isinstance(skills_raw, dict) else ""
+
     # Generate embeddings and store in ChromaDB + Supabase
     embeddings = generate_embeddings(chunks)
-    emotions_str = ",".join(entities.get("emotions", []))
-    themes_str = ",".join(entities.get("themes", []))
-    beliefs_str = ",".join(entities.get("beliefs", []))
 
     for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
         chunk_id = f"{file_id}_chunk_{i}"
@@ -96,9 +117,17 @@ async def upload_file(file: UploadFile = File(...)):
             "total_chunks": len(chunks),
             "language": language,
             "date": str(uuid.uuid1().time),
-            "emotions": emotions_str,
-            "themes": themes_str,
-            "beliefs": beliefs_str,
+            "emotions":     emotions_str,
+            "themes":       themes_str,
+            "beliefs":      beliefs_str,
+            "doc_type":     doc_type,
+            "achievements": achievements,
+            "strengths":    strengths,
+            "growth_areas": growth_areas,
+            "key_facts":    key_facts,
+            "remarks":      remarks,
+            "skills":       skills_str,
+            "summary":      summary,
             "entry_number": total_entries + 1,
         }
         # Store in ChromaDB (fast search)
@@ -119,7 +148,7 @@ async def upload_file(file: UploadFile = File(...)):
             entry_number=total_entries + 1,
         )
 
-    logger.info(f"Uploaded {file.filename}: {len(chunks)} chunks, lang={language}, entities_by={provider.name if provider else 'none'}")
+    logger.info(f"Uploaded {file.filename}: {len(chunks)} chunks, lang={language}, doc_type={doc_type}, entities_by={provider.name if provider else 'none'}")
 
     return UploadResponse(
         file_id=file_id,
