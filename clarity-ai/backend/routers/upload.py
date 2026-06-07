@@ -164,8 +164,8 @@ async def upload_file(file: UploadFile = File(...)):
     if emotions_str:  summary_lines.append(f"Emotions: {emotions_str}")
     if themes_str:    summary_lines.append(f"Themes: {themes_str}")
     if beliefs_str:   summary_lines.append(f"Beliefs: {beliefs_str}")
-    # Also include a slice of the raw text so keywords are searchable
-    summary_lines.append(f"Full text excerpt: {extracted_text[:1500]}")
+    # Include enough raw text to cover all sections (life skills etc. may be mid-doc)
+    summary_lines.append(f"Full text excerpt: {extracted_text[:4000]}")
     summary_text = "\n".join(summary_lines)
 
     summary_meta = {

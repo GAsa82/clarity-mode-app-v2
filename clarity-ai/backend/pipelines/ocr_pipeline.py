@@ -3,7 +3,7 @@ import io
 import shutil
 import base64
 import logging
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +164,33 @@ def _find_tesseract() -> str | None:
     return None
 
 
+def _preprocess_for_tesseract(img: Image.Image) -> Image.Image:
+    """Remove coloured backgrounds (e.g. CBSE yellow/gold) before OCR.
+
+    Yellow (255,255,0) desaturates to ~200 in greyscale — well above black text (0-60).
+    Thresholding at 160 turns the background white and text black, dramatically
+    improving Tesseract accuracy on coloured document scans.
+    """
+    # Scale up small images — Tesseract needs ~300 DPI; boost if under 1200px wide
+    w, h = img.size
+    if w < 1200:
+        scale = max(2, 1200 // w)
+        img = img.resize((w * scale, h * scale), Image.LANCZOS)
+
+    gray = img.convert("L")
+
+    # Sharpen edges before thresholding
+    gray = gray.filter(ImageFilter.SHARPEN)
+
+    # Boost contrast so light-coloured backgrounds become clearly distinct from text
+    gray = ImageEnhance.Contrast(gray).enhance(2.5)
+
+    # Binary threshold: pixels > 160 → white (background), ≤ 160 → black (text)
+    gray = gray.point(lambda x: 255 if x > 160 else 0)
+
+    return gray
+
+
 def _tesseract_ocr_image(img: Image.Image) -> str | None:
     tess = _find_tesseract()
     if not tess:
@@ -172,13 +199,22 @@ def _tesseract_ocr_image(img: Image.Image) -> str | None:
     try:
         import pytesseract
         pytesseract.pytesseract.tesseract_cmd = tess
-        # Try with Hindi first, fall back to English-only
+
+        processed = _preprocess_for_tesseract(img)
+        # psm 6 = uniform block of text — works well for structured documents / tables
+        cfg = "--psm 6 --oem 1"
         try:
-            text = pytesseract.image_to_string(img, lang="eng+hin").strip()
+            text = pytesseract.image_to_string(processed, lang="eng+hin", config=cfg).strip()
         except Exception:
             text = ""
         if not text:
-            text = pytesseract.image_to_string(img, lang="eng").strip()
+            text = pytesseract.image_to_string(processed, lang="eng", config=cfg).strip()
+        # If preprocessing made things worse (blank result), try original image
+        if not text:
+            try:
+                text = pytesseract.image_to_string(img, lang="eng+hin").strip()
+            except Exception:
+                text = pytesseract.image_to_string(img, lang="eng").strip()
         return text if text else None
     except ImportError:
         logger.warning("pytesseract not installed")

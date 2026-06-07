@@ -116,8 +116,8 @@ class UsageStats:
 
 def compress_context(
     diary_chunks: List[Dict[str, Any]],
-    max_chunks: int = 5,
-    max_chars_per_chunk: int = 800,
+    max_chunks: int = 12,
+    max_chars_per_chunk: int = 1500,
     philosophy_chunks: Optional[List[Dict[str, Any]]] = None,
     max_philosophy_chunks: int = 2,
 ) -> str:
@@ -339,7 +339,7 @@ class AIProvider(abc.ABC):
             'IMPORTANT: For report cards and marksheets — extract EVERY subject, grade, and descriptive indicator.\n'
             'For diary entries — focus on emotions, beliefs, and themes.\n'
             'Copy descriptive remarks verbatim, do not paraphrase.\n\n'
-            f'Document text:\n{text[:4000]}\n\n'
+            f'Document text:\n{text[:8000]}\n\n'
             'Return ONLY valid JSON, no other text.'
         )
 
