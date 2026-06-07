@@ -2,12 +2,12 @@
 Chat router — AI Coach with full diary RAG + standalone coaching mode.
 """
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from models.schemas import ChatRequest, ChatResponse
-from database.chroma_client import search_diary, get_or_create_collection
+from database.chroma_client import search_diary, get_or_create_collection, get_all_entries
 from utils.embeddings import generate_embedding
-from database.chroma_client import DIARY_COLLECTION, PHILOSOPHY_COLLECTION as PHIL_COL
+from database.chroma_client import PHILOSOPHY_COLLECTION as PHIL_COL
 from providers import chat_with_fallback, get_provider_stats, PROVIDER_CHAIN
 
 logger = logging.getLogger(__name__)
@@ -117,8 +117,43 @@ def _build_sources(diary_chunks):
 async def chat(request: ChatRequest):
     query_emb = generate_embedding(request.query)
 
+    # Step 1 — semantic search: find the most relevant chunks
     diary_results = search_diary(query_emb, n_results=request.n_results)
     diary_chunks = _extract_chunks(diary_results)
+
+    # Step 2 — expand: pull ALL chunks from every matched document
+    # Fixes the case where a document has multiple sections (e.g. report card page 1 = marks,
+    # page 2 = life skills). The query may only match one section but the user expects answers
+    # from the whole document.
+    if diary_chunks:
+        matched_file_ids = {
+            c["metadata"].get("file_id", "")
+            for c in diary_chunks
+            if isinstance(c.get("metadata"), dict) and c["metadata"].get("file_id")
+        }
+        try:
+            all_entries = get_all_entries()
+            docs  = all_entries.get("documents", []) or []
+            metas = all_entries.get("metadatas", []) or []
+            ids   = all_entries.get("ids", []) or []
+            seen_ids = {c["metadata"].get("file_id", "") + str(c["metadata"].get("chunk_index"))
+                        for c in diary_chunks if isinstance(c.get("metadata"), dict)}
+            for doc, meta, _ in zip(docs, metas, ids):
+                if not meta or not isinstance(meta, dict):
+                    continue
+                if meta.get("file_id", "") not in matched_file_ids:
+                    continue
+                dedup_key = meta.get("file_id", "") + str(meta.get("chunk_index"))
+                if dedup_key in seen_ids:
+                    continue
+                diary_chunks.append({"document": doc, "metadata": meta, "distance": 0.2})
+                seen_ids.add(dedup_key)
+        except Exception as e:
+            logger.warning(f"Document expansion failed (non-critical): {e}")
+
+    # Cap at 20 chunks total — prioritise lower distance (more relevant)
+    diary_chunks.sort(key=lambda c: c.get("distance", 1.0))
+    diary_chunks = diary_chunks[:20]
 
     philosophy_chunks = []
     if request.include_philosophy:

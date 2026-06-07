@@ -148,7 +148,52 @@ async def upload_file(file: UploadFile = File(...)):
             entry_number=total_entries + 1,
         )
 
-    logger.info(f"Uploaded {file.filename}: {len(chunks)} chunks, lang={language}, doc_type={doc_type}, entities_by={provider.name if provider else 'none'}")
+    # ── Store a special SUMMARY CHUNK for the whole document ─────────────────
+    # This chunk contains ALL extracted fields in human-readable form.
+    # It ensures that when a user asks about ANY part of the document
+    # (e.g. "what's my emotional skills"), it's always findable via semantic search.
+    summary_lines = [f"Document: {file.filename}"]
+    if doc_type:      summary_lines.append(f"Document type: {doc_type}")
+    if summary:       summary_lines.append(f"Summary: {summary}")
+    if skills_str:    summary_lines.append(f"Skills assessed: {skills_str}")
+    if achievements:  summary_lines.append(f"Achievements: {achievements}")
+    if strengths:     summary_lines.append(f"Strengths: {strengths}")
+    if growth_areas:  summary_lines.append(f"Areas for growth: {growth_areas}")
+    if key_facts:     summary_lines.append(f"Key facts: {key_facts}")
+    if remarks:       summary_lines.append(f"Descriptive remarks: {remarks}")
+    if emotions_str:  summary_lines.append(f"Emotions: {emotions_str}")
+    if themes_str:    summary_lines.append(f"Themes: {themes_str}")
+    if beliefs_str:   summary_lines.append(f"Beliefs: {beliefs_str}")
+    # Also include a slice of the raw text so keywords are searchable
+    summary_lines.append(f"Full text excerpt: {extracted_text[:1500]}")
+    summary_text = "\n".join(summary_lines)
+
+    summary_meta = {
+        **base_meta,
+        "file_id":      file_id,
+        "filename":     file.filename,
+        "chunk_index":  -1,
+        "total_chunks": len(chunks),
+        "language":     language,
+        "date":         str(uuid.uuid1().time),
+        "is_summary":   "true",
+        "doc_type":     doc_type,
+        "emotions":     emotions_str,
+        "themes":       themes_str,
+        "beliefs":      beliefs_str,
+        "achievements": achievements,
+        "strengths":    strengths,
+        "growth_areas": growth_areas,
+        "key_facts":    key_facts,
+        "remarks":      remarks,
+        "skills":       skills_str,
+        "summary":      summary,
+        "entry_number": total_entries + 1,
+    }
+    summary_emb = generate_embeddings([summary_text])[0] if summary_text else embeddings[0]
+    add_diary_entry(f"{file_id}_summary", summary_text, summary_emb, summary_meta)
+
+    logger.info(f"Uploaded {file.filename}: {len(chunks)} chunks + 1 summary, lang={language}, doc_type={doc_type}, entities_by={provider.name if provider else 'none'}")
 
     return UploadResponse(
         file_id=file_id,
