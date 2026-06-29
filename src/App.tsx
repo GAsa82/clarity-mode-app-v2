@@ -12,13 +12,11 @@ import AdminLayout from "@/components/AdminLayout";
 
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
-import AICoachPage from "./pages/AICoachPage";
 import InsightsPage from "./pages/InsightsPage";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Refunds from "./pages/Refunds";
 import { FocusRoomPage } from "./pages/FocusRoomPage";
-import AIPage from "./pages/AIPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import PricingPage from "./pages/PricingPage";
@@ -29,7 +27,7 @@ import CoachingPage from "./pages/CoachingPage";
 import BookingPage from "./pages/coaching/BookingPage";
 import ConfirmationPage from "./pages/coaching/ConfirmationPage";
 import AdminCoaching from "./pages/admin/AdminCoaching";
-import ConfessionsPage from "./pages/ConfessionsPage";
+import ResearchPage from "./pages/ResearchPage";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -67,11 +65,7 @@ const App = () => (
               <Route path="/coaching" element={<CoachingPage />} />
               <Route path="/coaching/book" element={<BookingPage />} />
               <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
-              <Route path="/confessions" element={<ConfessionsPage />} />
-
-              {/* Premium-gated routes (gate handled inside each page) */}
-              <Route path="/ai-coach" element={<AICoachPage />} />
-              <Route path="/ai" element={<AIPage />} />
+              <Route path="/research" element={<ResearchPage />} />
 
               {/* Admin routes - protected */}
               <Route

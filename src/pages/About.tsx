@@ -23,9 +23,7 @@ export default function About() {
               <span className="text-gradient italic">think too much.</span>
             </h1>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
-              Clarity Mode is an AI-powered personal growth platform that helps
-              you understand your own mind — through journaling, pattern analysis,
-              and honest reflection.
+              Clarity Mode is a premium knowledge vault for mental clarity, decision-making, focus, and personal growth — built for people who take their mind seriously.
             </p>
           </div>
 
@@ -37,15 +35,15 @@ export default function About() {
                 <h2 className="font-display text-xl font-light">The Story</h2>
               </div>
               <p className="mb-4">
-                Clarity Mode started from a simple frustration: most self-help tools
-                give you generic advice. They don't know <em>you</em>. They don't
-                know what you've been through, what patterns you keep repeating, or
-                what your own words reveal about where you're stuck.
+                Clarity Mode started from a simple frustration: most personal growth
+                resources are scattered, shallow, or buried behind paywalls that promise
+                but under-deliver. We wanted one place — carefully curated, research-backed,
+                and built for people who take their mental performance seriously.
               </p>
               <p>
-                So we built something different — an AI coach that reads your diary
-                entries, report cards, and personal documents, then reflects your
-                own patterns back to you. Not generic wisdom. Your specific story.
+                So we built a premium knowledge vault: research papers, frameworks,
+                protocols, and templates designed to sharpen decision-making, build focus,
+                and drive real personal growth. Not generic advice. Rigorous resources.
               </p>
             </div>
 

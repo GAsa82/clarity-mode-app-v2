@@ -1,5 +1,5 @@
 import { Navbar } from "@/components/Navbar";
-import { Hero } from "@/components/Hero";
+import { KnowledgeVaultHero } from "@/components/KnowledgeVaultHero";
 import { Benefits } from "@/components/Benefits";
 import { FocusRooms } from "@/components/FocusRooms";
 import { Library } from "@/components/Library";
@@ -16,7 +16,7 @@ const Index = () => {
   return (
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
       <Navbar />
-      <Hero />
+      <KnowledgeVaultHero />
       <Benefits />
       <FocusRooms />
       <Library />

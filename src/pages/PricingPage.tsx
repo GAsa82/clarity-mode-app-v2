@@ -44,8 +44,8 @@ const PLANS = [
     icon: Sparkles,
     features: [
       "Everything in Free",
-      "AI Coach — unlimited chats",
-      "AI Insights & diary analysis",
+      "Full research paper library",
+      "Downloadable frameworks & protocols",
       "All premium focus rooms",
       "Ambient sounds library",
       "Priority support",

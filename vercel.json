@@ -4,7 +4,6 @@
     { "source": "/api/stripe/(.*)",         "destination": "/api/stripe/$1" },
     { "source": "/api/razorpay/(.*)",       "destination": "/api/razorpay/$1" },
     { "source": "/api/coaching/(.*)",       "destination": "/api/coaching/$1" },
-    { "source": "/api/confessions/:action", "destination": "/api/confessions?action=:action" },
     { "source": "/api/subscribe",           "destination": "/api/subscribe" },
     {
       "source": "/api/(.*)",

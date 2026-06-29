@@ -6,11 +6,11 @@ import logoImg from "@/assets/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 
 const publicLinks = [
+  { href: "/", label: "Home" },
   { href: "/#library", label: "Library" },
-  { href: "/ai-coach", label: "AI Coach" },
+  { href: "/research", label: "Research Papers" },
   { href: "/insights", label: "Insights" },
-  { href: "/confessions", label: "Community" },
-  { href: "/#pricing", label: "Pricing" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export const Navbar = () => {
