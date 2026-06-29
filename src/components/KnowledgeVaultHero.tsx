@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, BookOpen, ChevronDown, FileText, Layers, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useVault } from "@/contexts/VaultContext";
+import { getHeroContent, HERO_DEFAULTS, type HeroContent } from "@/lib/site-settings";
 
 const PILLARS = [
   { icon: FileText, label: "Research Papers" },
@@ -13,6 +15,11 @@ const PILLARS = [
 export const KnowledgeVaultHero = () => {
   const reduce = useReducedMotion();
   const { openVault } = useVault();
+  const [hero, setHero] = useState<HeroContent>(HERO_DEFAULTS);
+
+  useEffect(() => {
+    getHeroContent().then(setHero);
+  }, []);
 
   return (
     <section className="relative min-h-[100svh] flex items-center pt-28 pb-20 md:pt-32 overflow-hidden">
@@ -38,7 +45,7 @@ export const KnowledgeVaultHero = () => {
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass">
               <BookOpen className="w-3.5 h-3.5 text-primary" />
               <span className="text-xs tracking-wide text-muted-foreground">
-                Premium Knowledge Vault
+                {hero.badge}
               </span>
             </span>
           </motion.div>
@@ -49,8 +56,8 @@ export const KnowledgeVaultHero = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-            The library your<br />
-            <span className="text-gradient italic">best mind needs.</span>
+            {hero.titleLine1}<br />
+            <span className="text-gradient italic">{hero.titleLine2}</span>
           </motion.h1>
 
           <motion.p
@@ -59,7 +66,7 @@ export const KnowledgeVaultHero = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
           >
-            Access premium research papers, frameworks, protocols, templates, and mental clarity resources designed to improve decision-making, focus, productivity, and personal growth.
+            {hero.subtitle}
           </motion.p>
 
           <motion.div
@@ -74,11 +81,11 @@ export const KnowledgeVaultHero = () => {
               className="group"
               onClick={() => openVault()}
             >
-              Explore the Vault
+              {hero.primaryCtaLabel}
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Button>
             <a href="/#library" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Browse the library →
+              {hero.secondaryCtaLabel}
             </a>
           </motion.div>
 

@@ -8,6 +8,8 @@ import {
   FileText,
   Image,
   Video,
+  Sparkles,
+  MessageSquare,
   ArrowRight,
   Plus,
 } from "lucide-react";
@@ -76,6 +78,22 @@ const contentTypes = [
     desc: "Browse and manage all uploaded media assets — audio, video, images.",
     accent: "from-slate-500/15 to-slate-800/30",
     iconColor: "text-slate-400",
+  },
+  {
+    to: "/admin/site-content",
+    icon: Sparkles,
+    label: "Site Content",
+    desc: "Edit the landing page hero and toggle homepage sections.",
+    accent: "from-yellow-500/15 to-amber-900/30",
+    iconColor: "text-yellow-400",
+  },
+  {
+    to: "/admin/testimonials",
+    icon: MessageSquare,
+    label: "Testimonials",
+    desc: "Manage real, published testimonials shown on the website.",
+    accent: "from-pink-500/15 to-rose-900/30",
+    iconColor: "text-pink-400",
   },
 ];
 

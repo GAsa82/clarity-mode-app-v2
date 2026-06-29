@@ -46,6 +46,8 @@ import ResearchPapersAdmin from "./pages/admin/ResearchPapersAdmin";
 import OldBooksAdmin from "./pages/admin/OldBooksAdmin";
 import ContentItemsAdmin from "./pages/admin/ContentItemsAdmin";
 import ClaritySessionsAdmin from "./pages/admin/ClaritySessionsAdmin";
+import TestimonialsAdmin from "./pages/admin/TestimonialsAdmin";
+import SiteContentAdmin from "./pages/admin/SiteContentAdmin";
 import MediaLibraryAdmin from "./pages/admin/MediaLibraryAdmin";
 
 // Admin — system
@@ -112,6 +114,10 @@ const App = () => (
                   <Route path="templates" element={<ContentItemsAdmin type="template" title="Templates" />} />
                   <Route path="clarity-sessions" element={<ClaritySessionsAdmin />} />
                   <Route path="media" element={<MediaLibraryAdmin />} />
+
+                  {/* Website content */}
+                  <Route path="site-content" element={<SiteContentAdmin />} />
+                  <Route path="testimonials" element={<TestimonialsAdmin />} />
 
                   {/* System */}
                   <Route path="analytics" element={<AnalyticsPage />} />

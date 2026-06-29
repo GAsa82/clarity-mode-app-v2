@@ -29,6 +29,7 @@ import {
   Video,
   CalendarCheck,
   ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import logoImg from "@/assets/logo.png";
@@ -61,6 +62,13 @@ const navGroups: NavGroup[] = [
       { to: "/admin/templates", icon: FileText, label: "Templates" },
       { to: "/admin/clarity-sessions", icon: Video, label: "Clarity Sessions" },
       { to: "/admin/media", icon: Image, label: "Media Library" },
+    ],
+  },
+  {
+    label: "Website",
+    items: [
+      { to: "/admin/site-content", icon: Sparkles, label: "Site Content" },
+      { to: "/admin/testimonials", icon: MessageSquare, label: "Testimonials" },
     ],
   },
   {
