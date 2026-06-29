@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 type Product = {
   id: string;
@@ -70,8 +71,7 @@ export const Store = () => {
       const loaded = await loadRazorpayScript();
       if (!loaded) throw new Error("Razorpay SDK failed to load");
 
-      const token = (await import("@/lib/supabase").then((m) => m.supabase.auth.getSession()))
-        .data.session?.access_token;
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
 
       const res = await fetch("/api/razorpay/purchase", {
         method: "POST",
