@@ -1,4 +1,3 @@
-import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const GUMROAD_URL = "https://gauravdata.gumroad.com/l/";
@@ -8,37 +7,29 @@ const products = [
     title: "30 Days to Mental Clarity",
     desc: "A guided 30-day system to silence overthinking and rebuild a focused mind.",
     price: 29,
-    rating: 4.9,
-    reviews: 412,
-    tag: "Bestseller",
     accent: "from-blue-500/20 to-blue-900/40",
+    slug: "30-days-mental-clarity",
   },
   {
     title: "Overthinking Reset System",
     desc: "Worksheets, prompts, and protocols to break the mental loop. PDF + audio.",
     price: 24,
-    rating: 4.8,
-    reviews: 287,
-    tag: "New",
     accent: "from-slate-400/20 to-slate-800/40",
+    slug: "overthinking-reset",
   },
   {
     title: "Confidence Rebuild Blueprint",
     desc: "A practical framework to restore self-trust through small kept promises.",
     price: 34,
-    rating: 4.9,
-    reviews: 198,
-    tag: "Top-rated",
     accent: "from-indigo-500/20 to-indigo-900/40",
+    slug: "confidence-blueprint",
   },
   {
     title: "Focus Like a Machine",
     desc: "Deep work routines, dopamine protocols, and the Clarity timer system.",
     price: 27,
-    rating: 5.0,
-    reviews: 156,
-    tag: "Featured",
     accent: "from-cyan-500/15 to-blue-900/40",
+    slug: "focus-like-a-machine",
   },
 ];
 
@@ -68,9 +59,6 @@ export const Store = () => {
               style={{ animationDelay: `${i * 0.08}s` }}
             >
               <div className={`relative aspect-[4/5] bg-gradient-to-br ${p.accent} flex items-center justify-center overflow-hidden`}>
-                <div className="absolute top-3 left-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded-full glass">
-                  {p.tag}
-                </div>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,hsl(215_90%_62%/0.25),transparent_70%)]" />
                 <div className="relative px-6 text-center">
                   <p className="font-display text-2xl leading-tight text-foreground/95">
@@ -86,19 +74,13 @@ export const Store = () => {
                 <p className="text-sm text-muted-foreground leading-relaxed mb-4 flex-1">
                   {p.desc}
                 </p>
-                <div className="flex items-center gap-1 mb-4">
-                  <Star className="w-3.5 h-3.5 fill-primary text-primary" />
-                  <span className="text-xs font-medium">{p.rating}</span>
-                  <span className="text-xs text-muted-foreground">({p.reviews})</span>
-                </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-display text-2xl">${p.price}</span>
                   <Button asChild variant="hero" size="sm">
                     <a
-                      href={GUMROAD_URL}
+                      href={`${GUMROAD_URL}${p.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => window.open(GUMROAD_URL, "_blank", "noopener,noreferrer")}
                     >
                       Buy now
                     </a>

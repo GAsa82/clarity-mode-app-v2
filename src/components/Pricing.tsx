@@ -78,7 +78,7 @@ export const Pricing = () => {
             >
               {t.featured && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-primary-gradient text-primary-foreground">
-                  Most chosen
+                  Recommended
                 </div>
               )}
               <p className="font-display text-xl mb-1">{t.name}</p>

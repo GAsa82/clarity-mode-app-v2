@@ -1,17 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
-import { addSubscriber, subscriberCount } from "@/lib/subscribers";
+import { useState } from "react";
+import { addSubscriber } from "@/lib/subscribers";
 
 export const Newsletter = () => {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [count, setCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCount(subscriberCount());
-  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,9 +17,7 @@ export const Newsletter = () => {
       else if (result.reason === "duplicate") setError("This email is already subscribed.");
       return;
     }
-    // optimistic local save
     setSent(true);
-    setCount(subscriberCount());
     const savedEmail = email;
     setEmail("");
 
@@ -49,7 +42,7 @@ export const Newsletter = () => {
               <br /> Every Sunday.
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto mb-2">
-              Join <strong>{count.toLocaleString()}</strong> readers building a calmer, sharper mind. No noise. No spam.
+              A calmer, sharper mind — one Sunday at a time. No noise. No spam.
             </p>
 
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">

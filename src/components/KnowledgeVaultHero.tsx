@@ -98,18 +98,6 @@ export const KnowledgeVaultHero = () => {
             ))}
           </motion.div>
 
-          <motion.div
-            className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground/60"
-            initial={reduce ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.6 }}
-          >
-            <span>300+ premium resources</span>
-            <span className="opacity-30">·</span>
-            <span>40+ countries</span>
-            <span className="opacity-30">·</span>
-            <span>New drops every week</span>
-          </motion.div>
         </div>
       </div>
     </section>

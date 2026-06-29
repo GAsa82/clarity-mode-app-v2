@@ -122,20 +122,24 @@ export const Dashboard = () => {
           <div className="bg-card-elevated border border-border rounded-2xl p-8 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-                Current Streak
+                Your Streak
               </p>
               <Flame className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <p className="font-display text-6xl md:text-7xl font-light text-silver">12</p>
-              <p className="text-sm text-muted-foreground mt-2">days of clarity</p>
+              <p className="font-display text-6xl md:text-7xl font-light text-silver">
+                {savedNotes.length > 0 ? savedNotes.length : "—"}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {savedNotes.length > 0 ? "clarity notes saved" : "start writing to begin"}
+              </p>
             </div>
             <div className="flex gap-1.5">
               {Array.from({ length: 14 }).map((_, i) => (
                 <div
                   key={i}
                   className={`h-8 flex-1 rounded-sm ${
-                    i < 12 ? "bg-primary/70" : "bg-secondary"
+                    i < Math.min(savedNotes.length, 14) ? "bg-primary/70" : "bg-secondary"
                   }`}
                 />
               ))}

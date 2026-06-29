@@ -3,7 +3,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import {
-  CheckCircle, Clock, MessageCircle, Star, Users, Zap,
+  CheckCircle, Clock, MessageCircle, Users, Zap,
   ChevronDown, Shield, ArrowRight, Calendar, Target,
   Lightbulb, TrendingUp, Brain, Heart, Award
 } from "lucide-react";
@@ -45,26 +45,6 @@ const STEPS = [
   { n: "03", title: "Leave With Clarity", desc: "Walk away with a personalised action plan, clear next steps, and 7 days of ongoing support." },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: "Priya S.",
-    title: "Product Manager, Bangalore",
-    text: "I had been stuck in a career decision loop for 6 months. In 2 hours, Gaurav helped me see what I was really afraid of and gave me a concrete plan. I made the decision the very next day.",
-    rating: 5,
-  },
-  {
-    name: "Arjun M.",
-    title: "Founder, Delhi",
-    text: "The session completely reframed how I saw my business challenges. The action plan was specific and practical — not generic advice. The 7-day WhatsApp support kept me accountable.",
-    rating: 5,
-  },
-  {
-    name: "Sneha R.",
-    title: "MBA Student, Mumbai",
-    text: "I came in overwhelmed with options and left with complete clarity. The coaching style is direct, empathetic and results-focused. Worth every rupee.",
-    rating: 5,
-  },
-];
 
 const FAQS = [
   {
@@ -349,36 +329,6 @@ export default function CoachingPage() {
         </div>
       </section>
 
-      {/* ── Testimonials ─────────────────────────────────────────────── */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              What Clients{" "}
-              <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
-                Say
-              </span>
-            </h2>
-            <p className="text-muted-foreground">Real outcomes from real sessions.</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map(t => (
-              <div key={t.name} className="glass border border-white/10 rounded-2xl p-6 flex flex-col gap-4">
-                <div className="flex gap-1">
-                  {Array.from({ length: t.rating }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <p className="text-sm text-foreground/80 leading-relaxed flex-1">"{t.text}"</p>
-                <div>
-                  <p className="font-semibold text-sm">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.title}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ── Satisfaction guarantee ────────────────────────────────────── */}
       <section className="py-16 px-4">

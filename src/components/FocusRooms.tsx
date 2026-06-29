@@ -186,8 +186,8 @@ export const FocusRooms = () => {
               <Headphones className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-display text-xl font-light text-gradient">1.2k</p>
-              <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Sessions Today</p>
+              <p className="font-display text-xl font-light text-gradient">Free</p>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">To Join</p>
             </div>
           </motion.div>
           <motion.div
