@@ -15,7 +15,9 @@ export const NetflixBrowse = () => {
   const [selected, setSelected] = useState<ClaritySession | null>(null);
 
   const handleWatch = (session: ClaritySession) => {
-    window.open(session.gumroadUrl, "_blank", "noopener,noreferrer");
+    if (session.premium) {
+      window.location.href = "/pricing";
+    }
   };
 
   return (

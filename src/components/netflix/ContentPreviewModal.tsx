@@ -27,7 +27,7 @@ export const ContentPreviewModal = ({ session, onClose }: ContentPreviewModalPro
 
   const openGumroad = () => {
     if (!session) return;
-    window.open(session.gumroadUrl, "_blank", "noopener,noreferrer");
+    window.location.href = "/pricing";
   };
 
   return (
@@ -117,13 +117,13 @@ export const ContentPreviewModal = ({ session, onClose }: ContentPreviewModalPro
 
               <p className="text-muted-foreground leading-relaxed max-w-3xl mb-8">
                 A cinematic clarity session designed to help you escape noise, rebuild focus, and
-                move forward with intention. Unlock the full experience on Gumroad.
+                move forward with intention. Unlock the full experience with Premium.
               </p>
 
               <div className="flex flex-wrap gap-3">
                 <Button variant="hero" size="lg" className="gap-2" onClick={openGumroad}>
                   <Play className="w-4 h-4 fill-current" />
-                  Watch on Gumroad
+                  {session.premium ? "Get Premium Access" : "Watch Now"}
                 </Button>
                 <Button variant="glass" size="lg" className="gap-2">
                   <Bookmark className="w-4 h-4" />

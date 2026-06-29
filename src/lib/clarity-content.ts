@@ -8,12 +8,9 @@ export type ClaritySession = {
   category: string;
   type: SessionType;
   premium: boolean;
-  gumroadUrl: string;
   accent: string;
   featured?: boolean;
 };
-
-const gumroad = (slug: string) => `https://gauravdata.gumroad.com/l/${slug}`;
 
 export const featuredSession: ClaritySession = {
   id: "stop-rehearsing",
@@ -23,7 +20,6 @@ export const featuredSession: ClaritySession = {
   category: "Mental Clarity",
   type: "video",
   premium: true,
-  gumroadUrl: gumroad("stop-rehearsing-past"),
   accent: "from-blue-600/40 via-indigo-900/60 to-slate-950",
   featured: true,
 };
@@ -38,7 +34,6 @@ const sessions: ClaritySession[] = [
     category: "Trending",
     type: "audio",
     premium: false,
-    gumroadUrl: gumroad("noise-reset"),
     accent: "from-cyan-600/30 to-slate-900",
   },
   {
@@ -49,7 +44,6 @@ const sessions: ClaritySession[] = [
     category: "Dopamine Detox",
     type: "video",
     premium: true,
-    gumroadUrl: gumroad("dopamine-72"),
     accent: "from-violet-600/35 to-slate-950",
   },
   {
@@ -60,7 +54,6 @@ const sessions: ClaritySession[] = [
     category: "Confidence",
     type: "article",
     premium: true,
-    gumroadUrl: gumroad("confidence-promises"),
     accent: "from-indigo-500/35 to-slate-900",
   },
   {
@@ -71,7 +64,6 @@ const sessions: ClaritySession[] = [
     category: "Focus Protocols",
     type: "audio",
     premium: true,
-    gumroadUrl: gumroad("stratus-deep-work"),
     accent: "from-blue-500/30 to-slate-950",
   },
   {
@@ -82,7 +74,6 @@ const sessions: ClaritySession[] = [
     category: "Emotional Intelligence",
     type: "article",
     premium: false,
-    gumroadUrl: gumroad("name-the-feeling"),
     accent: "from-teal-500/25 to-slate-900",
   },
   {
@@ -93,7 +84,6 @@ const sessions: ClaritySession[] = [
     category: "Discipline",
     type: "video",
     premium: true,
-    gumroadUrl: gumroad("discipline-stack"),
     accent: "from-slate-500/30 to-slate-950",
   },
   {
@@ -104,7 +94,6 @@ const sessions: ClaritySession[] = [
     category: "Sleep Reset",
     type: "audio",
     premium: true,
-    gumroadUrl: gumroad("sleep-downshift"),
     accent: "from-indigo-800/40 to-slate-950",
   },
   {
@@ -115,7 +104,6 @@ const sessions: ClaritySession[] = [
     category: "Mental Clarity",
     type: "video",
     premium: false,
-    gumroadUrl: gumroad("clarity-primer"),
     accent: "from-sky-500/30 to-slate-900",
   },
   {
@@ -126,7 +114,6 @@ const sessions: ClaritySession[] = [
     category: "Confidence",
     type: "video",
     premium: true,
-    gumroadUrl: gumroad("social-confidence"),
     accent: "from-purple-600/30 to-slate-950",
   },
   {
@@ -137,7 +124,6 @@ const sessions: ClaritySession[] = [
     category: "Dopamine Detox",
     type: "article",
     premium: true,
-    gumroadUrl: gumroad("scroll-detox"),
     accent: "from-fuchsia-600/25 to-slate-900",
   },
   {
@@ -148,7 +134,6 @@ const sessions: ClaritySession[] = [
     category: "Focus Protocols",
     type: "audio",
     premium: false,
-    gumroadUrl: gumroad("focus-sprint"),
     accent: "from-blue-700/35 to-slate-950",
   },
   {
@@ -159,7 +144,6 @@ const sessions: ClaritySession[] = [
     category: "Emotional Intelligence",
     type: "video",
     premium: true,
-    gumroadUrl: gumroad("empathy-boundary"),
     accent: "from-emerald-600/20 to-slate-900",
   },
   {
@@ -170,7 +154,6 @@ const sessions: ClaritySession[] = [
     category: "Discipline",
     type: "audio",
     premium: false,
-    gumroadUrl: gumroad("evening-discipline"),
     accent: "from-slate-600/35 to-slate-950",
   },
   {
@@ -181,7 +164,6 @@ const sessions: ClaritySession[] = [
     category: "Sleep Reset",
     type: "audio",
     premium: true,
-    gumroadUrl: gumroad("midnight-wind-down"),
     accent: "from-indigo-900/50 to-black",
   },
   {
@@ -192,7 +174,6 @@ const sessions: ClaritySession[] = [
     category: "Trending",
     type: "video",
     premium: true,
-    gumroadUrl: gumroad("sunday-reset"),
     accent: "from-primary/30 to-slate-950",
   },
   {
@@ -203,7 +184,6 @@ const sessions: ClaritySession[] = [
     category: "Mental Clarity",
     type: "video",
     premium: true,
-    gumroadUrl: gumroad("overthinking-loop"),
     accent: "from-blue-800/40 to-slate-950",
   },
 ];

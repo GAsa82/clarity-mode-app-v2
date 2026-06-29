@@ -7,7 +7,7 @@ const DEFAULT_TRACK = {
   title: "Stratus Deep Work",
   subtitle: "Ambient focus field",
   duration: "45:00",
-  url: "https://gauravdata.gumroad.com/l/stratus-deep-work",
+  url: "/pricing",
 };
 
 const AFFILIATE_URL = "https://amzn.to/49piiUZ";
