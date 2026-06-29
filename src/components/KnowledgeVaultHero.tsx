@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BookOpen, FileText, Layers, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronDown, FileText, Layers, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useVault } from "@/contexts/VaultContext";
 
@@ -104,6 +104,28 @@ export const KnowledgeVaultHero = () => {
 
         </div>
       </div>
+      {/* Scroll indicator */}
+      {!reduce && (
+        <motion.a
+          href="/#library"
+          aria-label="Scroll down"
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group z-10"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.8, duration: 0.6 }}
+        >
+          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground group-hover:text-foreground transition-colors">
+            Scroll
+          </span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+            className="flex items-center justify-center w-8 h-8 rounded-full border border-border bg-card-elevated/60 group-hover:border-primary/50 group-hover:bg-primary/10 transition-colors"
+          >
+            <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </motion.div>
+        </motion.a>
+      )}
     </section>
   );
 };
