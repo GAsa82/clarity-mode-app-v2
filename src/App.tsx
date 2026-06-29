@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { VaultProvider } from "@/contexts/VaultContext";
+import { WebsiteProvider } from "@/contexts/WebsiteContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 
@@ -49,6 +50,7 @@ import ClaritySessionsAdmin from "./pages/admin/ClaritySessionsAdmin";
 import TestimonialsAdmin from "./pages/admin/TestimonialsAdmin";
 import SiteContentAdmin from "./pages/admin/SiteContentAdmin";
 import MediaLibraryAdmin from "./pages/admin/MediaLibraryAdmin";
+import CreateWebsiteAdmin from "./pages/admin/CreateWebsiteAdmin";
 
 // Admin — system
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
@@ -88,12 +90,14 @@ const App = () => (
                 <Route path="/research" element={<ResearchPage />} />
                 <Route path="/vault-unavailable" element={<VaultUnavailable />} />
 
-                {/* Admin routes — protected */}
+                {/* Admin routes — protected, scoped to WebsiteProvider */}
                 <Route
                   path="/admin"
                   element={
                     <ProtectedRoute requireAdmin>
-                      <AdminLayout />
+                      <WebsiteProvider>
+                        <AdminLayout />
+                      </WebsiteProvider>
                     </ProtectedRoute>
                   }
                 >
@@ -103,6 +107,9 @@ const App = () => (
                   <Route path="subscriptions" element={<SubscriptionsAdmin />} />
                   <Route path="orders" element={<OrdersAdmin />} />
                   <Route path="coupons" element={<CouponsAdmin />} />
+
+                  {/* Multi-site */}
+                  <Route path="create-website" element={<CreateWebsiteAdmin />} />
 
                   {/* Content Studio */}
                   <Route path="content-studio" element={<ContentStudioPage />} />
