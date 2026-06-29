@@ -18,9 +18,10 @@ import { useAuth } from "@/contexts/AuthContext";
 const ADMIN_EMAIL = "gauravsinghdata6@gmail.com";
 
 const Index = () => {
-  const { user, profile, isAdmin: roleIsAdmin } = useAuth();
-  const userEmail = (user as { email?: string } | null)?.email ?? profile?.email ?? "";
-  const isAdmin = roleIsAdmin || userEmail === ADMIN_EMAIL;
+  const { user, profile } = useAuth();
+  const userEmail = profile?.email ?? (user as { email?: string } | null)?.email ?? "";
+  const profileRole = (profile as { role?: string } | null)?.role ?? "";
+  const isAdmin = profileRole === "admin" || profileRole === "super_admin" || userEmail === ADMIN_EMAIL;
 
   return (
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
