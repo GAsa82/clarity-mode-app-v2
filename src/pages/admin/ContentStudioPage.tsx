@@ -7,6 +7,7 @@ import {
   Shield,
   FileText,
   Image,
+  Video,
   ArrowRight,
   Plus,
 } from "lucide-react";
@@ -59,6 +60,14 @@ const contentTypes = [
     desc: "Fillable templates for journaling, planning, and tracking.",
     accent: "from-rose-500/15 to-rose-900/30",
     iconColor: "text-rose-400",
+  },
+  {
+    to: "/admin/clarity-sessions",
+    icon: Video,
+    label: "Clarity Sessions",
+    desc: "Netflix-style video and audio sessions shown in the browse section.",
+    accent: "from-blue-500/15 to-indigo-900/30",
+    iconColor: "text-blue-400",
   },
   {
     to: "/admin/media",

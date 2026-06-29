@@ -59,6 +59,7 @@ const navGroups: NavGroup[] = [
       { to: "/admin/frameworks", icon: Grid3X3, label: "Frameworks" },
       { to: "/admin/protocols", icon: Shield, label: "Protocols" },
       { to: "/admin/templates", icon: FileText, label: "Templates" },
+      { to: "/admin/clarity-sessions", icon: Video, label: "Clarity Sessions" },
       { to: "/admin/media", icon: Image, label: "Media Library" },
     ],
   },
