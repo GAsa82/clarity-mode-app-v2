@@ -77,6 +77,7 @@ export const Store = () => {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          action: "create",
           item_type: "product",
           item_id: product.id,
           item_title: product.title,
@@ -97,10 +98,10 @@ export const Store = () => {
         theme: { color: "#6366f1" },
         prefill: { email: user.email },
         handler: async (resp: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-          await fetch("/api/razorpay/purchase-verify", {
+          await fetch("/api/razorpay/purchase", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify(resp),
+            body: JSON.stringify({ action: "verify", ...resp }),
           });
           toast({ title: "Purchase complete!", description: `You now have access to ${product.title}.` });
         },
