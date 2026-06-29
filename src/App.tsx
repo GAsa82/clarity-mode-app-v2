@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { AuthProvider } from "@/contexts/AuthContext";
+import { VaultProvider } from "@/contexts/VaultContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
 
@@ -28,6 +29,7 @@ import BookingPage from "./pages/coaching/BookingPage";
 import ConfirmationPage from "./pages/coaching/ConfirmationPage";
 import AdminCoaching from "./pages/admin/AdminCoaching";
 import ResearchPage from "./pages/ResearchPage";
+import VaultUnavailable from "./pages/VaultUnavailable";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -48,6 +50,7 @@ const App = () => (
         <Sonner />
         <AuthProvider>
           <BrowserRouter>
+            <VaultProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
@@ -66,6 +69,7 @@ const App = () => (
               <Route path="/coaching/book" element={<BookingPage />} />
               <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
               <Route path="/research" element={<ResearchPage />} />
+              <Route path="/vault-unavailable" element={<VaultUnavailable />} />
 
               {/* Admin routes - protected */}
               <Route
@@ -88,6 +92,7 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </VaultProvider>
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>
