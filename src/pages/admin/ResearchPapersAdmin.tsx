@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { useWebsite } from "@/contexts/WebsiteContext";
 import {
   Plus, Search, Pencil, Trash2, Upload, X, BookMarked,
   Eye, EyeOff, Globe, Lock, ChevronDown,
@@ -51,6 +52,7 @@ const EMPTY: Omit<Paper, "id" | "view_count" | "download_count" | "created_at"> 
 };
 
 export default function ResearchPapersAdmin() {
+  const { current } = useWebsite();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -65,16 +67,18 @@ export default function ResearchPapersAdmin() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
+    if (!current) return;
     setLoading(true);
     const { data } = await supabase
       .from("research_papers")
       .select("*")
+      .eq("website_id", current.id)
       .order("created_at", { ascending: false });
     setPapers(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [current?.id]);
 
   const filtered = papers.filter((p) => {
     const q = search.toLowerCase();
@@ -116,6 +120,7 @@ export default function ResearchPapersAdmin() {
     setSaving(true);
     const payload = {
       ...form,
+      website_id: current?.id ?? null,
       author: form.author || null,
       abstract: form.abstract || null,
       cover_url: form.cover_url || null,

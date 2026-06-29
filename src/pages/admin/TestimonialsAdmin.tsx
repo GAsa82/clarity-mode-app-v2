@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { useWebsite } from "@/contexts/WebsiteContext";
 import { Plus, Search, Pencil, Trash2, X, MessageSquare, Star, Copy, Eye, EyeOff } from "lucide-react";
 
 type Testimonial = {
@@ -28,6 +29,7 @@ const EMPTY = (): Omit<Testimonial, "id" | "created_at"> => ({
 });
 
 export default function TestimonialsAdmin() {
+  const { current } = useWebsite();
   const [items, setItems] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -40,17 +42,19 @@ export default function TestimonialsAdmin() {
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
+    if (!current) return;
     setLoading(true);
     const { data } = await supabase
       .from("testimonials")
       .select("*")
+      .eq("website_id", current.id)
       .order("sort", { ascending: true })
       .order("created_at", { ascending: false });
     setItems(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [current?.id]);
 
   const filtered = items.filter((item) => {
     const q = search.toLowerCase();
@@ -94,6 +98,7 @@ export default function TestimonialsAdmin() {
       source: item.source,
       published: false,
       sort: (item.sort ?? 0) + 1,
+      website_id: current?.id ?? null,
     });
     if (error) { setError(error.message); return; }
     load();
@@ -112,6 +117,7 @@ export default function TestimonialsAdmin() {
       source: form.source || null,
       published: form.published,
       sort: Number(form.sort) || 0,
+      website_id: current?.id ?? null,
     };
     const { error } = editId
       ? await supabase.from("testimonials").update(payload).eq("id", editId)

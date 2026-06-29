@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { useWebsite } from "@/contexts/WebsiteContext";
 import { Plus, Search, Pencil, Trash2, X, FileText } from "lucide-react";
 
 type ContentItem = {
@@ -60,6 +61,7 @@ const EMPTY = (type: string): Omit<ContentItem, "id" | "view_count" | "download_
 });
 
 export default function ContentItemsAdmin({ type, title }: Props) {
+  const { current } = useWebsite();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,17 +75,19 @@ export default function ContentItemsAdmin({ type, title }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const load = async () => {
+    if (!current) return;
     setLoading(true);
     const { data } = await supabase
       .from("content_items")
       .select("*")
       .eq("type", type)
+      .eq("website_id", current.id)
       .order("created_at", { ascending: false });
     setItems(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [type]);
+  useEffect(() => { load(); }, [type, current?.id]);
 
   const filtered = items.filter((item) => {
     const q = search.toLowerCase();
@@ -126,6 +130,7 @@ export default function ContentItemsAdmin({ type, title }: Props) {
     setSaving(true);
     const payload = {
       ...form,
+      website_id: current?.id ?? null,
       description: form.description || null,
       cover_url: form.cover_url || null,
       file_url: form.file_url || null,

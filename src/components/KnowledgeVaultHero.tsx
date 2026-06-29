@@ -18,7 +18,7 @@ export const KnowledgeVaultHero = () => {
   const [hero, setHero] = useState<HeroContent>(HERO_DEFAULTS);
 
   useEffect(() => {
-    getHeroContent().then(setHero);
+    getHeroContent("clarity-mode").then(setHero);
   }, []);
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { useWebsite } from "@/contexts/WebsiteContext";
 import { Plus, Search, Pencil, Trash2, X, Store, Star } from "lucide-react";
 
 type Book = {
@@ -66,6 +67,7 @@ const EMPTY: Omit<Book, "id" | "sold_count"> = {
 };
 
 export default function OldBooksAdmin() {
+  const { current } = useWebsite();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -77,16 +79,18 @@ export default function OldBooksAdmin() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const load = async () => {
+    if (!current) return;
     setLoading(true);
     const { data } = await supabase
       .from("old_books")
       .select("*")
+      .eq("website_id", current.id)
       .order("featured", { ascending: false });
     setBooks(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [current?.id]);
 
   const filtered = books.filter((b) => {
     const q = search.toLowerCase();
@@ -136,6 +140,7 @@ export default function OldBooksAdmin() {
     setSaving(true);
     const payload = {
       ...form,
+      website_id: current?.id ?? null,
       author: form.author || null,
       category: form.category || null,
       language: form.language || null,

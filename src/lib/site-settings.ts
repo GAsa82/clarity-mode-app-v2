@@ -37,8 +37,9 @@ export async function setSetting(key: string, value: unknown, description?: stri
   return supabase.from("site_settings").upsert(row, { onConflict: "key" });
 }
 
-/** Hero content merged with defaults so the site always has complete copy. */
-export async function getHeroContent(): Promise<HeroContent> {
-  const stored = await getSetting<Partial<HeroContent>>("hero");
+/** Hero content merged with defaults — pass a site slug for per-site keys, or omit for legacy key "hero". */
+export async function getHeroContent(siteSlug?: string): Promise<HeroContent> {
+  const key = siteSlug ? `hero:${siteSlug}` : "hero";
+  const stored = await getSetting<Partial<HeroContent>>(key);
   return { ...HERO_DEFAULTS, ...(stored ?? {}) };
 }

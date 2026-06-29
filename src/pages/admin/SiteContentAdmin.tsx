@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { getHeroContent, setSetting, getSetting, HERO_DEFAULTS, type HeroContent } from "@/lib/site-settings";
+import { useWebsite } from "@/contexts/WebsiteContext";
 import { Sparkles, Check, RotateCcw } from "lucide-react";
 
 type Toggle = { key: string; label: string; desc: string };
@@ -13,6 +14,7 @@ const TOGGLES: Toggle[] = [
 ];
 
 export default function SiteContentAdmin() {
+  const { current } = useWebsite();
   const [hero, setHero] = useState<HeroContent>(HERO_DEFAULTS);
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -21,23 +23,26 @@ export default function SiteContentAdmin() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!current) return;
+    setLoading(true);
     (async () => {
-      setHero(await getHeroContent());
+      setHero(await getHeroContent(current.slug));
       const entries = await Promise.all(
-        TOGGLES.map(async (t) => [t.key, (await getSetting<boolean>(t.key)) ?? false] as const)
+        TOGGLES.map(async (t) => [t.key, (await getSetting<boolean>(`${t.key}:${current.slug}`)) ?? false] as const)
       );
       setToggles(Object.fromEntries(entries));
       setLoading(false);
     })();
-  }, []);
+  }, [current?.slug]);
 
   const H = (key: keyof HeroContent, val: string) => setHero((h) => ({ ...h, [key]: val }));
 
   const saveHero = async () => {
+    if (!current) return;
     setSavingHero(true);
     setError(null);
     setSavedHero(false);
-    const { error } = await setSetting("hero", hero, "Landing page hero content");
+    const { error } = await setSetting(`hero:${current.slug}`, hero, `Hero content for ${current.name}`);
     setSavingHero(false);
     if (error) { setError(error.message); return; }
     setSavedHero(true);
@@ -45,12 +50,13 @@ export default function SiteContentAdmin() {
   };
 
   const toggle = async (key: string) => {
+    if (!current) return;
     const next = !toggles[key];
     setToggles((t) => ({ ...t, [key]: next }));
-    const { error } = await setSetting(key, next);
+    const { error } = await setSetting(`${key}:${current.slug}`, next);
     if (error) {
       setError(error.message);
-      setToggles((t) => ({ ...t, [key]: !next })); // revert
+      setToggles((t) => ({ ...t, [key]: !next }));
     }
   };
 

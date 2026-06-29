@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useWebsite } from "@/contexts/WebsiteContext";
 import { Search, Image, Headphones, Video, FileText, ExternalLink, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +32,7 @@ const TYPE_ICON: Record<string, React.ElementType> = {
 };
 
 export default function MediaLibraryAdmin() {
+  const { current } = useWebsite();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,10 +41,12 @@ export default function MediaLibraryAdmin() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const load = async () => {
+    if (!current) return;
     setLoading(true);
     let query = supabase
       .from("content_items")
       .select("id, type, title, cover_url, file_url, audio_url, video_url, status, view_count, download_count, created_at")
+      .eq("website_id", current.id)
       .order("created_at", { ascending: false });
     if (filterType !== "all") query = query.eq("type", filterType);
     const { data } = await query;
@@ -50,7 +54,7 @@ export default function MediaLibraryAdmin() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [filterType]);
+  useEffect(() => { load(); }, [filterType, current?.id]);
 
   const filtered = items.filter((item) => {
     const q = search.toLowerCase();

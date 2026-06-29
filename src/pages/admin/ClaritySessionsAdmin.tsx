@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { useWebsite } from "@/contexts/WebsiteContext";
 import { Plus, Search, Pencil, Trash2, X, Video, Sparkles } from "lucide-react";
 
 const CATEGORIES = [
@@ -43,6 +44,7 @@ const EMPTY = (): Omit<Session, "id" | "created_at"> => ({
 });
 
 export default function ClaritySessionsAdmin() {
+  const { current } = useWebsite();
   const [items, setItems] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -55,17 +57,19 @@ export default function ClaritySessionsAdmin() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const load = async () => {
+    if (!current) return;
     setLoading(true);
     const { data } = await supabase
       .from("content_items")
       .select("id, title, description, category, cover_url, video_url, audio_url, duration_sec, visibility, status, tags, created_at")
       .eq("type", "session")
+      .eq("website_id", current.id)
       .order("created_at", { ascending: false });
     setItems(data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [current?.id]);
 
   const filtered = items.filter((item) => {
     const q = search.toLowerCase();
@@ -104,6 +108,7 @@ export default function ClaritySessionsAdmin() {
     setSaving(true);
     const payload = {
       type: "session",
+      website_id: current?.id ?? null,
       title: form.title.trim(),
       description: form.description || null,
       category: form.category,
