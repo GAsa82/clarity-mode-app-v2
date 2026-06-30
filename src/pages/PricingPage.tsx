@@ -224,7 +224,7 @@ export default function PricingPage() {
               </span>
             </h1>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              Unlock AI Coach, premium focus rooms, and deep insights.
+              Unlock the full premium library, focus rooms, and deep insights.
             </p>
           </div>
 

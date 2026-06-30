@@ -22,14 +22,14 @@ export default function PaymentSuccess() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">You're now Premium!</h1>
         <p className="text-muted-foreground max-w-md">
-          Welcome to the full badly talks experience. AI Coach, premium focus rooms, and deep
+          Welcome to the full badly talks experience. The premium library, focus rooms, and deep
           insights are now unlocked.
         </p>
       </div>
 
       <div className="flex gap-3 flex-wrap justify-center">
-        <Button variant="hero" onClick={() => navigate("/ai-coach")}>
-          <Sparkles className="w-4 h-4 mr-2" /> Open AI Coach
+        <Button variant="hero" onClick={() => navigate("/insights")}>
+          <Sparkles className="w-4 h-4 mr-2" /> Explore Insights
         </Button>
         <Button variant="glass" onClick={() => navigate("/")}>
           Go to dashboard
