@@ -11,6 +11,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { VaultProvider } from "@/contexts/VaultContext";
 import { WebsiteProvider } from "@/contexts/WebsiteContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { PWAUpdater } from "@/components/pwa/PWAUpdater";
 
 // Landing + auth load eagerly for instant first paint on mobile.
 import Index from "./pages/Index";
@@ -80,6 +82,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <PWAUpdater />
         <AuthProvider>
           <BrowserRouter>
             <VaultProvider>
@@ -166,6 +169,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </Suspense>
+              <InstallPrompt />
             </VaultProvider>
           </BrowserRouter>
         </AuthProvider>

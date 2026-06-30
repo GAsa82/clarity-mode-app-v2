@@ -22,7 +22,7 @@ export const KnowledgeVaultHero = () => {
   }, []);
 
   return (
-    <section className="relative min-h-[100svh] flex items-center pt-28 pb-20 md:pt-32 overflow-hidden">
+    <section className="relative min-h-screen flex items-center pt-24 pb-16 md:min-h-[100svh] md:pt-32 md:pb-20 overflow-visible">
       {!reduce && (
         <motion.div
           className="absolute inset-0 z-30 bg-background pointer-events-none"

@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# PWA dev service-worker output
+dev-dist
+
+# Capacitor native projects are generated locally (npx cap add android|ios)
+/android
+/ios
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

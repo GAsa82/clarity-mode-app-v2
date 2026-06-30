@@ -230,3 +230,59 @@
   }
 
 }
+
+/* ============================================================
+   Mobile app / PWA layer — touch UX, safe areas, standalone mode
+   ============================================================ */
+@layer base {
+  body {
+    /* Kill the grey tap flash on iOS/Android and stop pull-to-refresh bounce
+       so the installed app feels native. */
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+  }
+
+  /* Momentum scrolling for in-app scroll regions on iOS. */
+  .scrollbar-none,
+  [data-scroll-region] {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Interactive elements get a comfortable touch target + no text selection
+     flicker on tap. Inputs keep selection. */
+  button, a, [role="button"], summary {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* Avoid iOS auto-zoom on focus by keeping form fonts >= 16px on small screens. */
+  @media (max-width: 480px) {
+    input, select, textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+/* Standalone (installed) tweaks: only the installed app insets for the notch /
+   home indicator, so the in-browser website layout stays exactly as designed. */
+@media all and (display-mode: standalone) {
+  .browser-only { display: none !important; }
+
+  #root {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@layer utilities {
+  /* Reusable safe-area helpers for fixed bars / sheets. */
+  .safe-top    { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-x {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  /* True viewport height that accounts for mobile browser chrome. */
+  .min-h-screen-dvh { min-height: 100dvh; }
+}

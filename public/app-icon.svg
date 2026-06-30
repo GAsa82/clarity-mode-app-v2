@@ -1,0 +1,43 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#10162a"/>
+      <stop offset="55%" stop-color="#0a0e1c"/>
+      <stop offset="100%" stop-color="#070a12"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7db4ff"/>
+      <stop offset="55%" stop-color="#4790f5"/>
+      <stop offset="100%" stop-color="#2f6fd6"/>
+    </linearGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#eaf3ff"/>
+      <stop offset="40%" stop-color="#9cc6ff"/>
+      <stop offset="100%" stop-color="#4790f5"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#4790f5" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#4790f5" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="0" fill="url(#bg)"/>
+
+  <!-- Ambient glow -->
+  <circle cx="256" cy="256" r="190" fill="url(#glow)"/>
+
+  <!-- Outer focus arcs (aperture / clarity ripples) -->
+  <g stroke="url(#ring)" fill="none" stroke-linecap="round">
+    <circle cx="256" cy="256" r="168" stroke-opacity="0.18" stroke-width="6"/>
+    <circle cx="256" cy="256" r="132" stroke-opacity="0.32" stroke-width="8"/>
+    <path d="M256 152 a104 104 0 0 1 104 104" stroke-width="14" stroke-opacity="0.95"/>
+    <path d="M256 360 a104 104 0 0 1 -104 -104" stroke-width="14" stroke-opacity="0.95"/>
+    <path d="M150 232 a108 108 0 0 1 60 -68" stroke-width="10" stroke-opacity="0.55"/>
+    <path d="M362 280 a108 108 0 0 1 -60 68" stroke-width="10" stroke-opacity="0.55"/>
+  </g>
+
+  <!-- Bright clarity core -->
+  <circle cx="256" cy="256" r="46" fill="url(#core)"/>
+  <circle cx="256" cy="256" r="46" fill="none" stroke="#ffffff" stroke-opacity="0.25" stroke-width="2"/>
+</svg>

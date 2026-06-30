@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
 // https://vitejs.dev/config/
@@ -50,7 +51,118 @@ export default defineConfig(({ mode }) => ({
     },
     chunkSizeWarningLimit: 600,
   },
-  plugins: [react()].filter(Boolean),
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      // Precache the app shell; large media (mp4/mp3/jpg) stream + runtime-cache instead.
+      includeAssets: [
+        "favicon.ico",
+        "robots.txt",
+        "apple-touch-icon-180x180.png",
+        "app-icon.svg",
+      ],
+      manifest: {
+        name: "Clarity Mode",
+        short_name: "Clarity",
+        description:
+          "Clear mind. Strong self. Focused life. Premium research papers, books, audio sessions, frameworks and protocols for mental clarity.",
+        id: "/",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        display_override: ["standalone", "minimal-ui"],
+        orientation: "portrait",
+        theme_color: "#080b12",
+        background_color: "#080b12",
+        lang: "en",
+        dir: "ltr",
+        categories: ["health", "lifestyle", "education", "productivity"],
+        icons: [
+          { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
+          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "maskable-icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+        shortcuts: [
+          { name: "Home", short_name: "Home", url: "/", description: "Open Clarity Mode" },
+          { name: "Research", short_name: "Research", url: "/research", description: "Browse research papers" },
+          { name: "Pricing", short_name: "Pricing", url: "/pricing", description: "View membership plans" },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // iOS splash images are fetched directly by Safari, not via the SW —
+        // keep them out of the precache so we don't ship megabytes twice.
+        globIgnores: ["**/splash/**", "**/apple-splash-*.png"],
+        // App shell is an SPA — serve index.html for client routes when offline.
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: false, // we surface an in-app "update available" prompt instead
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com",
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "google-fonts-stylesheets" },
+          },
+          {
+            urlPattern: ({ url }) => url.origin === "https://fonts.gstatic.com",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-webfonts",
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Supabase Storage images — cache aggressively for fast repeat loads.
+            urlPattern: ({ url, request }) =>
+              url.hostname.endsWith("supabase.co") && request.destination === "image",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "supabase-images",
+              expiration: { maxEntries: 250, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Supabase content reads — fresh online, cached fallback offline.
+            urlPattern: ({ url }) =>
+              url.hostname.endsWith("supabase.co") && url.pathname.startsWith("/rest/"),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "supabase-content",
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 150, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Any other image (app assets, og, etc.)
+            urlPattern: ({ request }) => request.destination === "image",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "images",
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
+      devOptions: {
+        enabled: false,
+        type: "module",
+      },
+    }),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
