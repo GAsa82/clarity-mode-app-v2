@@ -32,13 +32,23 @@ export function WebsiteProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("websites")
       .select("*")
       .eq("active", true)
       .order("sort", { ascending: true });
 
-    const sites = (data ?? []) as Website[];
+    if (error) {
+      console.error("[WebsiteContext] Failed to load websites:", error.message, error.code, error.details);
+    }
+
+    // Hardcoded fallback so the admin never shows blank if DB read fails
+    const FALLBACK: Website[] = [
+      { id: "4b0f921b-85b9-4c25-9a1f-e954900af418", slug: "clarity-mode",          name: "Clarity Mode",          description: null, logo_url: null, domain: "clarity-mode-app-v2-gq26.vercel.app", brand_color: "#6366f1", accent_color: "#8b5cf6", active: true, sort: 1 },
+      { id: "47818d37-90d4-4ac0-b49d-81e2b2b945ed", slug: "breakthrough-protocol",  name: "Breakthrough Protocol", description: null, logo_url: null, domain: "breakthrough-protocol.vercel.app",       brand_color: "#7c3aed", accent_color: "#a78bfa", active: true, sort: 2 },
+    ];
+
+    const sites = (data && data.length > 0 ? data : FALLBACK) as Website[];
     setWebsites(sites);
 
     if (sites.length > 0) {
