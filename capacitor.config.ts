@@ -5,7 +5,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // to the same Supabase + Vercel/Railway APIs the PWA uses.
 const config: CapacitorConfig = {
   appId: "com.claritymode.app",
-  appName: "Clarity Mode",
+  appName: "badly talks",
   webDir: "dist",
   backgroundColor: "#080b12",
   android: {

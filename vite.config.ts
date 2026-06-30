@@ -63,8 +63,8 @@ export default defineConfig(({ mode }) => ({
         "app-icon.svg",
       ],
       manifest: {
-        name: "Clarity Mode",
-        short_name: "Clarity",
+        name: "badly talks",
+        short_name: "badly talks",
         description:
           "Clear mind. Strong self. Focused life. Premium research papers, books, audio sessions, frameworks and protocols for mental clarity.",
         id: "/",
