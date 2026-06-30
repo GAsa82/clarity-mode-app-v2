@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MessageSquarePlus, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { getWebsiteIdBySlug } from "@/lib/site-settings";
 
 type Testimonial = {
   id: string;
@@ -17,16 +18,19 @@ export const Testimonials = () => {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    supabase
-      .from("testimonials")
-      .select("id, name, role, quote, rating, avatar_url")
-      .eq("published", true)
-      .order("sort", { ascending: true })
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setItems(data ?? []);
-        setLoaded(true);
-      });
+    (async () => {
+      const websiteId = await getWebsiteIdBySlug("clarity-mode");
+      let query = supabase
+        .from("testimonials")
+        .select("id, name, role, quote, rating, avatar_url")
+        .eq("published", true)
+        .order("sort", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (websiteId) query = query.eq("website_id", websiteId);
+      const { data } = await query;
+      setItems(data ?? []);
+      setLoaded(true);
+    })();
   }, []);
 
   return (

@@ -8,6 +8,7 @@ import {
   sessions as hardcodedSessions,
 } from "@/lib/clarity-content";
 import { supabase } from "@/lib/supabase";
+import { getWebsiteIdBySlug } from "@/lib/site-settings";
 import { FeaturedBanner } from "./FeaturedBanner";
 import { ContentRow } from "./ContentRow";
 import { ContentPreviewModal } from "./ContentPreviewModal";
@@ -49,16 +50,17 @@ export const NetflixBrowse = () => {
   const [dbSessions, setDbSessions] = useState<ClaritySession[]>([]);
 
   useEffect(() => {
-    supabase
-      .from("content_items")
-      .select("id, title, description, category, video_url, audio_url, duration_sec, visibility")
-      .eq("type", "session")
-      .eq("status", "published")
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          setDbSessions(data.map(dbToSession));
-        }
-      });
+    (async () => {
+      const websiteId = await getWebsiteIdBySlug("clarity-mode");
+      let query = supabase
+        .from("content_items")
+        .select("id, title, description, category, video_url, audio_url, duration_sec, visibility")
+        .eq("type", "session")
+        .eq("status", "published");
+      if (websiteId) query = query.eq("website_id", websiteId);
+      const { data } = await query;
+      if (data && data.length > 0) setDbSessions(data.map(dbToSession));
+    })();
   }, []);
 
   const activeSessions = dbSessions.length > 0 ? dbSessions : hardcodedSessions;

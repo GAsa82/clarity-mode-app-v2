@@ -43,3 +43,14 @@ export async function getHeroContent(siteSlug?: string): Promise<HeroContent> {
   const stored = await getSetting<Partial<HeroContent>>(key);
   return { ...HERO_DEFAULTS, ...(stored ?? {}) };
 }
+
+/** Module-level cache so live-site components only hit DB once per page load. */
+const _websiteIdCache: Record<string, string> = {};
+
+/** Returns the Supabase ID for a website by slug. Used by public pages to filter content. */
+export async function getWebsiteIdBySlug(slug: string): Promise<string | null> {
+  if (_websiteIdCache[slug]) return _websiteIdCache[slug];
+  const { data } = await supabase.from("websites").select("id").eq("slug", slug).maybeSingle();
+  if (data?.id) _websiteIdCache[slug] = data.id;
+  return data?.id ?? null;
+}
