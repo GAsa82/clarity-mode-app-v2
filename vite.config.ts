@@ -60,7 +60,6 @@ export default defineConfig(({ mode }) => ({
         "favicon.ico",
         "robots.txt",
         "apple-touch-icon-180x180.png",
-        "app-icon.svg",
       ],
       manifest: {
         name: "badly talks",

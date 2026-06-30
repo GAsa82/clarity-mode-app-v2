@@ -1,5 +1,5 @@
-// Generates branded Apple PWA splash screens (portrait) from public/app-icon.svg.
-// Dark background + centered logo mark — font-independent, premium, fast.
+// Generates branded Apple PWA splash screens (portrait) from the brand logo.
+// Black background (matches the logo) + centered logo — premium, fast.
 // Run: node scripts/generate-splash.mjs
 import sharp from "sharp";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
@@ -8,8 +8,8 @@ import { dirname, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
-const BG = { r: 8, g: 11, b: 18, alpha: 1 }; // #080b12
-const iconSvg = readFileSync(resolve(root, "public/app-icon.svg"));
+const BG = { r: 0, g: 0, b: 0, alpha: 1 }; // #000000 — matches the logo background
+const iconSvg = readFileSync(resolve(root, "public/app-icon-source.png"));
 
 // Common modern Apple device logical/physical portrait sizes (CSS px, dpr).
 const DEVICES = [

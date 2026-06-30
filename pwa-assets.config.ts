@@ -4,7 +4,7 @@ import {
 } from "@vite-pwa/assets-generator/config";
 
 // Generates all PWA icons (favicon, apple-touch-icon, maskable + standard
-// PWA icons) from a single source SVG: public/app-icon.svg
+// PWA icons) from the brand logo: public/app-icon-source.png
 // Run with: npm run generate:pwa-assets
 export default defineConfig({
   headLinkOptions: {
@@ -12,17 +12,20 @@ export default defineConfig({
   },
   preset: {
     ...minimal2023Preset,
-    // Pad the maskable icon so the core art stays inside the Android safe zone.
+    // Maskable (Android squircle/circle): pad on the logo's own black so the
+    // rooster stays inside the safe zone with no visible seam.
     maskable: {
       sizes: [512],
-      padding: 0.3,
-      resizeOptions: { background: "#080b12" },
+      padding: 0.12,
+      resizeOptions: { background: "#000000" },
     },
+    // Apple touch icon: iOS only rounds the corners, so let the logo fill the
+    // tile (it already carries its own margin). Match the black background.
     apple: {
       sizes: [180],
-      padding: 0.12,
-      resizeOptions: { background: "#080b12" },
+      padding: 0,
+      resizeOptions: { background: "#000000" },
     },
   },
-  images: ["public/app-icon.svg"],
+  images: ["public/app-icon-source.png"],
 });
