@@ -5,52 +5,56 @@
 
 ---
 
+## Architecture (confirmed)
+
+BadlyTalks and Breakthrough Protocol use **separate Supabase projects**. That means
+their auth servers are independent — a login or sign-out in one project can **never**
+revoke a session in the other. So the cross-app logout was **not** server-side.
+
 ## Root cause
 
-supabase-js persists the auth session in **localStorage**. Three things in BadlyTalks
-let one app stomp on the other's session:
+supabase-js persists the auth session in **localStorage** (keyed by project ref).
+The actual cross-app culprit was a localStorage side effect that only bites when the
+two apps share a browser **origin** (same custom domain, or both on `localhost`
+during development):
 
-| # | Defect | Effect |
-|---|--------|--------|
-| 1 | **No custom `storageKey`** — used the default `sb-<project-ref>-auth-token` | If BP shares the same origin or the same Supabase project, both apps read/write the **same** localStorage key. Whoever logs in last overwrites the other's session. |
-| 2 | **`signOut()` used the default `scope: 'global'`** | Signing out (or any sign-out triggered internally) revokes **every** refresh token for that user across all apps/devices on the project → BP's session is killed server-side. |
-| 3 | **Startup migration wiped ALL `sb-*-auth` keys** | On first BadlyTalks load it deleted every Supabase auth key in localStorage — including BP's, if co-hosted on the same origin. |
-
-> Why this is even possible: this Supabase project (`llflerfeiwhicrmunqzw`) manages
-> **both** websites (`clarity-mode` / BadlyTalks **and** `breakthrough-protocol`).
-> If BP's live app authenticates against this same project, the two share an auth
-> namespace by default. Different browser origins isolate localStorage, but the
-> **default storage key + global sign-out** still cross-contaminate at the project level.
+| # | Defect | Effect | Cross-app impact (separate projects) |
+|---|--------|--------|--------|
+| 3 | **Startup migration wiped ALL `sb-*-auth` keys** | On first BadlyTalks load it deleted every Supabase auth key in localStorage | **THE root cause.** On a shared origin it erased BP's `sb-<bp-ref>-auth-token` → BP logged out. |
+| 1 | **No custom `storageKey`** (default `sb-<ref>-auth-token`) | Generic, project-ref-based key | Lower risk with separate projects (refs differ), but a shared, generic namespace is fragile. Fixed for defense-in-depth. |
+| 2 | **`signOut()` used `scope: 'global'`** | Revokes the user's refresh tokens project-wide | Does **not** reach BP (different project). Changed to `local` anyway so logout never propagates, even across the user's own devices. |
 
 ---
 
 ## Auth flow — before vs. after
 
+Shared browser origin (same domain, or both on localhost), separate Supabase projects:
+
 ### Before (cross-app logout)
 ```
-        BadlyTalks                         Breakthrough Protocol
-            │                                       │
-   login as user X                                  │  (already logged in as X)
-            │                                       │
-            ▼                                        ▼
-   write localStorage key ───────── SAME KEY ──────► overwrites BP's session
-   sb-<ref>-auth-token                              sb-<ref>-auth-token
-            │                                       │
-            │  signOut(scope:'global')              │
-            └────────── revokes ALL refresh tokens ─► BP session revoked → logged out
+   localStorage (one shared origin)
+   ┌─────────────────────────────────────────────┐
+   │  sb-<badlytalks-ref>-auth-token   (BadlyTalks)│
+   │  sb-<bp-ref>-auth-token           (BP session)│
+   └─────────────────────────────────────────────┘
+            ▲
+   BadlyTalks startup runs:
+   "delete every key matching sb-*-auth"   ✗ also deletes BP's key
+            │
+            ▼
+   BP refresh → no token in storage → LOGGED OUT
 ```
 
 ### After (isolated)
 ```
-        BadlyTalks                         Breakthrough Protocol
-            │                                       │
-   login as user X                          (logged in as X — untouched)
-            ▼                                        ▼
-   write localStorage key                    write its OWN key
-   "badlytalks-auth"   ◄── different keys ──►  sb-<ref>-auth-token
-            │                                       │
-            │  signOut(scope:'local')               │
-            └── clears only badlytalks-auth ────────┘  BP session intact
+   localStorage (even if same origin)
+   ┌─────────────────────────────────────────────┐
+   │  badlytalks-auth          (BadlyTalks — own)  │
+   │  sb-<bp-ref>-auth-token   (BP — untouched)    │
+   └─────────────────────────────────────────────┘
+   BadlyTalks no longer wipes sb-* keys, and reads/writes only its
+   own "badlytalks-auth" namespace → BP session is never touched.
+   signOut(scope:'local') clears only badlytalks-auth.
 ```
 
 ---
@@ -74,27 +78,28 @@ let one app stomp on the other's session:
 
 ---
 
-## Server-side / BP-side actions (cannot be done from this repo)
+## Does this fully resolve it?
 
-Whether the above fully resolves it depends on BP's setup, which lives in a separate
-codebase. Do the checks/changes that apply:
+**Separate projects are confirmed**, so:
+- No Supabase setting change is needed (no "single session" concern — that only
+  applies within one shared project).
+- The fixes in this repo remove the **only** remaining cross-app vector: the
+  shared-origin localStorage wipe. BadlyTalks now stores its session under
+  `badlytalks-auth` and never deletes any other app's keys.
 
-1. **If BP uses the SAME Supabase project** as BadlyTalks (`llflerfeiwhicrmunqzw`):
-   - In **Supabase Dashboard → Authentication → Sessions**, ensure **"Enforce single
-     session per user" is OFF**. If it's on, logging into BadlyTalks revokes BP's
-     session on the next refresh (sign-in-triggered logout).
-   - In BP's code, give **its** supabase client a **different** `storageKey`
-     (e.g. `breakthrough-auth`) and use **`signOut({ scope: 'local' })`** too —
-     the mirror image of the fixes here.
+**Where does the shared origin come from?** Cross-app logout only occurs when both
+apps run on the **same browser origin**. Confirm which case you have:
+- **Production, different domains** (`clarity-mode…vercel.app` vs
+  `breakthrough-protocol.vercel.app`) → different origins → the bug couldn't occur
+  there at all. If you saw it here, check that the two apps aren't behind one shared
+  custom domain.
+- **Local development** (both on `localhost`) → same origin → this was the trigger.
+  Now fixed.
 
-2. **If BP uses its OWN Supabase project** (as an older code comment claims):
-   - Then sessions are already independent at the project level, and the fixes in
-     this repo (unique key + no bulk wipe) remove the only remaining cross-app vector
-     (shared-origin localStorage). No Supabase setting change needed.
-
-3. **Recommended end state for guaranteed isolation:** different `storageKey` per app
-   **and** `scope: 'local'` sign-out in both apps. (Separate Supabase projects make it
-   bulletproof but aren't strictly required once keys + scopes are isolated.)
+**Optional BP-side hardening (mirror of these fixes), recommended for completeness:**
+- Give BP's supabase client its own `storageKey` (e.g. `breakthrough-auth`).
+- Remove any equivalent "clear all `sb-*` keys" startup logic in BP.
+- Use `signOut({ scope: 'local' })` in BP.
 
 ---
 
@@ -118,9 +123,12 @@ and BP stores a **different** key — never the same one.
 
 ## Status
 
-- ✅ Root cause identified (default storage key + global sign-out + bulk key wipe).
-- ✅ BadlyTalks-side fixes applied, type-checked, and built.
-- ⚠️ BP-side mirror changes + the Supabase "single session" check must be done in the
-  BP project/repo (no access from here).
+- ✅ Root cause identified: the startup loop that deleted **all** `sb-*-auth`
+  localStorage keys wiped BP's session whenever the apps shared an origin.
+- ✅ BadlyTalks-side fixes applied, type-checked, and built: private `storageKey`,
+  removed the bulk key wipe, `signOut({ scope: 'local' })`.
+- ✅ Separate Supabase projects confirmed → no Supabase dashboard change required.
+- ⬜ Optional: mirror the same hardening in the BP repo (own `storageKey`, no `sb-*`
+  wipe, local sign-out).
 - ⚠️ Live cross-app behaviour not yet verified on devices — run the checklist above
-  after both apps are deployed.
+  after deploy.
