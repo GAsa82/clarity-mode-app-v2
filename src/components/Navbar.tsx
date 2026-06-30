@@ -42,11 +42,11 @@ export const Navbar = () => {
             <Link to="/" className="flex items-center gap-2 group">
               <img
                 src={logoImg}
-                alt="Clarity Mode"
+                alt="badly talks"
                 className="w-9 h-9 rounded-full object-cover shadow-glow"
               />
               <span className="font-display text-lg font-medium tracking-tight">
-                Clarity Mode
+                badly talks
               </span>
             </Link>
 

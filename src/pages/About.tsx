@@ -16,14 +16,14 @@ export default function About() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6">
               <Sparkles className="w-4 h-4" />
-              About Clarity Mode
+              About badly talks
             </div>
             <h1 className="font-display text-4xl md:text-6xl font-light leading-tight mb-6">
               Built for people who <br />
               <span className="text-gradient italic">think too much.</span>
             </h1>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
-              Clarity Mode is a premium knowledge vault for mental clarity, decision-making, focus, and personal growth — built for people who take their mind seriously.
+              badly talks is a premium knowledge vault for mental clarity, decision-making, focus, and personal growth — built for people who take their mind seriously.
             </p>
           </div>
 
@@ -35,7 +35,7 @@ export default function About() {
                 <h2 className="font-display text-xl font-light">The Story</h2>
               </div>
               <p className="mb-4">
-                Clarity Mode started from a simple frustration: most personal growth
+                badly talks started from a simple frustration: most personal growth
                 resources are scattered, shallow, or buried behind paywalls that promise
                 but under-deliver. We wanted one place — carefully curated, research-backed,
                 and built for people who take their mental performance seriously.

@@ -22,7 +22,7 @@ export default function PaymentSuccess() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">You're now Premium!</h1>
         <p className="text-muted-foreground max-w-md">
-          Welcome to the full Clarity Mode experience. AI Coach, premium focus rooms, and deep
+          Welcome to the full badly talks experience. AI Coach, premium focus rooms, and deep
           insights are now unlocked.
         </p>
       </div>

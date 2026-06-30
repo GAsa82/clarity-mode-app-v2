@@ -57,7 +57,7 @@ export function PremiumGate({ children, feature = "this feature" }: Props) {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold">Premium required</h2>
           <p className="text-muted-foreground max-w-sm">
-            Unlock {feature} and the full Clarity Mode experience — from $12/month or ₹999/month.
+            Unlock {feature} and the full badly talks experience — from $12/month or ₹999/month.
           </p>
         </div>
         <div className="flex gap-3 flex-wrap justify-center">

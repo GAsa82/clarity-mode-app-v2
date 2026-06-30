@@ -7,7 +7,7 @@ export default function Refunds() {
         </h1>
         <div className="prose dark:prose-invert max-w-none text-muted-foreground">
           <p>
-            Digital products from Clarity Mode are delivered instantly. If you experience technical
+            Digital products from badly talks are delivered instantly. If you experience technical
             issues accessing your purchase, contact us and we will help resolve access or offer a
             refund when appropriate.
           </p>

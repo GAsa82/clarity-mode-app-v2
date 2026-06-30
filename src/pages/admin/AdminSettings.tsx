@@ -108,7 +108,7 @@ export default function AdminSettings() {
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Configure your Clarity Mode admin panel
+          Configure your badly talks admin panel
         </p>
       </div>
 

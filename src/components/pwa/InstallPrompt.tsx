@@ -54,7 +54,7 @@ export const InstallPrompt = () => {
           className="fixed inset-x-0 z-[60] px-4 pointer-events-none"
           style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
           role="dialog"
-          aria-label="Install Clarity Mode app"
+          aria-label="Install badly talks app"
         >
           <div className="pointer-events-auto mx-auto max-w-md rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-elegant overflow-hidden">
             {!showIOSHelp ? (
@@ -65,7 +65,7 @@ export const InstallPrompt = () => {
                   className="w-12 h-12 rounded-xl shrink-0 border border-border"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-tight">Install Clarity Mode</p>
+                  <p className="text-sm font-medium leading-tight">Install badly talks</p>
                   <p className="text-xs text-muted-foreground leading-snug mt-0.5">
                     Full-screen app, instant launch, works offline.
                   </p>
@@ -118,7 +118,7 @@ export const InstallPrompt = () => {
                     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-foreground text-[11px] font-medium shrink-0">
                       3
                     </span>
-                    <span>Tap Add — Clarity Mode lands on your home screen.</span>
+                    <span>Tap Add — badly talks lands on your home screen.</span>
                   </li>
                 </ol>
               </div>

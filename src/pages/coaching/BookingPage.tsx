@@ -88,7 +88,7 @@ export default function BookingPage() {
         key:         import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount:      order.amount,
         currency:    order.currency,
-        name:        "Clarity Mode",
+        name:        "badly talks",
         description: "1-on-1 Breakthrough Session · 120 Min",
         order_id:    order.orderId,
         prefill:     { name: form.name, email: form.email, contact: form.phone },

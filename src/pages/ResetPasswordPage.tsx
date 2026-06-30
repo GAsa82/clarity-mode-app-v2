@@ -90,8 +90,8 @@ export default function ResetPasswordPage() {
       >
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 group">
-            <img src={logoImg} alt="Clarity Mode" className="w-10 h-10 rounded-full object-cover shadow-glow" />
-            <span className="font-display text-xl font-medium tracking-tight">Clarity Mode</span>
+            <img src={logoImg} alt="badly talks" className="w-10 h-10 rounded-full object-cover shadow-glow" />
+            <span className="font-display text-xl font-medium tracking-tight">badly talks</span>
           </Link>
         </div>
 

@@ -5,7 +5,7 @@ const Privacy = () => {
     <div className="container py-24 md:py-32">
       <h1 className="font-display text-4xl md:text-6xl font-light leading-tight mb-8">Privacy Policy</h1>
       <div className="prose dark:prose-invert max-w-none">
-        <p>This Privacy Policy describes how Clarity Mode collects, uses, and shares information about you when you use our website, products, and services (collectively, the "Services").</p>
+        <p>This Privacy Policy describes how badly talks collects, uses, and shares information about you when you use our website, products, and services (collectively, the "Services").</p>
 
         <h2>Information We Collect</h2>
         <ul>

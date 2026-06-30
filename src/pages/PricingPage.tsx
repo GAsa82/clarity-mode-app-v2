@@ -143,7 +143,7 @@ export default function PricingPage() {
         key:         order.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount:      order.amount,
         currency:    order.currency,
-        name:        "Clarity Mode",
+        name:        "badly talks",
         description: plan === "annual" ? "Annual Premium" : "Monthly Premium",
         order_id:    order.orderId,
         handler: async (response: any) => {

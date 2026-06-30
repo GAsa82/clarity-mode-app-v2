@@ -88,7 +88,7 @@ export const SignInModal = ({ open, onClose }: SignInModalProps) => {
                     Welcome
                   </p>
                   <h2 className="font-display text-2xl font-light">
-                    Sign in to <span className="text-silver italic">Clarity Mode</span>
+                    Sign in to <span className="text-silver italic">badly talks</span>
                   </h2>
                 </div>
                 <button

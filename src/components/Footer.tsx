@@ -11,7 +11,7 @@ export const Footer = () => {
           <div className="col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-7 h-7 rounded-full bg-primary-gradient" />
-              <span className="font-display text-lg">Clarity Mode</span>
+              <span className="font-display text-lg">badly talks</span>
             </div>
             <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
               A premium platform for mental clarity, confidence, and focused living.
@@ -66,7 +66,7 @@ export const Footer = () => {
         </div>
         <div className="pt-8 border-t border-border flex flex-col md:flex-row gap-4 justify-between items-center">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Clarity Mode. Built quietly.
+            © {new Date().getFullYear()} badly talks. Built quietly.
           </p>
           <p className="text-xs text-muted-foreground italic font-display">
             Clear mind. Strong self. Focused life.

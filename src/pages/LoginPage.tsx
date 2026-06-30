@@ -78,11 +78,11 @@ export default function LoginPage() {
           <Link to="/" className="inline-flex items-center gap-2 group">
             <img
               src={logoImg}
-              alt="Clarity Mode"
+              alt="badly talks"
               className="w-10 h-10 rounded-full object-cover shadow-glow"
             />
             <span className="font-display text-xl font-medium tracking-tight">
-              Clarity Mode
+              badly talks
             </span>
           </Link>
         </div>

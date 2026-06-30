@@ -139,7 +139,7 @@ export default function ConfirmationPage() {
             </a>
             <Link to="/">
               <Button variant="glass" className="w-full gap-2">
-                Back to Clarity Mode
+                Back to badly talks
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>

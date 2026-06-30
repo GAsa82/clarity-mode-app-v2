@@ -93,7 +93,7 @@ export const Store = () => {
         amount,
         currency,
         order_id: orderId,
-        name: "Clarity Mode",
+        name: "badly talks",
         description: product.title,
         theme: { color: "#6366f1" },
         prefill: { email: user.email },
@@ -143,7 +143,7 @@ export const Store = () => {
                 <div className="relative px-6 text-center">
                   <p className="font-display text-2xl leading-tight text-foreground/95">{p.title}</p>
                   <div className="mt-4 w-12 h-px bg-foreground/30 mx-auto" />
-                  <p className="mt-4 text-[10px] uppercase tracking-[0.3em] text-foreground/60">Clarity Mode</p>
+                  <p className="mt-4 text-[10px] uppercase tracking-[0.3em] text-foreground/60">badly talks</p>
                 </div>
               </div>
               <div className="p-5 flex flex-col flex-1">

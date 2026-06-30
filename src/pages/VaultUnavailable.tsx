@@ -40,7 +40,7 @@ const VaultUnavailable = () => {
             <Button asChild variant="hero" size="sm">
               <Link to="/">
                 <Home className="w-4 h-4 mr-2" />
-                Back to Clarity Mode
+                Back to badly talks
               </Link>
             </Button>
             <Button asChild variant="glass" size="sm">

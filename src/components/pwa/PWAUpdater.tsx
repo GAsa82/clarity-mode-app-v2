@@ -26,7 +26,7 @@ export const PWAUpdater = () => {
 
   useEffect(() => {
     if (offlineReady) {
-      toast.success("Clarity Mode is ready to work offline.", {
+      toast.success("badly talks is ready to work offline.", {
         duration: 4000,
         onAutoClose: () => setOfflineReady(false),
         onDismiss: () => setOfflineReady(false),

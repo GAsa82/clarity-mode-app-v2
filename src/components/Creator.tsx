@@ -24,7 +24,7 @@ export const Creator = () => {
               Built by someone who <span className="text-silver italic">lost the plot</span> — and slowly rebuilt the signal.
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              Clarity Mode started as a private journal during a year of burnout, anxiety, and digital overload.
+              badly talks started as a private journal during a year of burnout, anxiety, and digital overload.
               What pulled me out wasn't another productivity hack — it was a system for managing
               attention, emotion, and self-trust.
             </p>
