@@ -26,7 +26,10 @@ export async function signUp(email: string, password: string, name: string) {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+  // scope: 'local' signs out ONLY this app's session. The default 'global' scope
+  // revokes every refresh token for the user across all devices and apps on this
+  // Supabase project — which would also sign them out of Breakthrough Protocol.
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
   if (error) throw error;
 }
 

@@ -5,19 +5,11 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http'));
 
-// One-time migration: clear stale PKCE auth state left from when the app used flowType:'pkce'.
-// Stale state causes GoTrueClient._initialize() to cache a rejected promise, blocking all auth
-// calls with "Invalid path specified in request URL" — even after a successful server response.
-// This runs once per browser (flag stored in localStorage) before the client is created.
-if (typeof window !== 'undefined') {
-  const MIGRATION_FLAG = 'cm-auth-implicit-v1';
-  if (!localStorage.getItem(MIGRATION_FLAG)) {
-    Object.keys(localStorage)
-      .filter(k => k.startsWith('sb-') && k.includes('-auth'))
-      .forEach(k => localStorage.removeItem(k));
-    localStorage.setItem(MIGRATION_FLAG, '1');
-  }
-}
+// NOTE: we deliberately do NOT bulk-clear `sb-*-auth` localStorage keys here.
+// BadlyTalks now uses a private `storageKey` (see below), so it never reads the
+// old default key and stale state can't affect it. Wiping every `sb-*` key would
+// also destroy a co-hosted app's (e.g. Breakthrough Protocol) session — the exact
+// cross-app logout we're fixing.
 
 if (!isSupabaseConfigured) {
   console.warn(
@@ -37,6 +29,13 @@ export const supabase: SupabaseClient = createClient(
       persistSession: true,
       detectSessionInUrl: true,
       flowType: 'implicit',
+      // Private, app-scoped storage key. By default supabase-js stores the
+      // session under `sb-<project-ref>-auth-token`; if another Supabase app
+      // (e.g. Breakthrough Protocol) shares this origin or project, it would use
+      // the SAME key and clobber our session (and vice-versa). A unique key gives
+      // BadlyTalks its own localStorage namespace so the two apps stay logged in
+      // independently — no cross-app logout.
+      storageKey: 'badlytalks-auth',
     },
   }
 );
