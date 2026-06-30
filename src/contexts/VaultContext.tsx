@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 import { AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase, isSupabaseReady } from "@/lib/supabase";
 import { VAULT_CONFIGURED, VAULT_PATHS, type VaultPath } from "@/lib/vault-config";
 import { VaultTransition } from "@/components/VaultTransition";
 
@@ -47,29 +46,13 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
       setStatus("transitioning");
 
-      let targetUrl: string = VAULT_PATHS[path];
-
-      // Pass session tokens in URL fragment so the Vault's Supabase client
-      // (detectSessionInUrl: true) can auto-detect and restore the session.
-      // Hash fragments are never sent to the server and are client-only.
-      if (user && isSupabaseReady()) {
-        try {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          if (session) {
-            const hash = new URLSearchParams({
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-              token_type: "bearer",
-              expires_in: String(session.expires_in ?? 3600),
-            }).toString();
-            targetUrl = `${targetUrl}#${hash}`;
-          }
-        } catch {
-          // navigate without token — Vault shows appropriate gate
-        }
-      }
+      // The Vault is a separate platform (Breakthrough Protocol) on its own
+      // Supabase project, so Clarity's session tokens are NOT valid there.
+      // Previously we appended them to the URL hash, which made the Vault's
+      // Supabase client (detectSessionInUrl: true) try to restore a foreign
+      // session — producing an invalid-JWT hang and a blank page on mobile.
+      // Redirect to the clean Vault URL; the Vault gates auth on its own.
+      const targetUrl: string = VAULT_PATHS[path];
 
       // Admin skips waiting; regular users see the full transition
       const delay = isAdmin ? 1000 : 1800;
