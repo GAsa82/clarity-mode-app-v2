@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, LogOut, Shield } from "lucide-react";
+import { Menu, X, LogOut, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoImg from "@/assets/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,11 +74,18 @@ export const Navbar = () => {
                 <div className="flex items-center gap-2">
                   {isAdmin && (
                     <Link
-                      to="/admin"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                      to="/founder"
+                      className="group relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium text-white transition-all duration-300 hover:-translate-y-px"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(139,92,246,0.16))",
+                        border: "1px solid rgba(99,102,241,0.4)",
+                        boxShadow: "0 0 22px -8px rgba(99,102,241,0.7)",
+                      }}
                     >
-                      <Shield className="w-3 h-3" />
-                      Admin
+                      <Zap className="w-3.5 h-3.5 text-primary" />
+                      <span className="bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent tracking-tight">
+                        Founder Studio
+                      </span>
                     </Link>
                   )}
                   <span className="text-xs text-muted-foreground truncate max-w-[120px]">
@@ -136,12 +143,16 @@ export const Navbar = () => {
                       <span className="text-xs text-muted-foreground px-2">{profile?.name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}</span>
                       {isAdmin && (
                         <Link
-                          to="/admin"
+                          to="/founder"
                           onClick={() => setOpen(false)}
-                          className="flex items-center gap-2 px-2 py-1.5 text-sm text-primary"
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-white"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(139,92,246,0.16))",
+                            border: "1px solid rgba(99,102,241,0.4)",
+                          }}
                         >
-                          <Shield className="w-3.5 h-3.5" />
-                          Admin Dashboard
+                          <Zap className="w-3.5 h-3.5 text-primary" />
+                          Founder Studio
                         </Link>
                       )}
                       <Button variant="ghost" size="sm" onClick={() => { signOut(); setOpen(false); }} className="justify-start">

@@ -30,6 +30,7 @@ import BookingPage from "./pages/coaching/BookingPage";
 import ConfirmationPage from "./pages/coaching/ConfirmationPage";
 import ResearchPage from "./pages/ResearchPage";
 import VaultUnavailable from "./pages/VaultUnavailable";
+import FounderStudio from "./pages/FounderStudio";
 
 // Admin — core
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -89,6 +90,18 @@ const App = () => (
                 <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
                 <Route path="/research" element={<ResearchPage />} />
                 <Route path="/vault-unavailable" element={<VaultUnavailable />} />
+
+                {/* Founder Studio — full-screen business OS, admin-only */}
+                <Route
+                  path="/founder"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <WebsiteProvider>
+                        <FounderStudio />
+                      </WebsiteProvider>
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Admin routes — protected, scoped to WebsiteProvider */}
                 <Route
