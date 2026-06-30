@@ -343,7 +343,7 @@ export default function ResearchPapersAdmin() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Pages</label>
                   <input

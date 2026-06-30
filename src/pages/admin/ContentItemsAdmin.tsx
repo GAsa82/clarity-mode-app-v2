@@ -313,7 +313,7 @@ export default function ContentItemsAdmin({ type, title }: Props) {
                 <textarea value={form.description ?? ""} onChange={(e) => F("description", e.target.value)} rows={3} placeholder="Brief description" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 resize-none" />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Category</label>
                   <input value={form.category} onChange={(e) => F("category", e.target.value)} placeholder="e.g. focus, clarity" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />

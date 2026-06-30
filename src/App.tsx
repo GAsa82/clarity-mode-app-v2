@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -10,55 +11,66 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { VaultProvider } from "@/contexts/VaultContext";
 import { WebsiteProvider } from "@/contexts/WebsiteContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import AdminLayout from "@/components/AdminLayout";
 
+// Landing + auth load eagerly for instant first paint on mobile.
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
-import InsightsPage from "./pages/InsightsPage";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import Refunds from "./pages/Refunds";
-import { FocusRoomPage } from "./pages/FocusRoomPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
-import PricingPage from "./pages/PricingPage";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import PaymentSuccess from "./pages/payment/PaymentSuccess";
-import CoachingPage from "./pages/CoachingPage";
-import BookingPage from "./pages/coaching/BookingPage";
-import ConfirmationPage from "./pages/coaching/ConfirmationPage";
-import ResearchPage from "./pages/ResearchPage";
-import VaultUnavailable from "./pages/VaultUnavailable";
-import FounderStudio from "./pages/FounderStudio";
+
+// Everything else is code-split so mobile visitors don't download the
+// admin/founder bundles to view the public site.
+const AdminLayout = lazy(() => import("@/components/AdminLayout"));
+const InsightsPage = lazy(() => import("./pages/InsightsPage"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Refunds = lazy(() => import("./pages/Refunds"));
+const FocusRoomPage = lazy(() => import("./pages/FocusRoomPage").then((m) => ({ default: m.FocusRoomPage })));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const PaymentSuccess = lazy(() => import("./pages/payment/PaymentSuccess"));
+const CoachingPage = lazy(() => import("./pages/CoachingPage"));
+const BookingPage = lazy(() => import("./pages/coaching/BookingPage"));
+const ConfirmationPage = lazy(() => import("./pages/coaching/ConfirmationPage"));
+const ResearchPage = lazy(() => import("./pages/ResearchPage"));
+const VaultUnavailable = lazy(() => import("./pages/VaultUnavailable"));
+const FounderStudio = lazy(() => import("./pages/FounderStudio"));
 
 // Admin — core
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminUpload from "./pages/admin/AdminUpload";
-import AdminKnowledge from "./pages/admin/AdminKnowledge";
-import AdminTraining from "./pages/admin/AdminTraining";
-import AdminDocuments from "./pages/admin/AdminDocuments";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminSettings from "./pages/admin/AdminSettings";
-import AdminCoaching from "./pages/admin/AdminCoaching";
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminUpload = lazy(() => import("./pages/admin/AdminUpload"));
+const AdminKnowledge = lazy(() => import("./pages/admin/AdminKnowledge"));
+const AdminTraining = lazy(() => import("./pages/admin/AdminTraining"));
+const AdminDocuments = lazy(() => import("./pages/admin/AdminDocuments"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminCoaching = lazy(() => import("./pages/admin/AdminCoaching"));
 
 // Admin — content studio
-import ContentStudioPage from "./pages/admin/ContentStudioPage";
-import ResearchPapersAdmin from "./pages/admin/ResearchPapersAdmin";
-import OldBooksAdmin from "./pages/admin/OldBooksAdmin";
-import ContentItemsAdmin from "./pages/admin/ContentItemsAdmin";
-import ClaritySessionsAdmin from "./pages/admin/ClaritySessionsAdmin";
-import TestimonialsAdmin from "./pages/admin/TestimonialsAdmin";
-import SiteContentAdmin from "./pages/admin/SiteContentAdmin";
-import MediaLibraryAdmin from "./pages/admin/MediaLibraryAdmin";
-import CreateWebsiteAdmin from "./pages/admin/CreateWebsiteAdmin";
+const ContentStudioPage = lazy(() => import("./pages/admin/ContentStudioPage"));
+const ResearchPapersAdmin = lazy(() => import("./pages/admin/ResearchPapersAdmin"));
+const OldBooksAdmin = lazy(() => import("./pages/admin/OldBooksAdmin"));
+const ContentItemsAdmin = lazy(() => import("./pages/admin/ContentItemsAdmin"));
+const ClaritySessionsAdmin = lazy(() => import("./pages/admin/ClaritySessionsAdmin"));
+const TestimonialsAdmin = lazy(() => import("./pages/admin/TestimonialsAdmin"));
+const SiteContentAdmin = lazy(() => import("./pages/admin/SiteContentAdmin"));
+const MediaLibraryAdmin = lazy(() => import("./pages/admin/MediaLibraryAdmin"));
+const CreateWebsiteAdmin = lazy(() => import("./pages/admin/CreateWebsiteAdmin"));
 
 // Admin — system
-import AnalyticsPage from "./pages/admin/AnalyticsPage";
-import SubscriptionsAdmin from "./pages/admin/SubscriptionsAdmin";
-import OrdersAdmin from "./pages/admin/OrdersAdmin";
-import CouponsAdmin from "./pages/admin/CouponsAdmin";
-import AuditLogsAdmin from "./pages/admin/AuditLogsAdmin";
+const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage"));
+const SubscriptionsAdmin = lazy(() => import("./pages/admin/SubscriptionsAdmin"));
+const OrdersAdmin = lazy(() => import("./pages/admin/OrdersAdmin"));
+const CouponsAdmin = lazy(() => import("./pages/admin/CouponsAdmin"));
+const AuditLogsAdmin = lazy(() => import("./pages/admin/AuditLogsAdmin"));
+
+// Lightweight branded fallback while a route chunk loads.
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -71,6 +83,7 @@ const App = () => (
         <AuthProvider>
           <BrowserRouter>
             <VaultProvider>
+              <Suspense fallback={<RouteFallback />}>
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
@@ -152,6 +165,7 @@ const App = () => (
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </VaultProvider>
           </BrowserRouter>
         </AuthProvider>

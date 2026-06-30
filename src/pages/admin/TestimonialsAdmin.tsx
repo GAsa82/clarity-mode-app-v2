@@ -293,7 +293,7 @@ export default function TestimonialsAdmin() {
                 <input value={form.avatar_url ?? ""} onChange={(e) => F("avatar_url", e.target.value)} placeholder="https://… (square image)" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Rating</label>
                   <div className="flex gap-1 items-center h-[38px]">

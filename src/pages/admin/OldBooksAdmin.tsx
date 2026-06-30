@@ -348,7 +348,7 @@ export default function OldBooksAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Condition *</label>
                   <select value={form.condition} onChange={(e) => F("condition", e.target.value)} className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50">
@@ -365,7 +365,7 @@ export default function OldBooksAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Year</label>
                   <input type="number" value={form.year ?? ""} onChange={(e) => F("year", e.target.value ? Number(e.target.value) : null)} placeholder="2010" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
@@ -384,7 +384,7 @@ export default function OldBooksAdmin() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Publisher</label>
                   <input value={form.publisher ?? ""} onChange={(e) => F("publisher", e.target.value)} placeholder="Penguin" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />

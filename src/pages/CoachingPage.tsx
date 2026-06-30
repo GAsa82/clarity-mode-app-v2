@@ -287,7 +287,7 @@ export default function CoachingPage() {
             </div>
 
             <div className="mb-6 mt-2">
-              <span className="text-6xl font-bold">₹3,000</span>
+              <span className="text-5xl sm:text-6xl font-bold">₹3,000</span>
               <p className="text-muted-foreground text-sm mt-1">One-time · No subscription</p>
             </div>
 

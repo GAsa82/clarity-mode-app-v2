@@ -23,7 +23,7 @@ function WebsiteSwitcher() {
   const { websites, current, switchWebsite } = useWebsite();
   return (
     <div
-      className="inline-flex items-center gap-1 p-1 rounded-2xl"
+      className="inline-flex flex-wrap items-center gap-1 p-1 rounded-2xl max-w-full"
       style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
     >
       {websites.map((site) => {
