@@ -2,6 +2,12 @@ import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Crown, ExternalLink, Headphones, Pause, Play, Sparkles, Star, TrendingUp, Upload, Check, X, AlertTriangle } from "lucide-react";
 import type { ClaritySession } from "@/lib/clarity-content";
+import {
+  downscaleImage,
+  submitFace,
+  getApprovedFaces,
+  type FaceSubmission,
+} from "@/lib/face-submissions";
 
 const DEFAULT_TRACK = {
   title: "Stratus Deep Work",
@@ -46,27 +52,6 @@ const rules = [
   "Keep submissions respectful",
 ];
 
-const currentClarityMembers = [
-  { name: "Maya R.", role: "Product designer, 26", emoji: "🧘" },
-  { name: "Jordan T.", role: "Founder, 31", emoji: "🌅" },
-  { name: "Sam K.", role: "Med student, 24", emoji: "⚡" },
-];
-
-const STORAGE_KEY_APPROVED = "clarity-face-approved";
-
-type Submission = {
-  username: string;
-  image: string;
-  submittedAt: string;
-};
-
-function getApprovedSubmissions(): Submission[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_APPROVED);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
 type LibraryWidgetsRailProps = {
   trendingSessions: ClaritySession[];
   onSelect: (session: ClaritySession) => void;
@@ -84,18 +69,19 @@ const widgetVariants = {
 export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidgetsRailProps) => {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0.32);
-  const [approved, setApproved] = useState<Submission[]>([]);
+  const [approved, setApproved] = useState<FaceSubmission[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [username, setUsername] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setApproved(getApprovedSubmissions());
+    getApprovedFaces().then(setApproved);
   }, []);
 
   useEffect(() => {
@@ -113,29 +99,33 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   const todayMember = approved.length > 0 ? approved[0] : null;
-  const allMembers = [...approved, ...currentClarityMembers];
+  const allMembers = approved;
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setImageError(true); return; }
-    if (file.size > 2 * 1024 * 1024) { setImageError(true); return; }
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) { setImageError(true); return; }
     setImageError(false);
-    const reader = new FileReader();
-    reader.onload = (ev) => setImage(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    try {
+      setImage(await downscaleImage(file));
+    } catch {
+      setImageError(true);
+    }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitError(null);
     if (!username.trim()) { setSubmitError("Please enter a username."); return; }
     if (!image) { setSubmitError("Please upload a profile picture."); return; }
-    const submission: Submission = { username: username.trim(), image, submittedAt: new Date().toISOString() };
-    const current = getApprovedSubmissions();
-    current.unshift(submission);
-    localStorage.setItem(STORAGE_KEY_APPROVED, JSON.stringify(current));
-    setApproved(current);
-    setSubmitted(true);
+    setSubmitting(true);
+    try {
+      await submitFace(username, image);
+      setSubmitted(true);
+    } catch {
+      setSubmitError("Couldn't submit right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -309,9 +299,10 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      className="text-[9px] px-2 py-1 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                      disabled={submitting}
+                      className="text-[9px] px-2 py-1 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
                     >
-                      Submit
+                      {submitting ? "Submitting…" : "Submit"}
                     </button>
                   </div>
                   {submitError && <p className="text-[9px] text-destructive mt-1">{submitError}</p>}
@@ -369,21 +360,27 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
             </p>
           </div>
           <div className="space-y-2">
-            {allMembers.slice(0, 4).map((m, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-primary/10 transition-colors group">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs shrink-0">
-                  {"emoji" in m ? m.emoji : "🧑"}
+            {allMembers.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground/70 py-1">
+                No members featured yet.
+              </p>
+            ) : (
+              allMembers.slice(0, 4).map((m) => (
+                <div key={m.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-primary/10 transition-colors group">
+                  <div className="w-7 h-7 rounded-full overflow-hidden bg-primary/10 shrink-0">
+                    <img src={m.image} alt={m.username} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                      @{m.username}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground truncate">
+                      Clarity Member
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                    {"name" in m ? m.name : `@${(m as Submission).username}`}
-                  </p>
-                  <p className="text-[9px] text-muted-foreground truncate">
-                    {"role" in m ? m.role : "Clarity Member"}
-                  </p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </motion.div>

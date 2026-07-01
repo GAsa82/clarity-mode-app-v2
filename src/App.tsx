@@ -59,6 +59,7 @@ const TestimonialsAdmin = lazy(() => import("./pages/admin/TestimonialsAdmin"));
 const SiteContentAdmin = lazy(() => import("./pages/admin/SiteContentAdmin"));
 const MediaLibraryAdmin = lazy(() => import("./pages/admin/MediaLibraryAdmin"));
 const CreateWebsiteAdmin = lazy(() => import("./pages/admin/CreateWebsiteAdmin"));
+const FaceSubmissionsAdmin = lazy(() => import("./pages/admin/FaceSubmissionsAdmin"));
 
 // Admin — system
 const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage"));
@@ -154,6 +155,7 @@ const App = () => (
                   {/* Website content */}
                   <Route path="site-content" element={<SiteContentAdmin />} />
                   <Route path="testimonials" element={<TestimonialsAdmin />} />
+                  <Route path="face-submissions" element={<FaceSubmissionsAdmin />} />
 
                   {/* System */}
                   <Route path="analytics" element={<AnalyticsPage />} />

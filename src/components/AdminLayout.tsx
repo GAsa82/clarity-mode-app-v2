@@ -6,13 +6,14 @@ import {
   BookMarked, Store, Library, Grid3X3, Shield, FileText, Image,
   BarChart3, ClipboardList, Settings, Menu, X, LogOut, Sparkles,
   Video, MessageSquare, ChevronDown, Globe, Plus, Check, Zap,
-  BookOpen, Brain, Upload,
+  BookOpen, Brain, Upload, Crown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWebsite, type Website } from "@/contexts/WebsiteContext";
+import { getPendingFaceCount } from "@/lib/face-submissions";
 import logoImg from "@/assets/logo.png";
 
-type NavItem = { to: string; icon: React.ElementType; label: string; exact?: boolean };
+type NavItem = { to: string; icon: React.ElementType; label: string; exact?: boolean; badge?: number };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ── per-site nav configs ──────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ const SITE_NAV: Record<string, NavGroup[]> = {
         { to: "/admin/site-content",     icon: Sparkles,      label: "Site Content" },
         { to: "/admin/clarity-sessions", icon: Video,         label: "Clarity Sessions" },
         { to: "/admin/testimonials",     icon: MessageSquare, label: "Testimonials" },
+        { to: "/admin/face-submissions", icon: Crown,         label: "Member Submissions" },
         { to: "/admin/library",          icon: Library,       label: "Premium Library" },
         { to: "/admin/templates",        icon: FileText,      label: "Templates" },
         { to: "/admin/media",            icon: Image,         label: "Media Library" },
@@ -173,6 +175,11 @@ function NavLink({ item, onClick }: { item: NavItem; onClick?: () => void }) {
       )}
       <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${active ? "text-primary" : "text-white/30 group-hover:text-white/60"}`} />
       <span className="relative z-10 truncate">{item.label}</span>
+      {item.badge ? (
+        <span className="relative z-10 ml-auto min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
+          {item.badge}
+        </span>
+      ) : null}
       {active && (
         <motion.div
           className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full"
@@ -189,6 +196,17 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { current } = useWebsite();
+
+  const [pendingFaces, setPendingFaces] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      getPendingFaceCount().then((c) => alive && setPendingFaces(c)).catch(() => {});
+    load();
+    const id = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
 
   const siteNav = current ? (SITE_NAV[current.slug] ?? []) : [];
   const allGroups = [...siteNav, ...UNIVERSAL_NAV];
@@ -232,7 +250,11 @@ export default function AdminLayout() {
             </p>
             <div className="space-y-0.5">
               {group.items.map((item) => (
-                <NavLink key={item.to} item={item} onClick={() => setSidebarOpen(false)} />
+                <NavLink
+                  key={item.to}
+                  item={item.to === "/admin/face-submissions" ? { ...item, badge: pendingFaces } : item}
+                  onClick={() => setSidebarOpen(false)}
+                />
               ))}
             </div>
           </div>

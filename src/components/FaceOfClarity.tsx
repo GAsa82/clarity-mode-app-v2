@@ -2,15 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Upload, Star, Crown, Check, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const STORAGE_KEY_SUBMISSIONS = "clarity-face-submissions";
-const STORAGE_KEY_APPROVED = "clarity-face-approved";
-
-type Submission = {
-  username: string;
-  image: string; // data URL
-  submittedAt: string;
-};
+import {
+  downscaleImage,
+  submitFace,
+  getApprovedFaces,
+  type FaceSubmission,
+} from "@/lib/face-submissions";
 
 const rules = [
   "No explicit or sexual content",
@@ -19,83 +16,41 @@ const rules = [
   "Keep submissions respectful",
 ];
 
-const currentClarityMembers = [
-  {
-    name: "Maya R.",
-    role: "Product designer, 26",
-    emoji: "🧘",
-  },
-  {
-    name: "Jordan T.",
-    role: "Founder, 31",
-    emoji: "🌅",
-  },
-  {
-    name: "Sam K.",
-    role: "Med student, 24",
-    emoji: "⚡",
-  },
-];
-
-function getPendingSubmissions(): Submission[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_SUBMISSIONS);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function getApprovedSubmissions(): Submission[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_APPROVED);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function savePendingSubmissions(list: Submission[]) {
-  localStorage.setItem(STORAGE_KEY_SUBMISSIONS, JSON.stringify(list));
-}
-
-function saveApprovedSubmissions(list: Submission[]) {
-  localStorage.setItem(STORAGE_KEY_APPROVED, JSON.stringify(list));
-}
-
 export const FaceOfClarity = () => {
   const [showForm, setShowForm] = useState(false);
   const [username, setUsername] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [approved, setApproved] = useState<Submission[]>([]);
+  const [approved, setApproved] = useState<FaceSubmission[]>([]);
   const [showRules, setShowRules] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setApproved(getApprovedSubmissions());
+    getApprovedFaces().then(setApproved);
   }, []);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setImageError(true);
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
       setImageError(true);
       return;
     }
 
     setImageError(false);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setImage(ev.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Downscale to a small JPEG before storing/submitting.
+      setImage(await downscaleImage(file));
+    } catch {
+      setImageError(true);
+    }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitError(null);
 
     if (!username.trim()) {
@@ -107,29 +62,19 @@ export const FaceOfClarity = () => {
       return;
     }
 
-    const submission: Submission = {
-      username: username.trim(),
-      image,
-      submittedAt: new Date().toISOString(),
-    };
-
-    const pending = getPendingSubmissions();
-    pending.push(submission);
-    savePendingSubmissions(pending);
-
-    setSubmitted(true);
-
-    const currentApproved = getApprovedSubmissions();
-    currentApproved.unshift(submission);
-    saveApprovedSubmissions(currentApproved);
-    setApproved(currentApproved);
+    setSubmitting(true);
+    try {
+      await submitFace(username, image);
+      setSubmitted(true);
+    } catch {
+      setSubmitError("Couldn't submit right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const todayMember = approved.length > 0
-    ? approved[0]
-    : null;
-
-  const allMembers = [...approved, ...currentClarityMembers];
+  const todayMember = approved.length > 0 ? approved[0] : null;
+  const allMembers = approved;
 
   return (
     <section className="py-24 md:py-32 relative">
@@ -249,9 +194,9 @@ export const FaceOfClarity = () => {
                     <Button variant="glass" size="sm" onClick={() => fileRef.current?.click()}>
                       {image ? "Change photo" : "Choose photo"}
                     </Button>
-                    <p className="text-[10px] text-muted-foreground/60 text-center">Max 2MB</p>
+                    <p className="text-[10px] text-muted-foreground/60 text-center">Max 5MB</p>
                     {imageError && (
-                      <p className="text-[10px] text-destructive">Invalid file. Use an image under 2MB.</p>
+                      <p className="text-[10px] text-destructive">Invalid file. Use an image under 5MB.</p>
                     )}
                   </div>
 
@@ -294,9 +239,9 @@ export const FaceOfClarity = () => {
                         <X className="w-3.5 h-3.5 mr-1.5" />
                         Cancel
                       </Button>
-                      <Button variant="hero" onClick={handleSubmit}>
+                      <Button variant="hero" onClick={handleSubmit} disabled={submitting}>
                         <Check className="w-3.5 h-3.5 mr-1.5" />
-                        Submit for review
+                        {submitting ? "Submitting…" : "Submit for review"}
                       </Button>
                     </div>
                   </div>
@@ -371,21 +316,27 @@ export const FaceOfClarity = () => {
                   </p>
                 </div>
                 <div className="space-y-3">
-                  {allMembers.slice(0, 5).map((m, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-primary/10 transition-colors group">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm shrink-0">
-                        {"emoji" in m ? m.emoji : "🧑"}
+                  {allMembers.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground/70 py-2">
+                      No members featured yet. Approved members appear here.
+                    </p>
+                  ) : (
+                    allMembers.slice(0, 5).map((m) => (
+                      <div key={m.id} className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-primary/10 transition-colors group">
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/10 shrink-0">
+                          <img src={m.image} alt={m.username} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                            @{m.username}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            Clarity Member
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                          {"name" in m ? m.name : `@${(m as Submission).username}`}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {"role" in m ? m.role : "Clarity Member"}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </motion.div>
