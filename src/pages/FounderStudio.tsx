@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Zap, LogOut, Check, ArrowUpRight, Layers, Image as ImageIcon, Brain,
+  Zap, LogOut, Check, ArrowUpRight, Layers, Image as ImageIcon,
   FileClock, Wallet, Settings, Eye, Download, Target,
   Upload, BookMarked, Store, Shield, BookOpen, NotebookPen, Globe,
   FileDown, Sparkles,
@@ -212,17 +212,16 @@ export default function FounderStudio() {
   ];
 
   const contentSubLinks = [
-    { to: "/admin/upload", icon: Upload, label: "Upload Content" },
+    { to: "/admin/media", icon: Upload, label: "Media Library" },
     { to: "/admin/old-books", icon: Store, label: "Books" },
     { to: "/admin/research-papers", icon: BookMarked, label: "Research Papers" },
-    { to: "/admin/documents", icon: NotebookPen, label: "Diary Pages" },
+    { to: "/admin/clarity-sessions", icon: NotebookPen, label: "Clarity Sessions" },
     { to: "/admin/protocols", icon: Shield, label: "Protocols" },
     { to: "/admin/site-content", icon: BookOpen, label: "Blogs" },
   ];
 
   const modules: Module[] = [
     { to: "/admin/media", icon: ImageIcon, title: "Media Library", desc: "Every audio, video, image, and PDF asset across the brand.", color: "#06b6d4" },
-    { to: "/admin/knowledge", icon: Brain, title: "AI Knowledge Base", desc: "Indexed documents and training that power AI features.", color: "#a855f7" },
     { onClick: () => reportsRef.current?.scrollIntoView({ behavior: "smooth" }), icon: FileClock, title: "Maintenance Reports", desc: "Audit history and downloadable health reports.", color: "#f59e0b" },
     { to: "/admin/analytics", icon: Wallet, title: "Revenue Dashboard", desc: "Orders, subscriptions, and full financial breakdown.", color: "#10b981" },
     { to: "/admin/settings", icon: Settings, title: "System Settings", desc: "Domains, integrations, and environment configuration.", color: "#64748b" },

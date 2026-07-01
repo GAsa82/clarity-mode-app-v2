@@ -133,16 +133,6 @@ const INTENTS: Intent[] = [
     },
   },
   {
-    id: "knowledge",
-    keywords: ["knowledge", "ai knowledge", "train", "documents", "embeddings", "vault"],
-    resolve: (_i, site) => ({
-      intent: "knowledge",
-      title: "AI Knowledge Base",
-      message: `Opening the AI Knowledge Base for ${siteName(site)} — manage indexed documents and training material that power AI features.`,
-      actions: [{ kind: "navigate", to: "/admin/knowledge", label: "Open Knowledge Base" }],
-    }),
-  },
-  {
     id: "settings",
     keywords: ["settings", "configure", "system", "config", "domain", "environment"],
     resolve: () => ({
