@@ -1,35 +1,65 @@
-import { useEffect, useState, useCallback } from "react";
-import { Check, X, Trash2, Crown, Clock } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Check, X, Trash2, Crown, Clock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   getPendingFaces,
   getReviewedFaces,
   reviewFace,
   deleteFace,
+  getQueuedFaceSubmissionCount,
   type FaceSubmission,
 } from "@/lib/face-submissions";
+
+const AUTO_REFRESH_MS = 20000;
 
 export default function FaceSubmissionsAdmin() {
   const [pending, setPending] = useState<FaceSubmission[]>([]);
   const [reviewed, setReviewed] = useState<FaceSubmission[]>([]);
+  const [queuedCount, setQueuedCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const isFirstLoad = useRef(true);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (isFirstLoad.current) setLoading(true);
+    else setRefreshing(true);
     try {
-      const [p, r] = await Promise.all([getPendingFaces(), getReviewedFaces()]);
+      const [p, r, q] = await Promise.all([
+        getPendingFaces(),
+        getReviewedFaces(),
+        getQueuedFaceSubmissionCount(),
+      ]);
       setPending(p);
       setReviewed(r);
+      setQueuedCount(q);
     } catch {
-      toast.error("Couldn't load submissions. Did you run the face_submissions migration?");
+      if (isFirstLoad.current) {
+        toast.error("Couldn't load submissions. Did you run the face_submissions migration?");
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      isFirstLoad.current = false;
     }
   }, []);
 
+  // Load on mount, then keep this page fresh automatically: submissions can
+  // arrive from any device at any time, and this page has no realtime feed —
+  // so poll, and also refetch whenever the admin switches back to this tab.
   useEffect(() => {
     load();
+    const interval = setInterval(load, AUTO_REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [load]);
 
   const act = async (id: string, fn: () => Promise<void>, msg: string) => {
@@ -50,15 +80,33 @@ export default function FaceSubmissionsAdmin() {
   return (
     <div className="p-6 md:p-8 max-w-6xl">
       <header className="mb-8">
-        <div className="flex items-center gap-2 text-primary mb-2">
-          <Crown className="w-4 h-4" />
-          <span className="text-xs uppercase tracking-[0.2em]">Community Spotlight</span>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-primary mb-2">
+              <Crown className="w-4 h-4" />
+              <span className="text-xs uppercase tracking-[0.2em]">Community Spotlight</span>
+            </div>
+            <h1 className="text-2xl font-semibold">Member of the Day — Submissions</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Approve or reject profiles submitted for the public "Member of the Day" widget.
+              Approved members appear on the site; rejected ones never do.
+            </p>
+          </div>
+          <button
+            onClick={load}
+            disabled={refreshing}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/70 text-xs font-medium disabled:opacity-60 transition"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
         </div>
-        <h1 className="text-2xl font-semibold">Member of the Day — Submissions</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Approve or reject profiles submitted for the public "Member of the Day" widget.
-          Approved members appear on the site; rejected ones never do.
-        </p>
+        {queuedCount > 0 && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
+            <Clock className="w-3 h-3" />
+            {queuedCount} offline submission(s) queued for retry.
+          </div>
+        )}
       </header>
 
       {/* Pending queue */}
