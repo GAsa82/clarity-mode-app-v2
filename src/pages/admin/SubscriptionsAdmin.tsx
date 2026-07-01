@@ -22,11 +22,25 @@ export default function SubscriptionsAdmin() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("*, profiles(email, name)")
-        .order("created_at", { ascending: false });
-      setSubs((data ?? []) as Sub[]);
+      // subscriptions.user_id only has a FK to auth.users, not public.profiles,
+      // so PostgREST can't auto-embed profiles(...) here (PGRST200: no
+      // relationship found). Fetch both and join client-side instead —
+      // same pattern already used in AdminUsers.tsx for this exact shape.
+      const [{ data: subData }, { data: profileData }] = await Promise.all([
+        supabase.from("subscriptions").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, email, name"),
+      ]);
+
+      const profileMap = Object.fromEntries(
+        (profileData ?? []).map((p: { id: string; email: string; name: string | null }) => [p.id, p])
+      );
+
+      setSubs(
+        (subData ?? []).map((s: Omit<Sub, "profiles">) => ({
+          ...s,
+          profiles: profileMap[s.user_id] ?? null,
+        }))
+      );
       setLoading(false);
     };
     load();
