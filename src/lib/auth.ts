@@ -36,9 +36,14 @@ export async function signUp(email: string, password: string, name: string) {
 }
 
 export async function signOut() {
-  // scope: 'local' signs out ONLY this app's session. The default 'global' scope
-  // revokes every refresh token for the user across all devices and apps on this
-  // Supabase project — which would also sign them out of Breakthrough Protocol.
+  // scope: 'local' signs out ONLY this browser's session for THIS app. The
+  // default 'global' scope would revoke every refresh token for the user across
+  // all their devices on Clarity's Supabase project (vajenjgxaznftlvribzl) — an
+  // aggressive "log me out everywhere" that a normal logout button shouldn't do.
+  // NOTE: Breakthrough Protocol runs on a SEPARATE Supabase project
+  // (llflerfeiwhicrmunqzw), so neither scope here affects a BP session at all —
+  // the two apps have entirely independent auth. (An earlier comment here
+  // incorrectly claimed a shared project.)
   const { error } = await supabase.auth.signOut({ scope: 'local' });
   if (error) throw error;
 }
