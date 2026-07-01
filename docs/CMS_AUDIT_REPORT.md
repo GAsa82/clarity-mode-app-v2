@@ -323,3 +323,30 @@ order" on the ₹2,899 Confidence Rebuild Blueprint (and every Store product).
   fallback. When a "clean" API error message is suspiciously generic, check
   the raw HTTP status/body — `FUNCTION_INVOCATION_FAILED` vs. real JSON tells
   you whether the handler even ran.
+
+## §12 Update — env-var sweep across ALL serverless functions
+
+Prompted by §11, I cross-referenced every `process.env.*` referenced in
+`api/` against the actual Vercel **production** env (`vercel env ls
+production`). Three referenced vars are **missing from production** — the same
+bug class that just broke checkout. Each needs the admin to add the value
+(I can't supply Stripe/Resend/Meet secrets), but I fixed the code half where
+one existed.
+
+| Env var | Read at | Missing-in-prod impact | Status |
+|---|---|---|---|
+| `STRIPE_WEBHOOK_SECRET` | `api/stripe/webhook.js:30` | **CRITICAL.** "Pay with Card (USD)" (Stripe) is shown to every user on `/pricing`. Checkout session creation works (`STRIPE_SECRET_KEY` present), the customer pays, but the `checkout.session.completed` webhook calls `stripe.webhooks.constructEvent(body, sig, undefined)` → throws → 400 → **subscription is never activated**. Customer pays and gets nothing. (Also requires a webhook endpoint to be registered in the Stripe dashboard pointing at `/api/stripe/webhook`.) | ⛔ **Needs admin**: add `STRIPE_WEBHOOK_SECRET` to Vercel prod + register the webhook endpoint in Stripe. Until then, consider hiding the USD/Stripe button (Razorpay/INR works). |
+| `COACHING_MEET_LINK` | `api/coaching/verify.js` | **HIGH.** ₹3,000 coaching customers were sent a hardcoded dead placeholder link (`https://meet.google.com/your-meeting-link`) in their confirmation email, and it was stored in `coaching_sessions.meet_link`. | ✅ **Code fixed** (`ccc7862`): no fake link is ever stored/emailed/returned; customer told the link arrives by email. ⚠️ Still add `COACHING_MEET_LINK` (your real Meet/Zoom link) to Vercel prod so the real link auto-appears. |
+| `RESEND_API_KEY` | `api/coaching/verify.js:104` | **MEDIUM.** Cleanly guarded (`if (process.env.RESEND_API_KEY)`), so no crash — but coaching confirmation emails simply never send. | ⚠️ **Needs admin**: add `RESEND_API_KEY` from a Resend account (and verify the `noreply@claritymode.com` sender domain) if confirmation emails are wanted. |
+
+**All other API env references are present and correct** in production
+(`RAZORPAY_KEY_ID/SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_PRICE_*`,
+`SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SITE_URL`).
+
+**Admin action list (values only you can supply), add to Vercel → Production:**
+1. `STRIPE_WEBHOOK_SECRET` — from Stripe Dashboard → Developers → Webhooks
+   (create an endpoint → `https://clarity-mode-app-v2-gq26.vercel.app/api/stripe/webhook`,
+   copy its signing secret). **Or** drop the USD/Stripe option entirely if
+   you only want INR/Razorpay.
+2. `COACHING_MEET_LINK` — your real recurring Google Meet / Zoom link.
+3. `RESEND_API_KEY` — only if you want automated coaching confirmation emails.
