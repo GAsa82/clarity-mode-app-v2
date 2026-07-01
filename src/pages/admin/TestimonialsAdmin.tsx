@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
+import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Plus, Search, Pencil, Trash2, X, MessageSquare, Star, Copy, Eye, EyeOff } from "lucide-react";
 
 type Testimonial = {
@@ -288,10 +289,15 @@ export default function TestimonialsAdmin() {
                 <textarea value={form.quote} onChange={(e) => F("quote", e.target.value)} rows={4} placeholder="What they said…" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 resize-none" />
               </div>
 
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Photo URL</label>
-                <input value={form.avatar_url ?? ""} onChange={(e) => F("avatar_url", e.target.value)} placeholder="https://… (square image)" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-              </div>
+              <MediaUploadField
+                label="Photo"
+                value={form.avatar_url ?? ""}
+                onChange={(url) => F("avatar_url", url)}
+                folder="avatars"
+                accept="image/*"
+                maxSizeMB={5}
+                placeholder="https://… (square image) or upload a file"
+              />
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>

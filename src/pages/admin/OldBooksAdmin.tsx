@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
+import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Plus, Search, Pencil, Trash2, X, Store, Star } from "lucide-react";
 
 type Book = {
@@ -399,10 +400,14 @@ export default function OldBooksAdmin() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Cover Image URL</label>
-                <input value={form.cover_url ?? ""} onChange={(e) => F("cover_url", e.target.value)} placeholder="https://…" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-              </div>
+              <MediaUploadField
+                label="Cover Image"
+                value={form.cover_url ?? ""}
+                onChange={(url) => F("cover_url", url)}
+                folder="covers"
+                accept="image/*"
+                maxSizeMB={10}
+              />
 
               <div>
                 <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Seller Notes</label>

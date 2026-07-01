@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
+import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Plus, Search, Pencil, Trash2, X, FileText } from "lucide-react";
 
 type ContentItem = {
@@ -332,24 +333,36 @@ export default function ContentItemsAdmin({ type, title }: Props) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Cover Image URL</label>
-                <input value={form.cover_url ?? ""} onChange={(e) => F("cover_url", e.target.value)} placeholder="https://…" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-              </div>
+              <MediaUploadField
+                label="Cover Image"
+                value={form.cover_url ?? ""}
+                onChange={(url) => F("cover_url", url)}
+                folder="covers"
+                accept="image/*"
+                maxSizeMB={10}
+              />
 
               {/* Media-specific fields */}
               {type === "audio" && (
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Audio File URL</label>
-                  <input value={form.audio_url ?? ""} onChange={(e) => F("audio_url", e.target.value)} placeholder="https://…mp3" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-                </div>
+                <MediaUploadField
+                  label="Audio File"
+                  value={form.audio_url ?? ""}
+                  onChange={(url) => F("audio_url", url)}
+                  folder="audio"
+                  accept="audio/*"
+                  placeholder="https://…mp3 or upload a file"
+                />
               )}
 
               {type === "video" && (
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Video URL</label>
-                  <input value={form.video_url ?? ""} onChange={(e) => F("video_url", e.target.value)} placeholder="https://… (mp4, YouTube, Vimeo)" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-                </div>
+                <MediaUploadField
+                  label="Video"
+                  value={form.video_url ?? ""}
+                  onChange={(url) => F("video_url", url)}
+                  folder="video"
+                  accept="video/*"
+                  placeholder="https://… (mp4, YouTube, Vimeo, or upload a file)"
+                />
               )}
 
               {isMedia && (
@@ -360,15 +373,21 @@ export default function ContentItemsAdmin({ type, title }: Props) {
               )}
 
               {(isFile || !isMedia) && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">File URL</label>
-                    <input value={form.file_url ?? ""} onChange={(e) => F("file_url", e.target.value)} placeholder="https://…" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-                  </div>
-                  <div>
-                    <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Preview URL</label>
-                    <input value={form.preview_url ?? ""} onChange={(e) => F("preview_url", e.target.value)} placeholder="https://…" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <MediaUploadField
+                    label="File"
+                    value={form.file_url ?? ""}
+                    onChange={(url) => F("file_url", url)}
+                    folder="files"
+                    accept=".pdf,.doc,.docx,.zip"
+                  />
+                  <MediaUploadField
+                    label="Preview"
+                    value={form.preview_url ?? ""}
+                    onChange={(url) => F("preview_url", url)}
+                    folder="previews"
+                    accept=".pdf,image/*"
+                  />
                 </div>
               )}
 

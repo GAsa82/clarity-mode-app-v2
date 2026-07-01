@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
+import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import {
   Plus, Search, Pencil, Trash2, Upload, X, BookMarked,
   Eye, EyeOff, Globe, Lock, ChevronDown,
@@ -380,35 +381,30 @@ export default function ResearchPapersAdmin() {
                 </div>
               </div>
 
-              {/* URLs */}
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Cover Image URL</label>
-                <input
-                  value={form.cover_url ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, cover_url: e.target.value }))}
-                  placeholder="https://…"
-                  className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 transition-colors"
+              {/* Media */}
+              <MediaUploadField
+                label="Cover Image"
+                value={form.cover_url ?? ""}
+                onChange={(url) => setForm((f) => ({ ...f, cover_url: url }))}
+                folder="covers"
+                accept="image/*"
+                maxSizeMB={10}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <MediaUploadField
+                  label="Full PDF"
+                  value={form.pdf_url ?? ""}
+                  onChange={(url) => setForm((f) => ({ ...f, pdf_url: url }))}
+                  folder="papers"
+                  accept="application/pdf"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Full PDF URL</label>
-                  <input
-                    value={form.pdf_url ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, pdf_url: e.target.value }))}
-                    placeholder="https://…"
-                    className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Preview PDF URL</label>
-                  <input
-                    value={form.preview_url ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, preview_url: e.target.value }))}
-                    placeholder="https://…"
-                    className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 transition-colors"
-                  />
-                </div>
+                <MediaUploadField
+                  label="Preview PDF"
+                  value={form.preview_url ?? ""}
+                  onChange={(url) => setForm((f) => ({ ...f, preview_url: url }))}
+                  folder="previews"
+                  accept="application/pdf"
+                />
               </div>
 
               {/* Tags */}

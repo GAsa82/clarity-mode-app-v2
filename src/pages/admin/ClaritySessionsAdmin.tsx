@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
+import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { Plus, Search, Pencil, Trash2, X, Video, Sparkles } from "lucide-react";
 
 const CATEGORIES = [
@@ -323,20 +324,33 @@ export default function ClaritySessionsAdmin() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Video URL</label>
-                <input value={form.video_url ?? ""} onChange={(e) => F("video_url", e.target.value)} placeholder="https://… (mp4, YouTube, Vimeo)" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-              </div>
+              <MediaUploadField
+                label="Video"
+                value={form.video_url ?? ""}
+                onChange={(url) => F("video_url", url)}
+                folder="video"
+                accept="video/*"
+                placeholder="https://… (mp4, YouTube, Vimeo, or upload a file)"
+              />
 
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Audio URL (if audio session)</label>
-                <input value={form.audio_url ?? ""} onChange={(e) => F("audio_url", e.target.value)} placeholder="https://….mp3" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-              </div>
+              <MediaUploadField
+                label="Audio (if audio session)"
+                value={form.audio_url ?? ""}
+                onChange={(url) => F("audio_url", url)}
+                folder="audio"
+                accept="audio/*"
+                placeholder="https://….mp3 or upload a file"
+              />
 
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Cover / Thumbnail URL</label>
-                <input value={form.cover_url ?? ""} onChange={(e) => F("cover_url", e.target.value)} placeholder="https://… (16:9 image)" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50" />
-              </div>
+              <MediaUploadField
+                label="Cover / Thumbnail"
+                value={form.cover_url ?? ""}
+                onChange={(url) => F("cover_url", url)}
+                folder="covers"
+                accept="image/*"
+                maxSizeMB={10}
+                placeholder="https://… (16:9 image) or upload a file"
+              />
 
               {/* Access */}
               <div>
