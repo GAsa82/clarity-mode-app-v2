@@ -29,15 +29,45 @@ export default async function handler(req, res) {
 
   // ── CREATE ORDER ──────────────────────────────────────────
   if (action === "create") {
-    const { item_type, item_id, item_title, amount } = req.body;
+    const { item_type, item_id, item_title, amount, couponCode } = req.body;
     if (!item_type || !item_id || !amount || amount <= 0)
       return res.status(400).json({ error: "item_type, item_id, and amount are required" });
 
+    let finalAmount = Math.round(Number(amount));
+    let appliedCoupon = null;
+
+    if (couponCode && couponCode.trim()) {
+      const code = couponCode.trim().toUpperCase();
+      const { data: coupon } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("code", code)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (!coupon) {
+        return res.status(400).json({ error: "Invalid or inactive coupon code" });
+      }
+      if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+        return res.status(400).json({ error: "This coupon has expired" });
+      }
+      if (coupon.max_uses != null && coupon.used_count >= coupon.max_uses) {
+        return res.status(400).json({ error: "This coupon has reached its usage limit" });
+      }
+
+      const discount =
+        coupon.type === "percent"
+          ? Math.round(finalAmount * (coupon.value / 100))
+          : Math.round(coupon.value * 100); // fixed value is entered in rupees; amount is in paise
+      finalAmount = Math.max(100, finalAmount - discount); // never discount below ₹1
+      appliedCoupon = code;
+    }
+
     try {
       const order = await razorpay.orders.create({
-        amount: Math.round(Number(amount)),
+        amount: finalAmount,
         currency: "INR",
-        notes: { userId, item_type, item_id, item_title: item_title ?? "" },
+        notes: { userId, item_type, item_id, item_title: item_title ?? "", coupon: appliedCoupon ?? "" },
       });
 
       await supabase.from("orders").insert({
@@ -45,9 +75,10 @@ export default async function handler(req, res) {
         item_type,
         item_id,
         item_title: item_title ?? null,
-        amount: Math.round(Number(amount)),
+        amount: finalAmount,
         currency: "INR",
         razorpay_order_id: order.id,
+        coupon_code: appliedCoupon,
         status: "pending",
       });
 
@@ -75,15 +106,31 @@ export default async function handler(req, res) {
     if (expected !== razorpay_signature)
       return res.status(400).json({ error: "Invalid signature" });
 
-    const { error } = await supabase
+    const { data: updatedOrder, error } = await supabase
       .from("orders")
       .update({ razorpay_payment_id, razorpay_signature, status: "completed" })
       .eq("razorpay_order_id", razorpay_order_id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("coupon_code")
+      .maybeSingle();
 
     if (error) {
       console.error("[Razorpay purchase verify]", error);
       return res.status(500).json({ error: "Failed to record payment" });
+    }
+
+    if (updatedOrder?.coupon_code) {
+      const { data: coupon } = await supabase
+        .from("coupons")
+        .select("used_count")
+        .eq("code", updatedOrder.coupon_code)
+        .maybeSingle();
+      if (coupon) {
+        await supabase
+          .from("coupons")
+          .update({ used_count: coupon.used_count + 1 })
+          .eq("code", updatedOrder.coupon_code);
+      }
     }
 
     return res.json({ success: true });

@@ -59,6 +59,7 @@ export const Store = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
 
   const handleBuy = async (product: Product) => {
     if (!user) {
@@ -82,10 +83,14 @@ export const Store = () => {
           item_id: product.id,
           item_title: product.title,
           amount: product.priceINR,
+          couponCode: couponCode.trim() || undefined,
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to create order");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to create order");
+      }
       const { orderId, amount, currency } = await res.json();
 
       const rzp = new (window as unknown as { Razorpay: new (opts: object) => { open(): void } }).Razorpay({
@@ -110,7 +115,8 @@ export const Store = () => {
       rzp.open();
     } catch (err) {
       console.error("[Store buy]", err);
-      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+      const message = err instanceof Error ? err.message : "Please try again.";
+      toast({ title: "Couldn't start checkout", description: message, variant: "destructive" });
     } finally {
       setLoading(null);
     }
@@ -125,6 +131,19 @@ export const Store = () => {
             <h2 className="font-display text-4xl md:text-5xl font-light leading-tight">
               Digital products that <span className="text-silver italic">change states.</span>
             </h2>
+          </div>
+          <div className="w-full sm:w-auto">
+            <label htmlFor="store-coupon" className="block text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1.5">
+              Have a coupon code?
+            </label>
+            <input
+              id="store-coupon"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              placeholder="e.g. SAVE20"
+              maxLength={30}
+              className="w-full sm:w-48 px-3 py-2 rounded-full bg-card-elevated border border-border text-sm font-mono uppercase tracking-wide focus:outline-none focus:border-primary/50 transition-colors"
+            />
           </div>
           <p className="text-sm text-muted-foreground max-w-xs">
             Crafted systems, journals, and audio packs to install clarity into your daily life.

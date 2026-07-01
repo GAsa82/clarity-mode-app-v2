@@ -48,3 +48,6 @@ frontend/.env
 .env*
 *.env
 temp.env
+
+.vercel
+.env*

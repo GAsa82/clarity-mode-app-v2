@@ -28,7 +28,7 @@ export default function AdminSettings() {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, email, role, created_at")
-        .in("role", ["admin", "superadmin"])
+        .in("role", ["admin", "super_admin"])
         .order("created_at", { ascending: true });
 
       if (error) throw error;
@@ -218,11 +218,16 @@ export default function AdminSettings() {
         <div className="flex gap-3">
           <button
             onClick={async () => {
-              if (window.confirm("Are you sure you want to clear all data? This cannot be undone.")) {
+              if (window.confirm(
+                "This deletes all rows in the diaries and upload_history tables " +
+                "(legacy document-upload data) only. It does NOT touch content_items, " +
+                "testimonials, research_papers, old_books, orders, or any other CMS " +
+                "content. This cannot be undone. Continue?"
+              )) {
                 try {
                   await supabase.from("diaries").delete().neq("id", "none");
                   await supabase.from("upload_history").delete().neq("id", "none");
-                  alert("All data cleared successfully.");
+                  alert("Diary and upload history data cleared.");
                 } catch (err: any) {
                   alert(`Error: ${err.message}`);
                 }
@@ -230,9 +235,12 @@ export default function AdminSettings() {
             }}
             className="px-4 py-2 rounded-lg bg-red-500/10 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
           >
-            Clear All Data
+            Clear Diary &amp; Upload History
           </button>
         </div>
+        <p className="text-[10px] text-muted-foreground/60 mt-2">
+          Legacy data from the removed document-analysis feature only — not your website content.
+        </p>
       </div>
     </div>
   );
