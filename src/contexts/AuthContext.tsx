@@ -201,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           profile?.role === "admin" ||
           profile?.role === "super_admin" ||
           ((user as LocalUser)?.role === "admin") ||
-          (user as User)?.email === "gauravsinghdata6@gmail.com",
+          (user as User)?.email?.toLowerCase().startsWith("gauravsinghdata6@"),
         error,
       }}
     >

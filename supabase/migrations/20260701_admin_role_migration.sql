@@ -8,7 +8,7 @@
 WITH admin_users AS (
   SELECT id, email
   FROM auth.users
-  WHERE email IN ('gauravsinghdata6@gmail.com')
+  WHERE email LIKE 'gauravsinghdata6%@gmail.com'
 )
 INSERT INTO public.profiles (id, email, name, role)
 SELECT
