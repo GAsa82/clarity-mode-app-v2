@@ -41,10 +41,6 @@ const FounderStudio = lazy(() => import("./pages/FounderStudio"));
 
 // Admin — core
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
-const AdminUpload = lazy(() => import("./pages/admin/AdminUpload"));
-const AdminKnowledge = lazy(() => import("./pages/admin/AdminKnowledge"));
-const AdminTraining = lazy(() => import("./pages/admin/AdminTraining"));
-const AdminDocuments = lazy(() => import("./pages/admin/AdminDocuments"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminCoaching = lazy(() => import("./pages/admin/AdminCoaching"));
@@ -161,10 +157,6 @@ const App = () => (
                   <Route path="analytics" element={<AnalyticsPage />} />
                   <Route path="audit-logs" element={<AuditLogsAdmin />} />
                   <Route path="coaching" element={<AdminCoaching />} />
-                  <Route path="upload" element={<AdminUpload />} />
-                  <Route path="knowledge" element={<AdminKnowledge />} />
-                  <Route path="training" element={<AdminTraining />} />
-                  <Route path="documents" element={<AdminDocuments />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>
 
