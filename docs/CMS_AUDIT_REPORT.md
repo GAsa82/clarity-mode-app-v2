@@ -155,3 +155,72 @@ permissions — is done and verified. What's left is primarily **new feature wor
 (file upload, a few missing public pages, a few unwired toggles), not bug-fixing. I
 did not build these without checking with you, since each is a real scope decision
 about what the CMS should do next, not a defect to silently patch.
+
+---
+
+## 9. Update — subsequent audit rounds (2026-07-01, continued)
+
+The `/loop` continued auditing after this report was first written. Summary of
+everything found and fixed since, newest-relevant first:
+
+### Fixed
+- **Real file upload was built** — item 1 from §5 above is done. A `cms-media`
+  storage bucket + a reusable upload component with live progress now replace
+  manual URL-paste across all 5 content forms.
+- **Video/audio playback was completely non-functional site-wide** (the single
+  most severe bug found in the whole audit) — `ContentPreviewModal` never
+  received `video_url`/`audio_url` from the database at all. Fixed with a real
+  `<video>`/`<audio>` player gated by premium/subscription status. The fake
+  hardcoded "Now Playing" widget (simulated progress bar, no real audio) and
+  the always-fake featured banner were fixed to use real data too.
+- **`admin_analytics` (built in §1) had a real security hole** — missing
+  `security_invoker` meant any logged-in user, not just admins, could query
+  business metrics via the API directly. Fixed and verified.
+- **The entire Users admin page only ever showed the admin's own account** —
+  `profiles` had no admin-read-all RLS policy. Fixed with a `SECURITY DEFINER`
+  helper (a naive self-referential policy causes infinite recursion).
+- **Subscriptions admin page was silently empty** — a PostgREST embed relied on
+  a foreign key relationship that doesn't exist. Rewritten to join client-side.
+- **Real store purchases would have failed** — `orders` was missing 2 columns
+  the actual checkout code requires. This is real money; fixed and verified.
+- **"Save Session" button did nothing** — built a real, account-backed
+  `saved_sessions` table and wired it up (found via real device testing).
+- **Razorpay payments were failing in production** — root cause was empty/then
+  incorrectly-named environment variables in Vercel (multi-round live
+  debugging with the user, resolved and verified against the live bundle).
+- **Coupons were built but 100% disconnected from checkout** — an admin could
+  create discount codes no customer could ever use. Built real server-side
+  validation, discount math, and usage tracking into the Store checkout flow.
+- **Two `AdminSettings.tsx` bugs**: a role-check typo (`"superadmin"` vs. the
+  real `"super_admin"`) hid real super-admins from the admin list; a
+  "Clear All Data" danger-zone button was dangerously mislabeled — it only
+  ever touched two orphaned legacy tables, never real content. Fixed both.
+- **Newsletter signup silently lied about success** — localStorage-first
+  optimistic UI meant a failed database write still told the user "you're
+  subscribed," and a failed attempt permanently blocked retries. Rewritten so
+  the real API call is the source of truth.
+- **2 of 5 Content Studio "Quick Actions" were dead ends** — Research Papers
+  and Old Books didn't read the `?new=1` query param their own links promised.
+
+### Audited, no bugs found (ruled out, not skipped)
+Stripe checkout/portal/webhook, Focus Room matchmaking (grants, RLS, and the
+subtle cross-user visibility it needs), `api/coaching/bookings.js` and
+`slots.js`, `ContentStudioPage.tsx`'s navigation.
+
+### Found, deliberately not built (flagged for your decision)
+- **`confessions`/`confession_reactions`/`confession_replies`** have fully
+  working database tables and RLS policies but zero frontend anywhere — an
+  entire built backend for a feature with no UI, not a bug to patch.
+- **`diaries`/`diary_entries`** turned out to be orphaned infrastructure from
+  the removed AI Coach feature (`file_id`, `chunk_index`, `embedding`,
+  `emotions` — a document-analysis pipeline, not a journal table). Dashboard's
+  simple journal notes are localStorage-only, which is fine for that lighter
+  use case; forcing them into the heavyweight AI schema would have been wrong.
+
+### Updated readiness score: **~80%** (was ~65%)
+The jump reflects fixing the single most severe bug (broken playback),
+closing a real security hole, and fixing 3 additional silent-failure bugs that
+would have cost real revenue or user trust (orders schema, coupons, Razorpay
+env vars). Remaining gaps are unchanged from §5 above — mostly bigger feature
+decisions (Old Books marketplace, generic Vault browser, Confessions UI, the
+3 unwired toggles) that need your input before building, not defects to fix.
