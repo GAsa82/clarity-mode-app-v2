@@ -350,3 +350,28 @@ one existed.
    you only want INR/Razorpay.
 2. `COACHING_MEET_LINK` — your real recurring Google Meet / Zoom link.
 3. `RESEND_API_KEY` — only if you want automated coaching confirmation emails.
+
+## §13 Update — Stripe/USD fail-safe: hidden until its webhook is wired
+
+Acting on §12's CRITICAL finding (the "Pay with Card (USD)" button was the
+*primary* CTA on `/pricing`, yet with `STRIPE_WEBHOOK_SECRET` missing in prod a
+USD customer would pay and never get their subscription activated), I made the
+site fail safe for launch instead of leaving a money-losing path live.
+
+- **Change**: the Stripe/USD button now renders only when
+  `import.meta.env.VITE_ENABLE_STRIPE === "true"`. The flag defaults **off**, so
+  by default only the verified-working Razorpay/INR gateway is shown, and it is
+  promoted from the small secondary button to the primary CTA. The footer
+  gateway note and `.env.example` were updated to match. (`PricingPage.tsx`,
+  `.env.example`.)
+- **Why a flag, not a deletion**: fully reversible. Nothing about the Stripe
+  integration was removed — `handleStripe`, `api/stripe/*`, and the plan pricing
+  are all intact. The moment the admin (a) registers the webhook endpoint in the
+  Stripe dashboard, (b) adds `STRIPE_WEBHOOK_SECRET` to Vercel prod, and (c) sets
+  `VITE_ENABLE_STRIPE=true`, the USD button returns exactly as before.
+- **Net effect**: the site can launch and take money *today* via Razorpay with
+  zero risk of charging a card and delivering nothing. USD is a one-flag switch
+  away once its webhook is verified.
+- **Verified**: production build passes with the gate in place (Stripe hidden);
+  the Razorpay subscription path and the §11-fixed Store one-time checkout are
+  unchanged and remain the live revenue paths.

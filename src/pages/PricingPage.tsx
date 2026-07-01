@@ -16,6 +16,14 @@ declare global {
 type Plan = "premium" | "annual";
 type Gateway = "stripe" | "razorpay";
 
+// Stripe/USD is only offered when explicitly enabled AND its webhook is wired
+// up in production. Without STRIPE_WEBHOOK_SECRET the checkout succeeds but the
+// subscription is never activated — the customer pays and gets nothing. Default
+// OFF is the safe launch posture; Razorpay/INR is the verified working gateway.
+// Re-enable by setting VITE_ENABLE_STRIPE=true once the Stripe webhook endpoint
+// is registered and STRIPE_WEBHOOK_SECRET is added to Vercel production.
+const STRIPE_ENABLED = import.meta.env.VITE_ENABLE_STRIPE === "true";
+
 const PLANS = [
   {
     id: "free" as const,
@@ -308,20 +316,22 @@ export default function PricingPage() {
                     </Button>
                   ) : (
                     <div className="space-y-2">
+                      {STRIPE_ENABLED && (
+                        <Button
+                          variant={p.featured ? "hero" : "glass"}
+                          className="w-full"
+                          onClick={() => handleStripe(p.id as Plan)}
+                          disabled={!!loading}
+                        >
+                          {loading === `stripe-${p.id}`
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Pay with Card (USD)</>
+                          }
+                        </Button>
+                      )}
                       <Button
-                        variant={p.featured ? "hero" : "glass"}
-                        className="w-full"
-                        onClick={() => handleStripe(p.id as Plan)}
-                        disabled={!!loading}
-                      >
-                        {loading === `stripe-${p.id}`
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Pay with Card (USD)</>
-                        }
-                      </Button>
-                      <Button
-                        variant="glass"
-                        className="w-full text-xs"
+                        variant={!STRIPE_ENABLED && p.featured ? "hero" : "glass"}
+                        className={`w-full ${STRIPE_ENABLED ? "text-xs" : ""}`}
                         onClick={() => handleRazorpay(p.id as Plan)}
                         disabled={!!loading}
                       >
@@ -338,7 +348,7 @@ export default function PricingPage() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">
-            Secure payments via Stripe &amp; Razorpay · Cancel anytime · All prices exclude applicable taxes
+            Secure payments via {STRIPE_ENABLED ? "Stripe & Razorpay" : "Razorpay (UPI / Card)"} · Cancel anytime · All prices exclude applicable taxes
           </p>
         </div>
       </section>
