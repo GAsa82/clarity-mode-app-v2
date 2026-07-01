@@ -97,7 +97,7 @@ export default function LoginPage() {
             </div>
             <h1 className="font-display text-2xl font-light">
               {mode === "login" ? (
-                <>Sign in to <span className="text-silver italic">Clarity</span></>
+                <>Sign in to <span className="text-silver italic">badly talks</span></>
               ) : mode === "signup" ? (
                 <>Create your <span className="text-silver italic">account</span></>
               ) : (

@@ -22,6 +22,16 @@ export async function signUp(email: string, password: string, name: string) {
   });
 
   if (error) throw error;
+
+  // When the email is already registered, Supabase does NOT return an error —
+  // it returns a decoy user with an empty `identities` array (to avoid leaking
+  // which emails exist). Without this guard the UI shows a fake "signed up"
+  // success, then login fails with "Invalid login credentials" because the new
+  // password was never saved. Surface a clear message instead.
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error("An account with this email already exists. Please sign in instead.");
+  }
+
   return data;
 }
 
