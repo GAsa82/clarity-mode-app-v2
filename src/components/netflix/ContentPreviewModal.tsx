@@ -1,11 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Bookmark, Lock, Sparkles, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Bookmark, BookmarkCheck, Lock, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ClaritySession } from "@/lib/clarity-content";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
+import { isSessionSaved, saveSession, unsaveSession } from "@/lib/saved-sessions";
 import creatorImg from "@/assets/lora-silver-VJVsRSjYS4A-unsplash.jpg";
 
 type ContentPreviewModalProps = {
@@ -16,6 +17,9 @@ type ContentPreviewModalProps = {
 export const ContentPreviewModal = ({ session, onClose }: ContentPreviewModalProps) => {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
+  const navigate = useNavigate();
+  const [saved, setSaved] = useState(false);
+  const [savingState, setSavingState] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -30,6 +34,36 @@ export const ContentPreviewModal = ({ session, onClose }: ContentPreviewModalPro
       window.removeEventListener("keydown", onKey);
     };
   }, [session, onClose]);
+
+  useEffect(() => {
+    if (!session || !user) {
+      setSaved(false);
+      return;
+    }
+    isSessionSaved(session.id).then(setSaved);
+  }, [session, user]);
+
+  const toggleSave = async () => {
+    if (!session) return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    setSavingState(true);
+    try {
+      if (saved) {
+        await unsaveSession(session.id);
+        setSaved(false);
+      } else {
+        await saveSession(session.id);
+        setSaved(true);
+      }
+    } catch {
+      // Leave saved-state unchanged on failure; the button remains actionable.
+    } finally {
+      setSavingState(false);
+    }
+  };
 
   if (!session) return null;
 
@@ -161,10 +195,21 @@ export const ContentPreviewModal = ({ session, onClose }: ContentPreviewModalPro
                     </Link>
                   </Button>
                 )}
-                <Button variant="glass" size="lg" className="gap-2">
-                  <Bookmark className="w-4 h-4" />
-                  Save Session
-                </Button>
+                {/* Illustrative placeholder sessions (no real media yet) have no
+                    real database row to save against — hide the button rather
+                    than let it fail on a foreign-key constraint. */}
+                {(session.video_url || session.audio_url) && (
+                  <Button
+                    variant="glass"
+                    size="lg"
+                    className="gap-2"
+                    onClick={toggleSave}
+                    disabled={savingState}
+                  >
+                    {saved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                    {saved ? "Saved" : "Save Session"}
+                  </Button>
+                )}
                 <Button variant="ghost" size="lg" onClick={onClose}>
                   Close
                 </Button>

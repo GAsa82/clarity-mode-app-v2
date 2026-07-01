@@ -37,7 +37,13 @@ export default async function handler(req, res) {
       currency: order.currency,
     });
   } catch (err) {
-    console.error("[Razorpay order]", err);
+    // Razorpay SDK errors carry the real reason in err.error (e.g. auth
+    // failure from missing/invalid keys) — log it fully so Vercel's function
+    // logs show the actual cause instead of just "Order creation failed".
+    console.error("[Razorpay order] failed:", err?.error ?? err?.message ?? err);
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      console.error("[Razorpay order] RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET is missing from this environment.");
+    }
     return res.status(500).json({ error: "Order creation failed" });
   }
 }

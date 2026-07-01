@@ -53,7 +53,10 @@ export default async function handler(req, res) {
 
       return res.json({ orderId: order.id, amount: order.amount, currency: order.currency });
     } catch (err) {
-      console.error("[Razorpay purchase create]", err);
+      console.error("[Razorpay purchase create] failed:", err?.error ?? err?.message ?? err);
+      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        console.error("[Razorpay purchase create] RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET is missing from this environment.");
+      }
       return res.status(500).json({ error: "Failed to create order" });
     }
   }
