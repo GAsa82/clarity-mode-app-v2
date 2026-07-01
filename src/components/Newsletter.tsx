@@ -1,31 +1,40 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { addSubscriber } from "@/lib/subscribers";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const Newsletter = () => {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const result = addSubscriber(email);
-    if (!result.added) {
-      if (result.reason === "invalid") setError("Please enter a valid email address.");
-      else if (result.reason === "duplicate") setError("This email is already subscribed.");
+
+    const normalized = email.trim().toLowerCase();
+    if (!EMAIL_RE.test(normalized)) {
+      setError("Please enter a valid email address.");
       return;
     }
-    setSent(true);
-    const savedEmail = email;
-    setEmail("");
 
-    fetch("/api/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: savedEmail }),
-    }).catch(() => {/* non-critical — email already saved locally */});
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalized }),
+      });
+      if (!res.ok) throw new Error("Subscribe request failed");
+      setSent(true);
+      setEmail("");
+    } catch {
+      setError("Couldn't subscribe right now — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -54,9 +63,12 @@ export const Newsletter = () => {
                 placeholder="you@email.com"
                 className="flex-1 px-5 py-3.5 rounded-full bg-background/60 border border-border focus:border-primary outline-none text-sm transition-colors"
               />
-              <Button variant="hero" size="lg" type="submit" className="group">
-                {sent ? "Welcome in" : "Subscribe"}
-                {!sent && <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />}
+              <Button variant="hero" size="lg" type="submit" className="group" disabled={submitting || sent}>
+                {sent ? "Welcome in" : submitting ? "Subscribing…" : "Subscribe"}
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {!sent && !submitting && (
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                )}
               </Button>
             </form>
             {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
