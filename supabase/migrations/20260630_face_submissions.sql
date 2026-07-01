@@ -48,6 +48,7 @@ create policy "admin reads all faces"
       WHERE id = auth.uid()
         AND role = 'admin'
     )
+    OR (auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com')
   );
 
 drop policy if exists "admin moderates faces" on public.face_submissions;
@@ -61,6 +62,7 @@ create policy "admin moderates faces"
       WHERE id = auth.uid()
         AND role = 'admin'
     )
+    OR (auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com')
   )
   with check (
     EXISTS (
@@ -69,6 +71,7 @@ create policy "admin moderates faces"
       WHERE id = auth.uid()
         AND role = 'admin'
     )
+    OR (auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com')
   );
 
 drop policy if exists "admin deletes faces" on public.face_submissions;
@@ -82,6 +85,7 @@ create policy "admin deletes faces"
       WHERE id = auth.uid()
         AND role = 'admin'
     )
+    OR (auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com')
   );
 
 -- PostgREST needs table-level grants IN ADDITION to the RLS policies above.
