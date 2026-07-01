@@ -8,9 +8,11 @@ import {
   Video, MessageSquare, ChevronDown, Globe, Plus, Check, Zap,
   BookOpen, Brain, Upload, Crown,
 } from "lucide-react";
+import { Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWebsite, type Website } from "@/contexts/WebsiteContext";
 import { getPendingFaceCount } from "@/lib/face-submissions";
+import CommandPalette, { openCommandPalette } from "@/components/admin/CommandPalette";
 import logoImg from "@/assets/logo.png";
 
 type NavItem = { to: string; icon: React.ElementType; label: string; exact?: boolean; badge?: number };
@@ -370,6 +372,15 @@ export default function AdminLayout() {
 
           {/* Quick actions */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={openCommandPalette}
+              className="flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-xl text-xs text-white/40 hover:text-white/80 border border-white/8 hover:border-white/15 hover:bg-white/6 transition-all"
+              title="Search & jump anywhere (⌘K)"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Search</span>
+              <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/50">⌘K</kbd>
+            </button>
             <Link
               to="/"
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-white/40 hover:text-white/80 hover:bg-white/6 transition-all"
@@ -385,6 +396,9 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Universal Command Palette — ⌘K anywhere in the admin */}
+      <CommandPalette />
     </div>
   );
 }
