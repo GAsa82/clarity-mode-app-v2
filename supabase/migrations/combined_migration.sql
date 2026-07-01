@@ -67,6 +67,8 @@ CREATE POLICY "Users update own profile"
 CREATE POLICY "Service role full profiles"
   ON public.profiles FOR ALL USING (auth.role() = 'service_role');
 
+grant select, insert, update, delete on public.profiles to authenticated;
+
 
 -- ============================================================
 -- SECTION 2: SUBSCRIPTIONS

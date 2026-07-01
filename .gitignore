@@ -43,3 +43,8 @@ clarity-ai/backend/.env
 clarity-ai/frontend/.env
 backend/.env
 frontend/.env
+
+.vercel
+.env*
+*.env
+temp.env

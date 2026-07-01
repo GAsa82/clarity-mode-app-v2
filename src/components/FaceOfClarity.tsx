@@ -6,6 +6,8 @@ import {
   downscaleImage,
   submitFace,
   getApprovedFaces,
+  flushQueuedFaceSubmissions,
+  getQueuedFaceSubmissionCount,
   type FaceSubmission,
 } from "@/lib/face-submissions";
 
@@ -24,12 +26,26 @@ export const FaceOfClarity = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [queueStatus, setQueueStatus] = useState<string | null>(null);
+  const [queuedCount, setQueuedCount] = useState(0);
   const [approved, setApproved] = useState<FaceSubmission[]>([]);
   const [showRules, setShowRules] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getApprovedFaces().then(setApproved);
+
+    const refreshQueue = async () => {
+      await flushQueuedFaceSubmissions().catch(() => {});
+      setQueuedCount(getQueuedFaceSubmissionCount());
+    };
+
+    refreshQueue();
+    const handleOnline = () => {
+      refreshQueue();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
   }, []);
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,6 +68,7 @@ export const FaceOfClarity = () => {
 
   const handleSubmit = async () => {
     setSubmitError(null);
+    setQueueStatus(null);
 
     if (!username.trim()) {
       setSubmitError("Please enter a username.");
@@ -64,12 +81,23 @@ export const FaceOfClarity = () => {
 
     setSubmitting(true);
     try {
-      await submitFace(username, image);
+      const result = await submitFace(username, image);
       setSubmitted(true);
-    } catch {
-      setSubmitError("Couldn't submit right now. Please try again.");
+      setShowForm(false);
+      if (result.queued) {
+        setQueueStatus(
+          "Your submission is saved locally and will retry automatically once connectivity returns."
+        );
+      } else {
+        setQueueStatus(null);
+      }
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Couldn't submit right now. Please try again."
+      );
     } finally {
       setSubmitting(false);
+      setQueuedCount(getQueuedFaceSubmissionCount());
     }
   };
 
@@ -107,8 +135,13 @@ export const FaceOfClarity = () => {
                       Submission received!
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Your profile is under review. Selected members appear here for 24 hours.
+                      {queueStatus ?? "Your profile is under review. Selected members appear here for 24 hours."}
                     </p>
+                    {queuedCount > 0 && !queueStatus ? (
+                      <p className="text-xs text-muted-foreground/70 mt-2">
+                        {queuedCount} pending submission(s) remain in the offline retry queue.
+                      </p>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="relative rounded-2xl bg-card-elevated border border-border p-8 md:p-10">
