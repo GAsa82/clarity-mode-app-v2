@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWebsite, type Website } from "@/contexts/WebsiteContext";
 import { getPendingFaceCount } from "@/lib/face-submissions";
 import CommandPalette, { openCommandPalette } from "@/components/admin/CommandPalette";
+import GlobalActionCenter from "@/components/admin/GlobalActionCenter";
 import logoImg from "@/assets/logo.png";
 
 type NavItem = { to: string; icon: React.ElementType; label: string; exact?: boolean; badge?: number };
@@ -372,6 +373,7 @@ export default function AdminLayout() {
 
           {/* Quick actions */}
           <div className="flex items-center gap-2">
+            <GlobalActionCenter />
             <button
               onClick={openCommandPalette}
               className="flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-xl text-xs text-white/40 hover:text-white/80 border border-white/8 hover:border-white/15 hover:bg-white/6 transition-all"
