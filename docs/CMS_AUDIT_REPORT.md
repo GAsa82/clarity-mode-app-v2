@@ -286,3 +286,40 @@ decisions (Old Books marketplace, generic Vault browser, Confessions UI, the
   grep for the route's path string across all of `src/`, not just the
   component/page name — a page can be de-registered while other pages still
   link to its URL by string literal.
+
+## §11 Update — CRITICAL: Store checkout was 100% broken (real revenue)
+
+Reported from a live device: "Couldn't start checkout / Failed to create
+order" on the ₹2,899 Confidence Rebuild Blueprint (and every Store product).
+
+- **Root cause**: `api/razorpay/purchase.js` was the *only* file in `api/`
+  reading `process.env.SUPABASE_URL`. Every other API file — and the actual
+  Vercel production env — uses `VITE_SUPABASE_URL`. With `SUPABASE_URL`
+  undefined, the module-level `createClient(undefined, serviceRoleKey)` threw
+  at *import time*, so the entire serverless function crashed with
+  `FUNCTION_INVOCATION_FAILED` before a single line of handler code ran. No
+  Store product could ever be purchased.
+- **Why it masqueraded as a clean server error**: the crash returns a
+  non-JSON 500 body. The frontend (`Store.tsx`) does
+  `res.json().catch(() => ({}))` then `throw new Error(body.error || "Failed
+  to create order")` — so it fell back to its own default string, which
+  happens to be *identical* to the handler's own line-91 500 message. The
+  toast looked like a graceful handler error but was actually a hard crash.
+- **Fix**: one line — `SUPABASE_URL` → `VITE_SUPABASE_URL` (`6ce3334`).
+  Verified by polling the live endpoint until an unauthenticated POST
+  returned a clean `{"error":"Unauthorized"}` 401 (function now initialises)
+  instead of `FUNCTION_INVOCATION_FAILED`.
+- **Keys, separately confirmed**: validated the live Razorpay key pair with a
+  read-only `GET /v1/orders` (HTTP 200; account already holds a real order),
+  and re-set the production server `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` to
+  that confirmed-good pair as belt-and-suspenders (client `VITE_RAZORPAY_KEY_ID`
+  was already correct in the shipped bundle). Keys were a red herring — the
+  crash was the real blocker — but they're now verified end-to-end correct.
+- **Still needs a real authenticated purchase to close out** (can't mint a
+  user token from here): all server-side pieces are now verified, but the
+  final confirmation is the user completing one live Store checkout.
+- **Process lesson**: a hard serverless module-load crash can be silently
+  reshaped into a *graceful-looking* error by the frontend's own JSON-parse
+  fallback. When a "clean" API error message is suspiciously generic, check
+  the raw HTTP status/body — `FUNCTION_INVOCATION_FAILED` vs. real JSON tells
+  you whether the handler even ran.
