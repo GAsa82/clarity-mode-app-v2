@@ -7,7 +7,12 @@ const supabase = createClient(
 );
 
 const ORIGIN    = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
-const MEET_LINK = process.env.COACHING_MEET_LINK || "https://meet.google.com/your-meeting-link";
+// Only treat the env var as a real link. The old code fell back to a hardcoded
+// "your-meeting-link" placeholder, which was then stored in the DB and emailed
+// to paying customers as a real (dead) join link. If no real link is configured,
+// we store null and tell the customer the link will be sent before the session —
+// never a fabricated URL. Self-heals the moment COACHING_MEET_LINK is set.
+const MEET_LINK = process.env.COACHING_MEET_LINK || null;
 
 const TEMPLATES = {
   day0: n => `Hi ${n}! 🎉 Your Clarity Breakthrough Session is confirmed.\n\nPrepare 3 things:\n1. Your top challenge\n2. Any context or backstory\n3. What clarity looks like for you\n\nSee you soon! — Clarity Mode`,
@@ -120,7 +125,9 @@ export default async function handler(req, res) {
               <p style="margin:4px 0"><strong>📅 Date:</strong> ${sessionDate}</p>
               <p style="margin:4px 0"><strong>⏰ Time:</strong> ${sessionTime} IST</p>
               <p style="margin:4px 0"><strong>⏱ Duration:</strong> 120 Minutes</p>
-              <p style="margin:4px 0"><strong>🎥 Join Link:</strong> <a href="${MEET_LINK}" style="color:#a78bfa">${MEET_LINK}</a></p>
+              <p style="margin:4px 0"><strong>🎥 Join Link:</strong> ${MEET_LINK
+                ? `<a href="${MEET_LINK}" style="color:#a78bfa">${MEET_LINK}</a>`
+                : `You'll receive your private join link by email before the session.`}</p>
               <p style="margin:4px 0"><strong>💰 Paid:</strong> ₹3,000</p>
             </div>
             <p><strong>Prepare 3 things before your session:</strong></p>

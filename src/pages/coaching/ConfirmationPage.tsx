@@ -30,9 +30,14 @@ export default function ConfirmationPage() {
   const date       = params.get("date") || "";
   const time       = params.get("time") || "";
   const name       = params.get("name") || "there";
-  const meetLink   = params.get("meet") || "https://meet.google.com/your-meeting-link";
+  // Empty when no real link is configured yet. Never fall back to a fake
+  // placeholder URL — the backend now returns null in that case, and the
+  // customer is told the link arrives by email before the session.
+  const meetLink   = params.get("meet") || "";
 
-  const calendarUrl = date && time ? buildCalendarUrl(date, time, meetLink) : "#";
+  const calendarUrl = date && time
+    ? buildCalendarUrl(date, time, meetLink || "Link will be emailed before your session")
+    : "#";
 
   return (
     <main className="min-h-screen bg-transparent relative z-0">
