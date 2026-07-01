@@ -11,13 +11,6 @@ import {
   type FaceSubmission,
 } from "@/lib/face-submissions";
 
-const DEFAULT_TRACK = {
-  title: "Stratus Deep Work",
-  subtitle: "Ambient focus field",
-  duration: "45:00",
-  url: "/pricing",
-};
-
 const AFFILIATE_URL = "https://amzn.to/49piiUZ";
 
 const affiliateProducts = [
@@ -69,8 +62,10 @@ const widgetVariants = {
 };
 
 export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidgetsRailProps) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(0.32);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [approved, setApproved] = useState<FaceSubmission[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [username, setUsername] = useState("");
@@ -98,19 +93,27 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
     return () => window.removeEventListener("online", handleOnline);
   }, []);
 
-  useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => {
-      setProgress((p) => (p >= 0.98 ? 0.08 : p + 0.004));
-    }, 400);
-    return () => clearInterval(id);
-  }, [playing]);
-
   const topTrending = trendingSessions.slice(0, 4);
-  const totalSeconds = 45 * 60;
-  const currentSeconds = Math.floor(progress * totalSeconds);
+  // Real track for the mini-player — the first trending item with an actual
+  // audio file. No fake placeholder track when nothing real exists yet.
+  const nowPlaying = trendingSessions.find((s) => s.audio_url) ?? null;
+  const progress = duration > 0 ? currentTime / duration : 0;
+
+  useEffect(() => {
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [nowPlaying?.id]);
+
+  const togglePlay = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) el.pause();
+    else el.play();
+  };
+
   const formatTime = (s: number) =>
-    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
   const todayMember = approved.length > 0 ? approved[0] : null;
   const allMembers = approved;
@@ -197,7 +200,7 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
         </div>
       </motion.div>
 
-      {/* Mini audio player */}
+      {/* Mini audio player — plays the first real trending audio session */}
       <motion.div
         custom={1}
         variants={widgetVariants}
@@ -218,29 +221,55 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
               Now Playing
             </p>
           </div>
-          <p className="text-sm font-medium text-foreground truncate">{DEFAULT_TRACK.title}</p>
-          <p className="text-[10px] text-muted-foreground mb-3">{DEFAULT_TRACK.subtitle}</p>
-          <div className="h-1 rounded-full bg-secondary overflow-hidden mb-3">
-            <motion.div
-              className="h-full rounded-full bg-primary-gradient shadow-glow"
-              style={{ width: `${progress * 100}%` }}
-              layout
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] tabular-nums text-muted-foreground">
-              {formatTime(currentSeconds)} / {DEFAULT_TRACK.duration}
-            </span>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.92 }}
-              onClick={() => setPlaying((p) => !p)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-gradient text-primary-foreground shadow-glow"
-              aria-label={playing ? "Pause" : "Play"}
-            >
-              {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
-            </motion.button>
-          </div>
+          {nowPlaying ? (
+            <>
+              <audio
+                ref={audioRef}
+                src={nowPlaying.audio_url ?? undefined}
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onEnded={() => setPlaying(false)}
+                onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+                onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => onSelect(nowPlaying)}
+                className="text-left w-full"
+              >
+                <p className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
+                  {nowPlaying.title}
+                </p>
+              </button>
+              <p className="text-[10px] text-muted-foreground mb-3 truncate">{nowPlaying.subtitle}</p>
+              <div className="h-1 rounded-full bg-secondary overflow-hidden mb-3">
+                <motion.div
+                  className="h-full rounded-full bg-primary-gradient shadow-glow"
+                  style={{ width: `${progress * 100}%` }}
+                  layout
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] tabular-nums text-muted-foreground">
+                  {formatTime(currentTime)} / {duration ? formatTime(duration) : nowPlaying.duration}
+                </span>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.92 }}
+                  onClick={togglePlay}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-gradient text-primary-foreground shadow-glow"
+                  aria-label={playing ? "Pause" : "Play"}
+                >
+                  {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
+                </motion.button>
+              </div>
+            </>
+          ) : (
+            <p className="text-[11px] text-muted-foreground/70 py-2">
+              Nothing to play yet — publish an audio session to feature it here.
+            </p>
+          )}
         </div>
       </motion.div>
 

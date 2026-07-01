@@ -20,7 +20,7 @@ export const FeaturedBanner = ({ session, onWatch, onMoreInfo }: FeaturedBannerP
     >
       <div className="absolute inset-0">
         <img
-          src={creatorImg}
+          src={session.cover_url || creatorImg}
           alt=""
           className="w-full h-full object-cover scale-105"
         />

@@ -38,6 +38,9 @@ function dbToSession(row: Record<string, unknown>): ClaritySession {
     type,
     premium: row.visibility === "premium",
     accent: ACCENT_MAP[category] ?? "from-blue-900/80 to-slate-950",
+    video_url: typeof row.video_url === "string" ? row.video_url : null,
+    audio_url: typeof row.audio_url === "string" ? row.audio_url : null,
+    cover_url: typeof row.cover_url === "string" ? row.cover_url : null,
   };
 }
 
@@ -54,7 +57,7 @@ export const NetflixBrowse = () => {
       const websiteId = await getWebsiteIdBySlug("clarity-mode");
       let query = supabase
         .from("content_items")
-        .select("id, title, description, category, video_url, audio_url, duration_sec, visibility")
+        .select("id, title, description, category, video_url, audio_url, cover_url, duration_sec, visibility")
         .eq("type", "session")
         .eq("status", "published");
       if (websiteId) query = query.eq("website_id", websiteId);
@@ -64,19 +67,16 @@ export const NetflixBrowse = () => {
   }, []);
 
   const activeSessions = dbSessions.length > 0 ? dbSessions : hardcodedSessions;
-
-  const handleWatch = (session: ClaritySession) => {
-    if (session.premium) {
-      window.location.href = "/pricing";
-    }
-  };
+  // Feature real, published content when it exists; the hardcoded session is
+  // only ever shown as an illustrative placeholder when there's nothing real yet.
+  const banner = dbSessions.length > 0 ? dbSessions[0] : featuredSession;
 
   return (
     <>
       <div className="w-full -mx-0 netflix-browse">
         <FeaturedBanner
-          session={featuredSession}
-          onWatch={handleWatch}
+          session={banner}
+          onWatch={setSelected}
           onMoreInfo={setSelected}
         />
 

@@ -10,6 +10,9 @@ export type ClaritySession = {
   premium: boolean;
   accent: string;
   featured?: boolean;
+  video_url?: string | null;
+  audio_url?: string | null;
+  cover_url?: string | null;
 };
 
 export const featuredSession: ClaritySession = {
