@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
@@ -69,11 +70,12 @@ const EMPTY: Omit<Book, "id" | "sold_count"> = {
 
 export default function OldBooksAdmin() {
   const { current } = useWebsite();
+  const [searchParams] = useSearchParams();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCondition, setFilterCondition] = useState("all");
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(searchParams.get("new") === "1");
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Book, "id" | "sold_count">>({ ...EMPTY });
   const [saving, setSaving] = useState(false);
