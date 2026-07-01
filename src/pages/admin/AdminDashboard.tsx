@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
 import { useWebsite } from "@/contexts/WebsiteContext";
 import { useCommandCenterMetrics, type Health } from "@/hooks/useCommandCenterMetrics";
+import { useFederation } from "@/hooks/useFederation";
 import { openCommandPalette } from "@/components/admin/CommandPalette";
 import {
   Users, ShoppingBag, BookMarked, Video, MessageSquare, TrendingUp,
   ArrowRight, Layers, Globe, IndianRupee, UserPlus, Sparkles,
   AlertTriangle, Activity, RefreshCw, Search as SearchIcon, Command,
+  Boxes, PlugZap,
 } from "lucide-react";
 
 const HEALTH_COLOR: Record<Health, string> = {
@@ -23,6 +25,7 @@ const fmtMoney = (n: number | null) =>
 export default function AdminDashboard() {
   const { current, websites } = useWebsite();
   const m = useCommandCenterMetrics(current?.id);
+  const fed = useFederation();
 
   const kpis = [
     { label: "Revenue", value: fmtMoney(m.revenue), icon: IndianRupee, color: "#10b981", to: "/admin/orders", sub: "completed orders" },
@@ -192,6 +195,62 @@ export default function AdminDashboard() {
           );
         })}
       </div>
+
+      {/* Connected businesses (cross-project federation) */}
+      {fed.available && (fed.loading || fed.projects.length > 0) && (
+        <div className="rounded-2xl p-6 mb-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="flex items-center gap-2 mb-4">
+            <Boxes className="w-3.5 h-3.5 text-white/40" />
+            <h2 className="text-sm font-medium text-white/40 uppercase tracking-widest">Connected Businesses</h2>
+            <span className="text-[10px] text-white/25">· across Supabase projects</span>
+          </div>
+
+          {fed.loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-[92px] rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {fed.projects.map((p) => (
+                <div key={p.key} className="rounded-xl p-4"
+                  style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${p.configured ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.08)"}` }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full" style={{ background: p.configured ? "#10b981" : "#64748b" }} />
+                    <p className="text-sm font-medium text-white/85">{p.name}</p>
+                    <span className="ml-auto text-[10px]" style={{ color: p.configured ? "#10b981" : "#64748b" }}>
+                      {p.configured ? "Connected" : "Not connected"}
+                    </span>
+                  </div>
+                  {p.configured ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { l: "Revenue", v: fmtMoney(p.revenue ?? null) },
+                        { l: "Users", v: fmtNum(p.users ?? null) },
+                        { l: "Content", v: fmtNum(p.content ?? null) },
+                      ].map((x) => (
+                        <div key={x.l}>
+                          <p className="text-base font-semibold text-white leading-none">{x.v}</p>
+                          <p className="text-[10px] text-white/30 mt-1">{x.l}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-xs text-white/40">
+                      <PlugZap className="w-3.5 h-3.5 mt-0.5 shrink-0 text-white/30" />
+                      <span>
+                        Add <code className="text-white/60">BP_SUPABASE_URL</code> +{" "}
+                        <code className="text-white/60">BP_SUPABASE_SERVICE_ROLE_KEY</code> in Vercel → Production to light this up.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* All websites */}
       <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
