@@ -34,27 +34,55 @@ create policy "public reads approved faces"
   to anon, authenticated
   using (status = 'approved');
 
--- Admin (by email) can read everything and moderate. Email-based so this
--- migration doesn't depend on your profiles/role schema. Add more admins by
--- extending the IN (...) list.
+-- Admins can read, moderate, and delete submissions when their profile role
+-- is set to 'admin'. This aligns with the app's authorization model instead
+-- of relying on a single hardcoded email address.
 drop policy if exists "admin reads all faces" on public.face_submissions;
 create policy "admin reads all faces"
   on public.face_submissions for select
   to authenticated
-  using ((auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com'));
+  using (
+    EXISTS (
+      SELECT 1
+      FROM public.profiles
+      WHERE id = auth.uid()
+        AND role = 'admin'
+    )
+  );
 
 drop policy if exists "admin moderates faces" on public.face_submissions;
 create policy "admin moderates faces"
   on public.face_submissions for update
   to authenticated
-  using      ((auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com'))
-  with check ((auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com'));
+  using (
+    EXISTS (
+      SELECT 1
+      FROM public.profiles
+      WHERE id = auth.uid()
+        AND role = 'admin'
+    )
+  )
+  with check (
+    EXISTS (
+      SELECT 1
+      FROM public.profiles
+      WHERE id = auth.uid()
+        AND role = 'admin'
+    )
+  );
 
 drop policy if exists "admin deletes faces" on public.face_submissions;
 create policy "admin deletes faces"
   on public.face_submissions for delete
   to authenticated
-  using ((auth.jwt() ->> 'email') in ('gauravsinghdata6@gmail.com'));
+  using (
+    EXISTS (
+      SELECT 1
+      FROM public.profiles
+      WHERE id = auth.uid()
+        AND role = 'admin'
+    )
+  );
 
 -- PostgREST needs table-level grants IN ADDITION to the RLS policies above.
 grant select, insert on public.face_submissions to anon, authenticated;

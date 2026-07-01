@@ -22,6 +22,9 @@ Creates helper functions:
 - `upsert_subscription(...)` — used by webhooks
 - `record_payment(...)` — used by webhooks
 
+### 5. `supabase/migrations/20260701_admin_role_migration.sql`
+Migrates any legacy admin email(s) into `public.profiles` and ensures the corresponding profile role is set to `admin`.
+
 ---
 
 ## Step 2 — Get your service_role key
