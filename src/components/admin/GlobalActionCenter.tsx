@@ -21,7 +21,7 @@ import { openCommandPalette } from "@/components/admin/CommandPalette";
 type Action = { label: string; icon: React.ElementType; to: string };
 
 const CREATE: Action[] = [
-  { label: "New Content", icon: Layers, to: "/admin/content-studio" },
+  { label: "New Content", icon: Layers, to: "/admin/content-studio?new=1" },
   { label: "New Clarity Session", icon: Video, to: "/admin/clarity-sessions" },
   { label: "New Research Paper", icon: BookMarked, to: "/admin/research-papers" },
   { label: "New Old Book", icon: BookOpen, to: "/admin/old-books" },

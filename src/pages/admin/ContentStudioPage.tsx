@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   BookMarked,
   Store,
@@ -12,7 +13,9 @@ import {
   MessageSquare,
   ArrowRight,
   Plus,
+  Wand2,
 } from "lucide-react";
+import UnifiedContentCreator from "@/components/admin/UnifiedContentCreator";
 
 const contentTypes = [
   {
@@ -98,15 +101,61 @@ const contentTypes = [
 ];
 
 export default function ContentStudioPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [creatorOpen, setCreatorOpen] = useState(false);
+
+  // Deep-link convention: /admin/content-studio?new=1 opens the unified creator
+  // (used by the Command Palette and the Global Action Center).
+  useEffect(() => {
+    if (searchParams.get("new") === "1") setCreatorOpen(true);
+  }, [searchParams]);
+
+  const closeCreator = () => {
+    setCreatorOpen(false);
+    if (searchParams.get("new")) {
+      searchParams.delete("new");
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="font-display text-2xl md:text-3xl font-light mb-2">Content Studio</h1>
-        <p className="text-muted-foreground text-sm">
-          Manage all premium content — research papers, books, frameworks, protocols, and media.
-        </p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl md:text-3xl font-light mb-2">Content Studio</h1>
+          <p className="text-muted-foreground text-sm">
+            Manage all premium content — research papers, books, frameworks, protocols, and media.
+          </p>
+        </div>
+        <button
+          onClick={() => setCreatorOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 text-sm font-medium transition-all self-start sm:self-auto"
+        >
+          <Wand2 className="w-4 h-4" />
+          New Content
+        </button>
       </div>
 
+      {/* Unified single-upload experience */}
+      <div
+        onClick={() => setCreatorOpen(true)}
+        className="group cursor-pointer mb-6 rounded-2xl p-6 border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all"
+      >
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-primary/15 text-primary shrink-0">
+            <Wand2 className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-sm mb-0.5">Create anything in one place</h3>
+            <p className="text-xs text-muted-foreground">
+              One adaptive form — video sessions, audio, PDFs, frameworks, protocols &amp; templates. Drag &amp; drop uploads.
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-primary/60 group-hover:translate-x-0.5 transition-transform shrink-0" />
+        </div>
+      </div>
+
+      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Manage by type</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {contentTypes.map((ct) => {
           const Icon = ct.icon;
@@ -151,6 +200,8 @@ export default function ContentStudioPage() {
           ))}
         </div>
       </div>
+
+      <UnifiedContentCreator open={creatorOpen} onClose={closeCreator} />
     </div>
   );
 }

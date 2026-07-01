@@ -124,7 +124,7 @@ export default function CommandPalette() {
       nav("create-website", "Create Website", Globe, "/admin/create-website", ["add site", "new website"]),
       nav("settings", "Settings", Settings, "/admin/settings", ["config", "preferences"]),
 
-      make("new-content", "New Content", Plus, "/admin/content-studio", ["upload", "publish"]),
+      make("new-content", "New Content", Plus, "/admin/content-studio?new=1", ["upload", "publish"]),
       make("new-session", "New Clarity Session", Video, "/admin/clarity-sessions", ["video", "audio"]),
       make("new-paper", "New Research Paper", BookMarked, "/admin/research-papers", ["pdf"]),
       make("new-book", "New Old Book", BookOpen, "/admin/old-books", ["marketplace"]),
