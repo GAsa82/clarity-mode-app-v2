@@ -224,3 +224,65 @@ would have cost real revenue or user trust (orders schema, coupons, Razorpay
 env vars). Remaining gaps are unchanged from §5 above — mostly bigger feature
 decisions (Old Books marketplace, generic Vault browser, Confessions UI, the
 3 unwired toggles) that need your input before building, not defects to fix.
+
+## §10 Update — dead-code sweep (AI Coach remnants)
+
+- **Removed 4 admin pages that were pure dead code**: `AdminUpload.tsx`,
+  `AdminKnowledge.tsx`, `AdminTraining.tsx`, `AdminDocuments.tsx`. None were
+  reachable from `AdminLayout`'s nav — URL-only routes left over from the
+  removed AI Coach feature. All three of Upload/Knowledge/Training imported
+  from `src/lib/clarity-ai-api.ts`, which was already a non-functional stub;
+  that file is now fully orphaned and was deleted too.
+- **Two of the four contained fabricated data displayed as real stats** —
+  a direct violation of this project's real-data-only rule:
+  - `AdminTraining.tsx` had `useState(42)` for "indexed docs" and a fake job
+    history list with a `// Simulate progress` comment.
+  - `AdminDocuments.tsx` had a literal `demoDocuments` array (6 invented
+    filenames/sizes/dates) whose fake sizes were summed into a "Total Size"
+    stat shown to the admin as if it were real.
+  Since neither page was reachable through the UI, this was latent rather
+  than actively misleading anyone — but it would have misled whoever typed
+  the URL directly, including a future admin or a subsequent audit.
+- Verified clean removal: `npx tsc --noEmit` passes with zero errors,
+  `npm run build` succeeds, and the 4 removed chunks no longer appear in the
+  build output. Committed and pushed (`a7a4ea1`).
+- **Housekeeping**: deleted two stray local `.txt` scratch files
+  (`build-output.txt`, `repo-search.txt`) left over from earlier terminal
+  redirects — untracked, unreferenced, no value.
+- **Found, not touched — needs your call**: `public/SAP Report.pdf` (380 KB)
+  and `public/Screen Recording 2025-07-13 214144.mp4` (119 MB) sit directly
+  in the static `public/` folder, **untracked by git** (never committed, so
+  not currently live on the deployed site) and **not referenced anywhere in
+  the code**. These look like your own local test files for the "recently
+  uploaded test content" you mentioned, placed straight into `public/`
+  instead of going through the CMS's real media upload flow — so right now
+  they're neither a working part of the CMS nor cleaned up. I didn't delete
+  or move them since they may be files you still want (the PDF in particular
+  could be sensitive). Your call: (a) delete both, (b) actually upload them
+  through the CMS's Media Library so they become real, tracked content, or
+  (c) leave as-is. Flagging so it doesn't stay invisible.
+- **Diary feature status re-confirmed**: `diaries`/`diary_entries` remain
+  orphaned AI-Coach-era schema with no frontend consumer anywhere in `src/`
+  — this round's search turned up nothing beyond what §9 already documented.
+  No dead frontend files to remove here (unlike the AdminUpload cluster)
+  since no UI was ever built against these tables in the first place. Left
+  the DB tables untouched (Postgres schema changes aren't reversed just
+  because a UI never landed); the "Clear Diary & Upload History" admin
+  button (§9) still legitimately targets them.
+- **Self-caught regression**: removing the 4 admin pages above broke 3 links
+  that pointed at them from elsewhere — `FounderStudio.tsx` linked to
+  `/admin/upload` ("Upload Content"), `/admin/documents` ("Diary Pages" —
+  mislabeled even before removal; `AdminDocuments` was never a diary
+  feature), and `/admin/knowledge` ("AI Knowledge Base"); `founder-ai.ts`'s
+  AI Command Center had an entire deterministic "knowledge" intent whose
+  only action navigated to the same dead `/admin/knowledge` route. Caught by
+  grepping for the route **path strings** (not just the component names)
+  after the fact, re-pointed the two salvageable links at real destinations
+  (Media Library, Clarity Sessions) instead of inventing a replacement
+  feature, and deleted the knowledge intent outright. Also removed
+  `Diary`/`UploadHistoryEntry` types in `supabase.ts` — same orphaned schema,
+  zero importers. Verified with a second typecheck + build, then shipped
+  (`3ee6a53`). **Process lesson for future dead-code removals in this repo**:
+  grep for the route's path string across all of `src/`, not just the
+  component/page name — a page can be de-registered while other pages still
+  link to its URL by string literal.
