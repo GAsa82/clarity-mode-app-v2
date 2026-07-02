@@ -100,7 +100,21 @@ export function useFaceSubmit() {
         return;
       }
       const unpaidDraft = (mine ?? []).find((m) => m.payment_status === "pending_payment");
-      if (unpaidDraft) submissionIdRef.current = unpaidDraft.id;
+      if (unpaidDraft) {
+        submissionIdRef.current = unpaidDraft.id;
+        // Retries reuse the draft (one-application rule) — refresh it so the
+        // payment attaches to the user's LATEST name/photo, not their first
+        // attempt's. RLS restricts this to own, still-unpaid drafts.
+        await supabase
+          .from("face_submissions")
+          .update({
+            username: username.trim(),
+            image,
+            email: user.email ?? "",
+            amount_paise: cfg.amountPaise,
+          })
+          .eq("id", unpaidDraft.id);
+      }
 
       if (!submissionIdRef.current) {
         try {
