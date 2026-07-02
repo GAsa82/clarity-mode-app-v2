@@ -8,9 +8,12 @@ const url = process.env.VITE_SUPABASE_URL;
  * missing/invalid, every query fails with "Invalid API key" — use
  * serviceKeyOk() to detect that BEFORE letting a user pay.
  */
+// trim(): env values set via piped CLI input (e.g. PowerShell) can carry an
+// invisible trailing CR/LF, which makes an otherwise-valid key fail as
+// "Invalid API key" when sent in an HTTP header.
 export const serviceClient = createClient(
   url,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || "not-configured"
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || "not-configured").trim()
 );
 
 /**
@@ -20,7 +23,7 @@ export const serviceClient = createClient(
  */
 export const anonClient = createClient(
   url,
-  process.env.VITE_SUPABASE_ANON_KEY || "not-configured"
+  (process.env.VITE_SUPABASE_ANON_KEY || "not-configured").trim()
 );
 
 let serviceOkCache = null;
