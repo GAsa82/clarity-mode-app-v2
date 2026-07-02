@@ -4,12 +4,12 @@ import { Crown, ExternalLink, Headphones, Pause, Play, Sparkles, Star, TrendingU
 import type { ClaritySession } from "@/lib/clarity-content";
 import {
   downscaleImage,
-  submitFace,
   getApprovedFaces,
   flushQueuedFaceSubmissions,
   getQueuedFaceSubmissionCount,
   type FaceSubmission,
 } from "@/lib/face-submissions";
+import { useFaceSubmit } from "@/hooks/useFaceSubmit";
 
 const AFFILIATE_URL = "https://amzn.to/49piiUZ";
 
@@ -71,13 +71,13 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
   const [username, setUsername] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [queueStatus, setQueueStatus] = useState<string | null>(null);
   const [queuedCount, setQueuedCount] = useState(0);
   const [showRules, setShowRules] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Single shared submission path — handles the free flow AND the paid
+  // (featuring fee) flow with dedupe + Razorpay, per the admin CMS config.
+  const face = useFaceSubmit();
+  const { payCfg, submitted, submitting, submitError, queueStatus, paidTxnId } = face;
 
   useEffect(() => {
     getApprovedFaces().then(setApproved);
@@ -131,27 +131,8 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
   };
 
   const handleSubmit = async () => {
-    setSubmitError(null);
-    setQueueStatus(null);
-    if (!username.trim()) { setSubmitError("Please enter a username."); return; }
-    if (!image) { setSubmitError("Please upload a profile picture."); return; }
-    setSubmitting(true);
-    try {
-      const result = await submitFace(username, image);
-      setSubmitted(true);
-      if (result.queued) {
-        setQueueStatus(
-          "Your submission is saved locally and will retry automatically once connectivity returns."
-        );
-      }
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Couldn't submit right now. Please try again."
-      );
-    } finally {
-      setSubmitting(false);
-      setQueuedCount(getQueuedFaceSubmissionCount());
-    }
+    await face.submit(username, image);
+    setQueuedCount(getQueuedFaceSubmissionCount());
   };
 
   return (
@@ -314,8 +295,13 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
               {submitted ? (
                 <div className="text-center py-2">
                   <Check className="w-6 h-6 text-primary mx-auto mb-1" />
+                  {paidTxnId && (
+                    <p className="text-[9px] text-emerald-400 mb-0.5">
+                      ₹{(payCfg.amountPaise / 100).toFixed(0)} paid · Txn {paidTxnId}
+                    </p>
+                  )}
                   <p className="text-[10px] text-muted-foreground">
-                    {queueStatus ?? "Submission received! Under review."}
+                    {queueStatus ?? (paidTxnId ? "Payment confirmed — you're in the review queue!" : "Submission received! Under review.")}
                   </p>
                   {queuedCount > 0 && !queueStatus ? (
                     <p className="text-[8px] text-muted-foreground/70 mt-1">
@@ -324,7 +310,7 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
                   ) : null}
                   <button
                     type="button"
-                    onClick={() => { setShowUpload(false); setSubmitted(false); setUsername(""); setImage(null); }}
+                    onClick={() => { setShowUpload(false); face.reset(); setUsername(""); setImage(null); }}
                     className="text-[9px] text-primary mt-1 underline"
                   >
                     Close
@@ -347,10 +333,17 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
                     maxLength={30}
                     className="w-full px-3 py-1.5 rounded-full bg-background/60 border border-border focus:border-primary outline-none text-[11px] transition-colors mb-2 text-center"
                   />
+                  {payCfg.enabled && (
+                    <p className="text-[9px] text-muted-foreground mb-2">
+                      Featuring fee: <span className="text-primary font-medium">₹{(payCfg.amountPaise / 100).toFixed(0)}</span>
+                      {payCfg.testingMode && <span className="text-amber-400"> · testing fee</span>}
+                      {!face.user && <span className="block text-[8px] mt-0.5">Sign in first — the payment links to your account.</span>}
+                    </p>
+                  )}
                   <div className="flex gap-1.5 justify-center">
                     <button
                       type="button"
-                      onClick={() => { setShowUpload(false); setImage(null); setUsername(""); }}
+                      onClick={() => { setShowUpload(false); setImage(null); setUsername(""); face.reset(); }}
                       className="text-[9px] px-2 py-1 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Cancel
@@ -361,7 +354,11 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
                       disabled={submitting}
                       className="text-[9px] px-2 py-1 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
                     >
-                      {submitting ? "Submitting…" : "Submit"}
+                      {submitting
+                        ? "Processing…"
+                        : payCfg.enabled
+                          ? `Pay ₹${(payCfg.amountPaise / 100).toFixed(0)} & submit`
+                          : "Submit"}
                     </button>
                   </div>
                   {submitError && <p className="text-[9px] text-destructive mt-1">{submitError}</p>}
