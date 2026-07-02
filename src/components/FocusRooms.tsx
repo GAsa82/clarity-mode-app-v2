@@ -48,27 +48,20 @@ const FocusRoomCard = ({ room, index, isPremium }: { room: FocusRoom; index: num
               </div>
             </div>
           </div>
-          {canEnter ? (
-            <Button
-              variant={hovered ? "hero" : "glass"}
-              size="sm"
-              className="text-[10px] px-3 py-1 h-auto transition-all"
-              onClick={() => navigate(`/room/${room.slug}`)}
-            >
-              <Play className="w-2.5 h-2.5 mr-1" />
-              Join
-            </Button>
-          ) : (
-            <Button
-              variant="glass"
-              size="sm"
-              className="text-[10px] px-3 py-1 h-auto"
-              onClick={() => navigate("/pricing")}
-            >
-              <Lock className="w-2.5 h-2.5 mr-1" />
-              Unlock
-            </Button>
-          )}
+          {/* Always navigable — the room page enforces premium access, so a
+              slow subscription fetch can never leave the card dead-ended. */}
+          <Button
+            variant={hovered ? "hero" : "glass"}
+            size="sm"
+            className="text-[10px] px-3 py-1 h-auto transition-all"
+            onClick={() => navigate(`/room/${room.slug}`)}
+          >
+            {canEnter ? (
+              <><Play className="w-2.5 h-2.5 mr-1" />Join</>
+            ) : (
+              <><Lock className="w-2.5 h-2.5 mr-1" />Unlock</>
+            )}
+          </Button>
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed mb-3">

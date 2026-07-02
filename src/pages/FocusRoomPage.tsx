@@ -49,7 +49,7 @@ export const FocusRoomPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate  = useNavigate();
   const { user }  = useAuth();
-  const { isPremium, plan } = useSubscription();
+  const { isPremium, plan, loading: subLoading } = useSubscription();
 
   // Room state
   const [room, setRoom]               = useState<FocusRoom | undefined>(undefined);
@@ -306,8 +306,15 @@ export const FocusRoomPage = () => {
               {joined ? (
                 <Button variant="glass" size="sm" onClick={handleLeave}><LogOut className="w-3 h-3 mr-1.5" />Leave</Button>
               ) : (
-                <Button variant="hero" size="sm" onClick={handleJoin} disabled={!canJoin}>
-                  {!canJoin ? <><Sparkles className="w-3 h-3 mr-1.5" />Premium only</> : <><Play className="w-3 h-3 mr-1.5" />Join room</>}
+                <Button
+                  variant="hero"
+                  size="sm"
+                  onClick={canJoin ? handleJoin : () => navigate("/pricing")}
+                  disabled={room.locked && subLoading}
+                >
+                  {room.locked && subLoading ? <>Checking access…</>
+                    : !canJoin ? <><Sparkles className="w-3 h-3 mr-1.5" />Premium only</>
+                    : <><Play className="w-3 h-3 mr-1.5" />Join room</>}
                 </Button>
               )}
             </div>
@@ -324,8 +331,15 @@ export const FocusRoomPage = () => {
                 {room.tags.map(tag => (<span key={tag} className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-secondary text-muted-foreground"><Tag className="w-3 h-3" />{tag}</span>))}
                 <span className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-secondary text-muted-foreground"><Users className="w-3 h-3" />{room.active} focusers</span>
               </div>
-              <Button variant="hero" size="lg" onClick={handleJoin} disabled={!canJoin}>
-                {!canJoin ? <><Sparkles className="w-4 h-4 mr-2" />Unlock with Premium</> : <><Play className="w-4 h-4 mr-2" />Join Focus Room</>}
+              <Button
+                variant="hero"
+                size="lg"
+                onClick={canJoin ? handleJoin : () => navigate("/pricing")}
+                disabled={room.locked && subLoading}
+              >
+                {room.locked && subLoading ? <>Checking access…</>
+                  : !canJoin ? <><Sparkles className="w-4 h-4 mr-2" />Unlock with Premium</>
+                  : <><Play className="w-4 h-4 mr-2" />Join Focus Room</>}
               </Button>
               <div className="mt-10">
                 <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">Timer modes available</p>
