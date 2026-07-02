@@ -7,7 +7,7 @@
  * discarded; nothing is recorded, stored, or transmitted.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   PresenceEngine,
   loadPresenceConfig,
@@ -112,6 +112,23 @@ export function usePresenceVerification({ roomSlug, durationMin, onComplete, onF
     engineRef.current?.abandon();
     teardown();
   }, [teardown]);
+
+  // ─── Stream ↔ video attachment ─────────────────────────────────────────────
+  // The <video> element only mounts when the UI switches to the "active"
+  // phase — AFTER start() acquired the stream. Attaching inside start() hits
+  // a null ref, leaving a black preview and blind detectors. This layout
+  // effect re-attaches as soon as the element exists.
+
+  useLayoutEffect(() => {
+    const el = videoRef.current;
+    const stream = streamRef.current;
+    if (phase !== "active" || !el || !stream) return;
+    if (el.srcObject !== stream) {
+      el.srcObject = stream;
+      el.muted = true;
+      el.play().catch(() => { /* autoplay policy — playsInline covers mobile */ });
+    }
+  }, [phase]);
 
   // ─── Tab visibility ────────────────────────────────────────────────────────
 
