@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { getVerifiedUserId } from "../_auth.js";
+import { getVerifiedUserId } from "../../_auth.js";
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
