@@ -15,6 +15,25 @@ const supabase = createClient(
 
 const ORIGIN = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
 
+// Digital products sold on the site (paise). Must match src/components/Store.tsx.
+const PRODUCT_CATALOG = {
+  "30-days-mental-clarity": 249900,
+  "overthinking-reset":     199900,
+  "confidence-blueprint":   289900,
+  "focus-like-a-machine":   229900,
+};
+
+/** Resolve the authoritative price (paise) for an item, or null if unknown. */
+async function resolveItemPrice(itemType, itemId) {
+  if (itemType === "product") return PRODUCT_CATALOG[itemId] ?? null;
+  if (itemType === "old_book") {
+    const { data } = await supabase
+      .from("old_books").select("price").eq("id", itemId).maybeSingle();
+    return data?.price > 0 ? Math.round(data.price * 100) : null; // rupees → paise
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -29,11 +48,16 @@ export default async function handler(req, res) {
 
   // ── CREATE ORDER ──────────────────────────────────────────
   if (action === "create") {
-    const { item_type, item_id, item_title, amount, couponCode } = req.body;
-    if (!item_type || !item_id || !amount || amount <= 0)
-      return res.status(400).json({ error: "item_type, item_id, and amount are required" });
+    const { item_type, item_id, item_title, couponCode } = req.body;
+    if (!item_type || !item_id)
+      return res.status(400).json({ error: "item_type and item_id are required" });
 
-    let finalAmount = Math.round(Number(amount));
+    // SECURITY: prices are resolved server-side — never trusted from the
+    // client, or anyone could buy any item for ₹1.
+    const priced = await resolveItemPrice(item_type, item_id);
+    if (!priced) return res.status(400).json({ error: "Unknown item" });
+
+    let finalAmount = priced;
     let appliedCoupon = null;
 
     if (couponCode && couponCode.trim()) {
