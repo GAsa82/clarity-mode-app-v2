@@ -271,7 +271,7 @@ export const FocusRoomPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowCamera(!showCamera)}
-                    className={`flex items-center gap-1 px-2 py-1.5 rounded-xl transition-all ${
+                    className={`flex items-center gap-1 px-2.5 py-2 min-h-9 rounded-xl transition-all ${
                       showCamera ? "bg-primary/20 text-primary border border-primary/30" : "bg-card-elevated border border-border hover:border-primary/30"
                     }`}
                   >
@@ -283,7 +283,7 @@ export const FocusRoomPage = () => {
                   <button
                     type="button"
                     onClick={() => { matching.reset(); setShow1on1Panel(p => !p); }}
-                    className={`flex items-center gap-1 px-2 py-1.5 rounded-xl transition-all ${
+                    className={`flex items-center gap-1 px-2.5 py-2 min-h-9 rounded-xl transition-all ${
                       show1on1Panel ? "bg-primary/20 text-primary border border-primary/30" : "bg-card-elevated border border-border hover:border-primary/30"
                     }`}
                   >
@@ -293,7 +293,7 @@ export const FocusRoomPage = () => {
 
                   <AmbientSoundSelector />
                   <BreakChat />
-                  <button type="button" onClick={() => setDeepFocus(!deepFocus)} className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-card-elevated border border-border hover:border-primary/30 transition-all">
+                  <button type="button" onClick={() => setDeepFocus(!deepFocus)} className="flex items-center gap-1 px-2.5 py-2 min-h-9 rounded-xl bg-card-elevated border border-border hover:border-primary/30 transition-all">
                     {deepFocus ? <Moon className="w-3 h-3 text-primary" /> : <Sun className="w-3 h-3 text-muted-foreground" />}
                     <span className="text-[9px] text-muted-foreground hidden sm:inline">{deepFocus ? "Deep" : "Ambient"}</span>
                   </button>

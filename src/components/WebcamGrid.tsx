@@ -241,7 +241,7 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
       {/* ── Controls ── */}
       <div className="flex items-center gap-2">
         <button type="button" onClick={cameraOn ? stopCamera : startCamera}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-2 min-h-9 rounded-xl transition-all ${
             cameraOn ? "bg-primary/20 text-primary border border-primary/30"
                      : "bg-card-elevated border border-border hover:border-primary/30"}`}>
           {cameraOn ? <Camera className="w-3 h-3"/> : <CameraOff className="w-3 h-3 text-muted-foreground"/>}
@@ -249,14 +249,14 @@ export const WebcamGrid = ({ roomSlug }: Props) => {
         </button>
         {cameraOn && <>
           <button type="button" onClick={toggleMic}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-2 min-h-9 rounded-xl transition-all ${
               micOn ? "bg-primary/20 text-primary border border-primary/30"
                     : "bg-card-elevated border border-border hover:border-primary/30"}`}>
             {micOn ? <Mic className="w-3 h-3"/> : <MicOff className="w-3 h-3 text-muted-foreground"/>}
             <span className="text-[9px]">{micOn ? "Mic On" : "Mic Off"}</span>
           </button>
           <button type="button" onClick={() => setBlurBg(b => !b)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-2 min-h-9 rounded-xl transition-all ${
               blurBg ? "bg-primary/20 text-primary border border-primary/30"
                      : "bg-card-elevated border border-border hover:border-primary/30"}`}>
             {blurBg ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}
