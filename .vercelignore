@@ -1,0 +1,7 @@
+# Local working files that must never ship with a deployment.
+# (Untracked in git, so git-based deploys never included them — this file
+# keeps CLI deploys consistent and under the 100 MB upload limit.)
+public/SAP Report.pdf
+public/Screen Recording*.mp4
+*.mp4
+!src/**
