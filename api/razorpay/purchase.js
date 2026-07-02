@@ -31,6 +31,16 @@ async function resolveItemPrice(itemType, itemId) {
       .from("old_books").select("price").eq("id", itemId).maybeSingle();
     return data?.price > 0 ? Math.round(data.price * 100) : null; // rupees → paise
   }
+  if (itemType === "face_of_clarity") {
+    // Member of the Day fee — admin-configurable in site_settings, so the
+    // temporary ₹2 verification fee can be tuned/disabled from the CMS.
+    const { data } = await supabase
+      .from("site_settings").select("value").eq("key", "face_payment_config").maybeSingle();
+    const cfg = data?.value;
+    if (!cfg?.enabled) return null; // payments disabled → reject order creation
+    const paise = Math.round(Number(cfg.amountPaise));
+    return paise >= 100 ? paise : null; // Razorpay minimum ₹1
+  }
   return null;
 }
 
@@ -135,12 +145,27 @@ export default async function handler(req, res) {
       .update({ razorpay_payment_id, razorpay_signature, status: "completed" })
       .eq("razorpay_order_id", razorpay_order_id)
       .eq("user_id", userId)
-      .select("coupon_code")
+      .select("id, coupon_code, item_type, item_id, amount")
       .maybeSingle();
 
     if (error) {
       console.error("[Razorpay purchase verify]", error);
       return res.status(500).json({ error: "Failed to record payment" });
+    }
+
+    // Member of the Day: the payment is confirmed by the gateway signature,
+    // so mark the linked submission paid server-side — it enters the review
+    // queue with a verifiable order reference (never client-claimed).
+    if (updatedOrder?.item_type === "face_of_clarity" && updatedOrder.item_id) {
+      const { error: faceErr } = await supabase
+        .from("face_submissions")
+        .update({
+          payment_status: "paid",
+          order_id: updatedOrder.id,
+          amount_paise: updatedOrder.amount,
+        })
+        .eq("id", updatedOrder.item_id);
+      if (faceErr) console.error("[Face payment] submission link failed:", faceErr);
     }
 
     if (updatedOrder?.coupon_code) {

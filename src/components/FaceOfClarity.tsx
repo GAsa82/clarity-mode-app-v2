@@ -1,15 +1,36 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Upload, Star, Crown, Check, X, AlertTriangle } from "lucide-react";
+import { Upload, Star, Crown, Check, X, AlertTriangle, IndianRupee, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import {
   downscaleImage,
   submitFace,
+  submitFaceForPayment,
   getApprovedFaces,
+  getFacePaymentConfig,
   flushQueuedFaceSubmissions,
   getQueuedFaceSubmissionCount,
+  FACE_PAYMENT_DEFAULTS,
+  type FacePaymentConfig,
   type FaceSubmission,
 } from "@/lib/face-submissions";
+
+declare global {
+  interface Window { Razorpay: any }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+}
 
 const rules = [
   "No explicit or sexual content",
@@ -19,6 +40,7 @@ const rules = [
 ];
 
 export const FaceOfClarity = () => {
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [username, setUsername] = useState("");
   const [image, setImage] = useState<string | null>(null);
@@ -32,8 +54,16 @@ export const FaceOfClarity = () => {
   const [showRules, setShowRules] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Payment (temporary testing fee — configured by admin in the CMS)
+  const [payCfg, setPayCfg] = useState<FacePaymentConfig>(FACE_PAYMENT_DEFAULTS);
+  const [paidTxnId, setPaidTxnId] = useState<string | null>(null);
+  // Survives cancelled/failed attempts so a retry reuses the same submission
+  // instead of creating duplicates.
+  const submissionIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     getApprovedFaces().then(setApproved);
+    getFacePaymentConfig().then(setPayCfg).catch(() => {});
 
     const refreshQueue = async () => {
       await flushQueuedFaceSubmissions().catch(() => {});
@@ -66,6 +96,115 @@ export const FaceOfClarity = () => {
     }
   };
 
+  // ─── Paid flow: submission → order → Razorpay → server verify ─────────────
+
+  const verifyPayment = async (token: string, resp: Record<string, string>): Promise<boolean> => {
+    const res = await fetch("/api/razorpay/purchase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "verify", ...resp }),
+    });
+    return res.ok;
+  };
+
+  const handlePaidSubmit = async () => {
+    if (!user) {
+      setSubmitError("Please sign in first — the payment needs to be linked to your account.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (!(await loadRazorpayScript())) {
+        setSubmitError("Payment couldn't load. Check your connection and try again.");
+        return;
+      }
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) {
+        setSubmitError("Session expired — please sign in again.");
+        return;
+      }
+
+      // Reuse the submission from a cancelled/failed attempt; never duplicate.
+      if (!submissionIdRef.current) {
+        submissionIdRef.current = await submitFaceForPayment(
+          username, image!, user.id, user.email ?? "", payCfg.amountPaise
+        );
+      }
+      const submissionId = submissionIdRef.current;
+
+      const orderRes = await fetch("/api/razorpay/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action: "create",
+          item_type: "face_of_clarity",
+          item_id: submissionId,
+          item_title: `Face of Clarity — ${username.trim()}`,
+        }),
+      });
+      const order = await orderRes.json();
+      if (!orderRes.ok) {
+        setSubmitError(order?.error ?? "Couldn't start the payment. Try again.");
+        return;
+      }
+
+      const rzp = new window.Razorpay({
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.orderId,
+        name: "badly talks",
+        description: `Member of the Day — @${username.trim()}`,
+        prefill: { email: user.email },
+        theme: { color: "#6366f1" },
+        modal: {
+          ondismiss: () => {
+            setSubmitting(false);
+            setSubmitError("Payment cancelled — your entry is saved. Tap the button to try again.");
+          },
+        },
+        handler: async (resp: Record<string, string>) => {
+          // Network hiccups on verify shouldn't strand a captured payment —
+          // retry once before asking the user to contact support.
+          let verified = false;
+          try { verified = await verifyPayment(token, resp); } catch { /* retry below */ }
+          if (!verified) {
+            await new Promise((r) => setTimeout(r, 2000));
+            try { verified = await verifyPayment(token, resp); } catch { /* handled below */ }
+          }
+          setSubmitting(false);
+          if (verified) {
+            setPaidTxnId(resp.razorpay_payment_id);
+            setSubmitted(true);
+            setShowForm(false);
+            setQueueStatus(null);
+            submissionIdRef.current = null;
+          } else {
+            setSubmitError(
+              `Payment received (ID ${resp.razorpay_payment_id}) but confirmation is pending. ` +
+              "It will be reconciled — or contact support with this ID."
+            );
+          }
+        },
+      });
+      rzp.on("payment.failed", (resp: any) => {
+        setSubmitting(false);
+        setSubmitError(
+          `Payment failed: ${resp?.error?.description ?? "the bank declined the transaction"}. You can try again.`
+        );
+      });
+      rzp.open();
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Couldn't start the payment. Please try again."
+      );
+    } finally {
+      // The Razorpay modal is full-screen, so releasing the button here is
+      // safe; the handler/dismiss/failed callbacks manage the final state.
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setSubmitError(null);
     setQueueStatus(null);
@@ -76,6 +215,12 @@ export const FaceOfClarity = () => {
     }
     if (!image) {
       setSubmitError("Please upload a profile picture.");
+      return;
+    }
+
+    // Paid flow when the admin has enabled the (temporary) fee.
+    if (payCfg.enabled) {
+      await handlePaidSubmit();
       return;
     }
 
@@ -132,8 +277,16 @@ export const FaceOfClarity = () => {
                   <div className="relative rounded-2xl bg-card-elevated border border-border p-8 text-center">
                     <Check className="w-10 h-10 text-primary mx-auto mb-4" />
                     <p className="font-display text-xl font-light text-gradient mb-2">
-                      Submission received!
+                      {paidTxnId ? "Payment confirmed — you're in the queue!" : "Submission received!"}
                     </p>
+                    {paidTxnId && (
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 mb-3">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-[11px] text-emerald-400">
+                          ₹{(payCfg.amountPaise / 100).toFixed(0)} paid · Txn {paidTxnId}
+                        </span>
+                      </div>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       {queueStatus ?? "Your profile is under review. Selected members appear here for 24 hours."}
                     </p>
@@ -263,6 +416,25 @@ export const FaceOfClarity = () => {
                       </p>
                     </div>
 
+                    {payCfg.enabled && (
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 mb-4">
+                        <p className="text-[11px] text-foreground/90 flex items-center gap-1.5">
+                          <IndianRupee className="w-3 h-3 text-primary" />
+                          Featuring fee: <span className="font-medium text-primary">₹{(payCfg.amountPaise / 100).toFixed(0)}</span>
+                          {payCfg.testingMode && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-400 border border-amber-400/20">
+                              temporary testing fee
+                            </span>
+                          )}
+                        </p>
+                        {!user && (
+                          <p className="text-[10px] text-muted-foreground mt-1.5">
+                            Sign in first so the payment links to your account.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {submitError && (
                       <p className="text-xs text-destructive mb-4">{submitError}</p>
                     )}
@@ -274,7 +446,11 @@ export const FaceOfClarity = () => {
                       </Button>
                       <Button variant="hero" onClick={handleSubmit} disabled={submitting}>
                         <Check className="w-3.5 h-3.5 mr-1.5" />
-                        {submitting ? "Submitting…" : "Submit for review"}
+                        {submitting
+                          ? "Processing…"
+                          : payCfg.enabled
+                            ? `Pay ₹${(payCfg.amountPaise / 100).toFixed(0)} & submit`
+                            : "Submit for review"}
                       </Button>
                     </div>
                   </div>
