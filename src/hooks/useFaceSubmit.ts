@@ -147,6 +147,9 @@ export function useFaceSubmit() {
         return;
       }
 
+      // Set by any checkout callback (paid / dismissed / failed) so the
+      // blocked-overlay watchdog below knows the modal really worked.
+      let checkoutSettled = false;
       const rzp = new window.Razorpay({
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: order.amount,
@@ -158,11 +161,13 @@ export function useFaceSubmit() {
         theme: { color: "#6366f1" },
         modal: {
           ondismiss: () => {
+            checkoutSettled = true;
             setSubmitting(false);
             setSubmitError("Payment cancelled — your entry is saved. Tap the button to try again.");
           },
         },
         handler: async (resp: Record<string, string>) => {
+          checkoutSettled = true;
           // Retry verification once — a captured payment must not be stranded
           // by one flaky request.
           let verified = false;
@@ -186,12 +191,33 @@ export function useFaceSubmit() {
         },
       });
       rzp.on("payment.failed", (resp: any) => {
+        checkoutSettled = true;
         setSubmitting(false);
         setSubmitError(
           `Payment failed: ${resp?.error?.description ?? "the bank declined the transaction"}. You can try again.`
         );
       });
       rzp.open();
+      // Watchdog: ad blockers / tracking prevention can silently gut the
+      // checkout overlay — no modal, no callbacks, order stranded. If the
+      // iframe isn't genuinely visible shortly after open(), say so instead
+      // of leaving a dead button.
+      setTimeout(() => {
+        if (checkoutSettled) return;
+        const frame = document.querySelector(".razorpay-container iframe, iframe[src*='razorpay']");
+        const shown =
+          frame instanceof HTMLElement &&
+          getComputedStyle(frame).display !== "none" &&
+          frame.getBoundingClientRect().height > 50;
+        if (!shown) {
+          console.error("[face payment] checkout overlay never became visible — likely blocked by an extension/tracking prevention");
+          setSubmitting(false);
+          setSubmitError(
+            "The payment window was blocked by your browser (ad blocker or tracking prevention). " +
+            "Allow razorpay.com or try another browser — your entry is saved, just tap the button again."
+          );
+        }
+      }, 2500);
     } catch (error) {
       const msg = (error as { message?: string })?.message;
       setSubmitError(msg || "Couldn't start the payment. Please try again.");
