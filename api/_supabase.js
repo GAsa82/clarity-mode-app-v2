@@ -30,7 +30,9 @@ let serviceOkCache = null;
 
 /** True when the service-role key actually works against the database. */
 export async function serviceKeyOk() {
-  if (serviceOkCache !== null) return serviceOkCache;
+  // Only success is cached: a failure may be transient (or freshly fixed
+  // env/grants), so warm instances must re-check instead of pinning "broken".
+  if (serviceOkCache === true) return true;
   const { error } = await serviceClient
     .from("site_settings")
     .select("key")
@@ -38,10 +40,11 @@ export async function serviceKeyOk() {
   if (error) {
     console.error(
       "[payments] SUPABASE_SERVICE_ROLE_KEY is not working — payment writes are impossible. " +
-        "Set the real service_role key (Supabase Dashboard → Settings → API) in Vercel env. " +
-        `Underlying error: ${error.message}`
+        "Check the key (Supabase Dashboard → Settings → API) in Vercel env AND the " +
+        `service_role grants in the database. Underlying error: ${error.message}`
     );
+    return false;
   }
-  serviceOkCache = !error;
-  return serviceOkCache;
+  serviceOkCache = true;
+  return true;
 }
