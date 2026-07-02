@@ -75,10 +75,20 @@ export default async function handler(req, res) {
       serviceKeyOk(),
       anonClient.from("site_settings").select("key").eq("key", "face_payment_config").maybeSingle(),
     ]);
+    // Shape only — never key material. Distinguishes "env var never updated"
+    // from "value present but rejected by the database".
+    const raw = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
     return res.json({
       razorpayKeysPresent: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
       databaseServiceKeyOk: svcOk,
       publicConfigReadable: Boolean(cfgRead.data),
+      serviceKeyShape: {
+        present: raw.length > 0,
+        jwtShaped: raw.split(".").length === 3,
+        newStyleSecret: raw.startsWith("sb_secret_"),
+        placeholderish: /your|here|xxx|changeme|placeholder/i.test(raw),
+        lengthBucket: raw.length === 0 ? "empty" : raw.length < 30 ? "short" : raw.length < 80 ? "medium" : "long",
+      },
     });
   }
 
