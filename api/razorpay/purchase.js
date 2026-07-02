@@ -1,17 +1,12 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { getVerifiedUserId } from "../_auth.js";
-import { createClient } from "@supabase/supabase-js";
+import { serviceClient as supabase, anonClient, serviceKeyOk } from "../_supabase.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 const ORIGIN = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
 
@@ -30,8 +25,11 @@ const PRODUCT_CATALOG = {
  * Returns the override amount in paise, or null when test mode is off.
  */
 export async function getPaymentTestOverride() {
-  const { data } = await supabase
+  // Public-read setting — use the anon client so a broken service key can
+  // never silently disable test mode (which would charge FULL price mid-test).
+  const { data, error } = await anonClient
     .from("site_settings").select("value").eq("key", "payment_test_mode").maybeSingle();
+  if (error) console.error("[payments] payment_test_mode read failed:", error.message);
   const cfg = data?.value;
   if (!cfg?.enabled) return null;
   return Math.max(100, Math.round(Number(cfg.amountPaise) || 100)); // Razorpay min ₹1
@@ -40,16 +38,21 @@ export async function getPaymentTestOverride() {
 /** Resolve the authoritative price (paise) for an item, or null if unknown. */
 async function resolveItemPrice(itemType, itemId) {
   if (itemType === "product") return PRODUCT_CATALOG[itemId] ?? null;
+  // Catalog data below is public-read; the anon client keeps price resolution
+  // independent of the service key (a failed read here once surfaced to
+  // users as a bogus "Unknown item").
   if (itemType === "old_book") {
-    const { data } = await supabase
+    const { data, error } = await anonClient
       .from("old_books").select("price").eq("id", itemId).maybeSingle();
+    if (error) console.error("[payments] old_books price read failed:", error.message);
     return data?.price > 0 ? Math.round(data.price * 100) : null; // rupees → paise
   }
   if (itemType === "face_of_clarity") {
     // Member of the Day fee — admin-configurable in site_settings, so the
     // temporary ₹2 verification fee can be tuned/disabled from the CMS.
-    const { data } = await supabase
+    const { data, error } = await anonClient
       .from("site_settings").select("value").eq("key", "face_payment_config").maybeSingle();
+    if (error) console.error("[payments] face_payment_config read failed:", error.message);
     const cfg = data?.value;
     if (!cfg?.enabled) return null; // payments disabled → reject order creation
     const paise = Math.round(Number(cfg.amountPaise));
@@ -64,6 +67,20 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).end();
+
+  // Unauthenticated config self-check (booleans only, no secrets) so a broken
+  // deployment is diagnosable in seconds instead of guessing from UI errors.
+  if (req.body?.action === "health") {
+    const [svcOk, cfgRead] = await Promise.all([
+      serviceKeyOk(),
+      anonClient.from("site_settings").select("key").eq("key", "face_payment_config").maybeSingle(),
+    ]);
+    return res.json({
+      razorpayKeysPresent: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+      databaseServiceKeyOk: svcOk,
+      publicConfigReadable: Boolean(cfgRead.data),
+    });
+  }
 
   const userId = await getVerifiedUserId(req);
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
@@ -80,6 +97,14 @@ export default async function handler(req, res) {
     // client, or anyone could buy any item for ₹1.
     const priced = await resolveItemPrice(item_type, item_id);
     if (!priced) return res.status(400).json({ error: "Unknown item" });
+
+    // Payment writes (order record now, verification later) need the
+    // privileged key. Refusing here beats taking money we can't record.
+    if (!(await serviceKeyOk())) {
+      return res.status(503).json({
+        error: "Payments are temporarily offline for maintenance — please try again soon.",
+      });
+    }
 
     // Admin-controlled ₹1 test mode overrides every price (still server-side).
     const testAmount = await getPaymentTestOverride();
@@ -125,7 +150,7 @@ export default async function handler(req, res) {
         },
       });
 
-      await supabase.from("orders").insert({
+      const { error: insertError } = await supabase.from("orders").insert({
         user_id: userId,
         item_type,
         item_id,
@@ -136,6 +161,12 @@ export default async function handler(req, res) {
         coupon_code: appliedCoupon,
         status: "pending",
       });
+      if (insertError) {
+        // Without this row, verification can't link the payment to anything.
+        // Abort BEFORE the user pays — never take money we can't record.
+        console.error("[Razorpay purchase create] order insert failed:", insertError);
+        return res.status(500).json({ error: "Couldn't start the payment. Please try again." });
+      }
 
       return res.json({ orderId: order.id, amount: order.amount, currency: order.currency });
     } catch (err) {
@@ -172,6 +203,14 @@ export default async function handler(req, res) {
     if (error) {
       console.error("[Razorpay purchase verify]", error);
       return res.status(500).json({ error: "Failed to record payment" });
+    }
+    if (!updatedOrder) {
+      // Signature is valid but no matching order row exists for this user —
+      // returning success here would strand a real payment with no record.
+      console.error(
+        `[Razorpay purchase verify] no order row matched ${razorpay_order_id} for user ${userId} — payment ${razorpay_payment_id} needs reconciliation`
+      );
+      return res.status(500).json({ error: "Payment received but not yet recorded — it will be reconciled." });
     }
 
     // Member of the Day: the payment is confirmed by the gateway signature,

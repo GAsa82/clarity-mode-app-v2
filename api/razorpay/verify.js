@@ -1,12 +1,7 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import { createClient } from "@supabase/supabase-js";
 import { getVerifiedUserId } from "../_auth.js";
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { serviceClient as supabase } from "../_supabase.js";
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,

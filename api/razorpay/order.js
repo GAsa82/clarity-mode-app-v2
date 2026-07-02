@@ -1,6 +1,7 @@
 import Razorpay from "razorpay";
 import { getVerifiedUserId } from "../_auth.js";
 import { getPaymentTestOverride } from "./purchase.js";
+import { serviceKeyOk } from "../_supabase.js";
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,
@@ -24,6 +25,14 @@ export default async function handler(req, res) {
 
   const { plan } = req.body;
   if (!AMOUNTS[plan]) return res.status(400).json({ error: "Invalid plan" });
+
+  // verify.js must write the subscription after payment — if the privileged
+  // key is broken, refuse to charge rather than take money we can't honor.
+  if (!(await serviceKeyOk())) {
+    return res.status(503).json({
+      error: "Payments are temporarily offline for maintenance — please try again soon.",
+    });
+  }
 
   // Admin-controlled ₹1 test mode (site_settings.payment_test_mode) —
   // recorded in the order notes so verify.js accepts the test amount.

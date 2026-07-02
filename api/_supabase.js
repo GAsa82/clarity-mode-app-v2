@@ -1,0 +1,44 @@
+import { createClient } from "@supabase/supabase-js";
+
+const url = process.env.VITE_SUPABASE_URL;
+
+/**
+ * Privileged client — bypasses RLS. Required for payment writes (orders,
+ * subscriptions, marking submissions paid). If SUPABASE_SERVICE_ROLE_KEY is
+ * missing/invalid, every query fails with "Invalid API key" — use
+ * serviceKeyOk() to detect that BEFORE letting a user pay.
+ */
+export const serviceClient = createClient(
+  url,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "not-configured"
+);
+
+/**
+ * Anon client — for data with public read policies (site_settings,
+ * old_books) and for validating user JWTs. Immune to a broken service key,
+ * so price/config lookups never depend on it.
+ */
+export const anonClient = createClient(
+  url,
+  process.env.VITE_SUPABASE_ANON_KEY || "not-configured"
+);
+
+let serviceOkCache = null;
+
+/** True when the service-role key actually works against the database. */
+export async function serviceKeyOk() {
+  if (serviceOkCache !== null) return serviceOkCache;
+  const { error } = await serviceClient
+    .from("site_settings")
+    .select("key")
+    .limit(1);
+  if (error) {
+    console.error(
+      "[payments] SUPABASE_SERVICE_ROLE_KEY is not working — payment writes are impossible. " +
+        "Set the real service_role key (Supabase Dashboard → Settings → API) in Vercel env. " +
+        `Underlying error: ${error.message}`
+    );
+  }
+  serviceOkCache = !error;
+  return serviceOkCache;
+}

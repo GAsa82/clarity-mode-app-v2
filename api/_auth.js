@@ -1,15 +1,12 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { anonClient } from "./_supabase.js";
 
 export async function getVerifiedUserId(req) {
   const authHeader = req.headers["authorization"];
   if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7);
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  // Validating a user's JWT only needs the anon key — never tie auth to the
+  // service key, so a misconfigured service key can't silently change what
+  // this returns.
+  const { data: { user }, error } = await anonClient.auth.getUser(authHeader.slice(7));
   if (error || !user) return null;
   return user.id;
 }
