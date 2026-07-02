@@ -347,11 +347,13 @@ export default function FaceSubmissionsAdmin() {
                   <p className="text-[11px] text-muted-foreground mb-3">{fmt(s.created_at)}</p>
                   <div className="flex gap-2">
                     <button
-                      disabled={busy === s.id}
+                      disabled={busy === s.id || s.payment_status === "pending_payment"}
+                      title={s.payment_status === "pending_payment" ? "Blocked until the featuring fee is paid" : undefined}
                       onClick={() => act(s.id, () => reviewFace(s.id, "approved"), "Approved — now live")}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50 transition"
                     >
-                      <Check className="w-3.5 h-3.5" /> Approve
+                      <Check className="w-3.5 h-3.5" />
+                      {s.payment_status === "pending_payment" ? "Unpaid" : "Approve"}
                     </button>
                     <button
                       disabled={busy === s.id}

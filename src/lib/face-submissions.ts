@@ -330,6 +330,19 @@ export async function runFaceVerificationReport(): Promise<FaceVerificationRepor
   const payments = await getFacePayments(200);
   const completed = payments.filter((p) => p.status === "completed");
 
+  // Bypass detection: while payments are ON, no new 'free' submissions
+  // should be able to enter the queue (DB-level RLS enforces this).
+  const cfg = await getFacePaymentConfig();
+  let recentFreeCount = 0;
+  if (cfg.enabled) {
+    const { count } = await supabase
+      .from("face_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("payment_status", "free")
+      .gte("created_at", new Date(Date.now() - 24 * 3600_000).toISOString());
+    recentFreeCount = count ?? 0;
+  }
+
   const missingGatewayRef = completed.filter((p) => !p.razorpay_payment_id);
   const unlinkedSubmissions = completed.filter(
     (p) => p.submission_payment_status !== "paid"
@@ -377,6 +390,15 @@ export async function runFaceVerificationReport(): Promise<FaceVerificationRepor
       pass: true,
       detail: "Analytics + payment history read from the same orders table (verified by design)",
     },
+    ...(cfg.enabled
+      ? [{
+          label: "No payment bypass (no free entries while payments are ON)",
+          pass: recentFreeCount === 0,
+          detail: recentFreeCount
+            ? `${recentFreeCount} free submission(s) in the last 24h — likely from before enforcement; reject or delete them`
+            : "No free submissions in the last 24h; database policy blocks the free path while payments are on",
+        }]
+      : []),
   ];
 
   return {

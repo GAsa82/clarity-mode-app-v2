@@ -218,8 +218,18 @@ export const FaceOfClarity = () => {
       return;
     }
 
+    // Re-check the fee config at submit time — the mount-time fetch can lose
+    // the race with a fast submit, and payment enforcement must never depend
+    // on stale state. (The database blocks free inserts anyway while
+    // payments are on; this just routes the user to the right flow.)
+    let cfg = payCfg;
+    try {
+      cfg = await getFacePaymentConfig();
+      setPayCfg(cfg);
+    } catch { /* offline — DB enforcement still applies */ }
+
     // Paid flow when the admin has enabled the (temporary) fee.
-    if (payCfg.enabled) {
+    if (cfg.enabled) {
       await handlePaidSubmit();
       return;
     }
@@ -237,8 +247,11 @@ export const FaceOfClarity = () => {
         setQueueStatus(null);
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : "";
       setSubmitError(
-        error instanceof Error ? error.message : "Couldn't submit right now. Please try again."
+        /row-level security/i.test(msg)
+          ? "A featuring fee is now required — please refresh the page and try again."
+          : msg || "Couldn't submit right now. Please try again."
       );
     } finally {
       setSubmitting(false);
