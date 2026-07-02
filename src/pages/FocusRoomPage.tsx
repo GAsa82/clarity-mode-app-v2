@@ -20,7 +20,7 @@ import { VideoCallRoom } from "@/components/room/VideoCallRoom";
 import { DeepWorkChallenge } from "@/components/deepwork/DeepWorkChallenge";
 import { checkAndUnlockAchievements, type Achievement } from "@/lib/achievements";
 import {
-  getRoomBySlug, joinRoom, leaveRoom, isJoinedInRoom, focusRooms, type FocusRoom,
+  getRoomBySlug, joinRoom, leaveRoom, isJoinedInRoom, focusRooms, getVisitedRoomCount, type FocusRoom,
 } from "@/lib/focus-rooms";
 import {
   getAnonymousUsername, getFocusStats, getFocusStreak, recordFocusSession, type FocusStats,
@@ -122,16 +122,16 @@ export const FocusRoomPage = () => {
     }
   }, [slug, matching]);
 
-  const handleSessionComplete = useCallback((type: "focus" | "break") => {
+  const handleSessionComplete = useCallback((type: "focus" | "break", minutes: number) => {
     if (type === "focus") {
       setSessionStatus("Focus complete! Take a break.");
-      const newStats = recordFocusSession(25, room?.name || "Focus Room");
+      const newStats = recordFocusSession(minutes, room?.name || "Focus Room");
       setStats(newStats);
       setStreak(getFocusStreak());
       const newSessions = completedSessions + 1;
       setCompletedSessions(newSessions);
       const unlocked = checkAndUnlockAchievements(
-        newStats.totalSessions, newStats.totalMinutes, getFocusStreak(), 3
+        newStats.totalSessions, newStats.totalMinutes, getFocusStreak(), getVisitedRoomCount(), minutes
       );
       if (unlocked.length > 0) setNewAchievement(unlocked[0]);
     } else {
@@ -351,7 +351,7 @@ export const FocusRoomPage = () => {
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatTime(timeSpent)}</span>
                     </div>
                   </div>
-                  <FocusTimer modes={room.timerModes} onSessionComplete={handleSessionComplete} onPhaseChange={handlePhaseChange} />
+                  <FocusTimer modes={room.timerModes} onSessionComplete={handleSessionComplete} onPhaseChange={handlePhaseChange} onRunningChange={setTimerRunning} />
                 </motion.div>
 
                 {/* Verified Deep Work Challenge — Premium Deep Work Lab only */}

@@ -184,8 +184,11 @@ export function useMatchmaking({ userId, focusRoomSlug, planTier }: Params) {
     setMatchResult(null);
     setError(null);
     setWaitSeconds(0);
+    // Remove any lingering queue row — otherwise a ghost entry can match
+    // with users who already closed the panel.
+    if (queueIdRef.current) void leaveMatchQueue(userId);
     queueIdRef.current = null;
-  }, [cleanup]);
+  }, [cleanup, userId]);
 
   useEffect(() => {
     return () => {

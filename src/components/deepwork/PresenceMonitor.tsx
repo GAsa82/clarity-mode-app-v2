@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity, AlertTriangle, Camera, CheckCircle2, Eye, Hand, MonitorCheck, ScanFace, ShieldAlert,
@@ -30,7 +30,7 @@ type Props = {
   snapshot: PresenceSnapshot | null;
   remainingSec: number;
   totalSec: number;
-  videoRef: RefObject<HTMLVideoElement>;
+  videoRef: (el: HTMLVideoElement | null) => void;
   faceTier: FaceDetectorTier | null;
   attentionCheck: AttentionCheckState | null;
   onConfirmAttention: () => void;
@@ -167,7 +167,7 @@ export const PresenceMonitor = ({
           muted={faceTier === "none"}
         />
         <SignalChip icon={Activity} label="Movement" ok={snapshot != null && snapshot.absenceSec === 0} />
-        <SignalChip icon={Camera} label="Camera" ok={status !== "idle" && status !== "failed" && (snapshot?.cameraDrops ?? 0) === 0 ? true : status === "verified"} />
+        <SignalChip icon={Camera} label="Camera" ok={status === "verified" || (snapshot?.cameraDrops ?? 0) === 0} />
         <SignalChip icon={MonitorCheck} label="Session" ok={status === "verified" || status === "completed"} />
       </div>
 

@@ -4,19 +4,23 @@ import { Play, Pause, RotateCcw, Coffee } from "lucide-react";
 
 type FocusTimerProps = {
   modes: { label: string; focus: number; break: number }[];
-  onSessionComplete?: (type: "focus" | "break") => void;
+  /** minutes = the length of the phase that just finished. */
+  onSessionComplete?: (type: "focus" | "break", minutes: number) => void;
   onPhaseChange?: (phase: "focus" | "break") => void;
-  externalRunning?: boolean;
-  externalToggle?: () => void;
+  onRunningChange?: (running: boolean) => void;
 };
 
-export const FocusTimer = ({ modes, onSessionComplete, onPhaseChange, externalRunning, externalToggle }: FocusTimerProps) => {
+export const FocusTimer = ({ modes, onSessionComplete, onPhaseChange, onRunningChange }: FocusTimerProps) => {
   const [modeIndex, setModeIndex] = useState(0);
   const [phase, setPhase] = useState<"focus" | "break">("focus");
   const [running, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(modes[0].focus * 60);
   const [completedSessions, setCompletedSessions] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Wall-clock countdown state — background tabs throttle intervals to
+  // ~1/min, so counting ticks would silently stretch a 25min session.
+  const secondsRef = useRef(seconds);
+  secondsRef.current = seconds;
 
   const mode = modes[modeIndex];
   const totalSeconds = phase === "focus" ? mode.focus * 60 : mode.break * 60;
@@ -54,30 +58,35 @@ export const FocusTimer = ({ modes, onSessionComplete, onPhaseChange, externalRu
     [clearTimer, modes],
   );
 
+  // Surface state to the parent (session status, motivational popups).
+  useEffect(() => { onRunningChange?.(running); }, [running, onRunningChange]);
+  useEffect(() => { onPhaseChange?.(phase); }, [phase, onPhaseChange]);
+
   useEffect(() => {
     if (!running) {
       clearTimer();
       return;
     }
+    const endAt = Date.now() + secondsRef.current * 1000;
     intervalRef.current = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          clearTimer();
-          setRunning(false);
-          if (phase === "focus") {
-            onSessionComplete?.("focus");
-            setPhase("break");
-            setCompletedSessions((c) => c + 1);
-            return mode.break * 60;
-          } else {
-            onSessionComplete?.("break");
-            setPhase("focus");
-            return mode.focus * 60;
-          }
+      const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      if (left <= 0) {
+        clearTimer();
+        setRunning(false);
+        if (phase === "focus") {
+          onSessionComplete?.("focus", mode.focus);
+          setPhase("break");
+          setCompletedSessions((c) => c + 1);
+          setSeconds(mode.break * 60);
+        } else {
+          onSessionComplete?.("break", mode.break);
+          setPhase("focus");
+          setSeconds(mode.focus * 60);
         }
-        return prev - 1;
-      });
-    }, 1000);
+      } else {
+        setSeconds(left);
+      }
+    }, 500);
     return clearTimer;
   }, [running, phase, mode, clearTimer, onSessionComplete]);
 

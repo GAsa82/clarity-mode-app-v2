@@ -60,7 +60,7 @@ export function usePresenceVerification({ roomSlug, durationMin, onComplete, onF
   const [config, setConfig] = useState<PresenceConfig | null>(null);
   const [result, setResult] = useState<ChallengeResult | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const engineRef = useRef<PresenceEngine | null>(null);
   const faceRef = useRef<FaceDetectorHandle | null>(null);
@@ -115,20 +115,27 @@ export function usePresenceVerification({ roomSlug, durationMin, onComplete, onF
 
   // ─── Stream ↔ video attachment ─────────────────────────────────────────────
   // The <video> element only mounts when the UI switches to the "active"
-  // phase — AFTER start() acquired the stream. Attaching inside start() hits
-  // a null ref, leaving a black preview and blind detectors. This layout
-  // effect re-attaches as soon as the element exists.
+  // phase — AFTER start() acquired the stream, and AnimatePresence can
+  // remount it during transitions. A callback ref attaches the stream at
+  // the exact moment the element appears in the DOM, whatever the timing,
+  // and the layout effect covers the reverse order (element first, stream
+  // second).
 
-  useLayoutEffect(() => {
-    const el = videoRef.current;
+  const attachStream = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
     const stream = streamRef.current;
-    if (phase !== "active" || !el || !stream) return;
+    if (!el || !stream) return;
     if (el.srcObject !== stream) {
       el.srcObject = stream;
       el.muted = true;
+      el.playsInline = true;
       el.play().catch(() => { /* autoplay policy — playsInline covers mobile */ });
     }
-  }, [phase]);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (phase === "active") attachStream(videoRef.current);
+  }, [phase, attachStream]);
 
   // ─── Tab visibility ────────────────────────────────────────────────────────
 
@@ -352,6 +359,7 @@ export function usePresenceVerification({ roomSlug, durationMin, onComplete, onF
     attentionCheck,
     confirmAttention,
     videoRef,
+    attachStream,
     start,
     stop,
     reset,

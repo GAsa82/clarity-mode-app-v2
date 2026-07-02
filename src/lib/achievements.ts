@@ -38,10 +38,29 @@ export function unlockAchievement(id: string): Achievement | null {
   return ach;
 }
 
-export function checkAndUnlockAchievements(sessions: number, totalMinutes: number, streak: number, visitedRooms: number): Achievement[] {
+export function checkAndUnlockAchievements(
+  sessions: number,
+  totalMinutes: number,
+  streak: number,
+  visitedRooms: number,
+  sessionMinutes = 0,
+): Achievement[] {
   const newlyUnlocked: Achievement[] = [];
   if (sessions >= 1) {
     const ach = unlockAchievement("first-session");
+    if (ach) newlyUnlocked.push(ach);
+  }
+  const hour = new Date().getHours();
+  if (hour < 4) {
+    const ach = unlockAchievement("midnight-warrior");
+    if (ach) newlyUnlocked.push(ach);
+  }
+  if (hour >= 4 && hour < 6) {
+    const ach = unlockAchievement("early-bird");
+    if (ach) newlyUnlocked.push(ach);
+  }
+  if (sessionMinutes >= 90) {
+    const ach = unlockAchievement("focus-marathon");
     if (ach) newlyUnlocked.push(ach);
   }
   if (totalMinutes >= 300) {

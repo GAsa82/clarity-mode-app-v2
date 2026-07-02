@@ -136,7 +136,26 @@ export function joinRoom(slug: string, bypassLock = false): FocusRoom | undefine
     saveRoomStates(states);
     room.active += 1;
   }
+  trackRoomVisit(slug);
   return room;
+}
+
+// ─── Visited-room tracking (Social Butterfly achievement) ────────────────────
+
+const VISITED_KEY = "clarity-visited-rooms";
+
+function trackRoomVisit(slug: string) {
+  try {
+    const visited = new Set<string>(JSON.parse(localStorage.getItem(VISITED_KEY) ?? "[]"));
+    visited.add(slug);
+    localStorage.setItem(VISITED_KEY, JSON.stringify([...visited]));
+  } catch { /* private mode — achievement tracking is best-effort */ }
+}
+
+export function getVisitedRoomCount(): number {
+  try {
+    return (JSON.parse(localStorage.getItem(VISITED_KEY) ?? "[]") as string[]).length;
+  } catch { return 0; }
 }
 
 export function leaveRoom(slug: string): FocusRoom | undefined {
