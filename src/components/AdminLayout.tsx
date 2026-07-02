@@ -6,9 +6,9 @@ import {
   BookMarked, Store, Library, Grid3X3, Shield, FileText, Image,
   BarChart3, ClipboardList, Settings, Menu, X, LogOut, Sparkles,
   Video, MessageSquare, ChevronDown, Globe, Plus, Check, Zap,
-  BookOpen, Brain, Upload, Crown,
+  BookOpen, Brain, Upload, Crown, ScanFace,
 } from "lucide-react";
-import { Search } from "lucide-react";
+import { Search, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWebsite, type Website } from "@/contexts/WebsiteContext";
 import { getPendingFaceCount } from "@/lib/face-submissions";
@@ -68,6 +68,7 @@ const UNIVERSAL_NAV: NavGroup[] = [
       { to: "/admin/users",    icon: Users,           label: "Users" },
       { to: "/admin/analytics",icon: BarChart3,       label: "Analytics" },
       { to: "/admin/audit-logs",icon: ClipboardList,  label: "Audit Logs" },
+      { to: "/admin/presence-verification", icon: ScanFace, label: "Presence Verification" },
       { to: "/admin/settings", icon: Settings,        label: "Settings" },
     ],
   },

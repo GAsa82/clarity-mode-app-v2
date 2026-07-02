@@ -63,6 +63,7 @@ const SubscriptionsAdmin = lazy(() => import("./pages/admin/SubscriptionsAdmin")
 const OrdersAdmin = lazy(() => import("./pages/admin/OrdersAdmin"));
 const CouponsAdmin = lazy(() => import("./pages/admin/CouponsAdmin"));
 const AuditLogsAdmin = lazy(() => import("./pages/admin/AuditLogsAdmin"));
+const PresenceVerificationAdmin = lazy(() => import("./pages/admin/PresenceVerificationAdmin"));
 
 // Lightweight branded fallback while a route chunk loads.
 const RouteFallback = () => (
@@ -156,6 +157,7 @@ const App = () => (
                   {/* System */}
                   <Route path="analytics" element={<AnalyticsPage />} />
                   <Route path="audit-logs" element={<AuditLogsAdmin />} />
+                  <Route path="presence-verification" element={<PresenceVerificationAdmin />} />
                   <Route path="coaching" element={<AdminCoaching />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>

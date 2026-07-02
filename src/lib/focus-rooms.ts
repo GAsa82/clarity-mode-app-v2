@@ -127,9 +127,9 @@ export function isJoinedInRoom(slug: string): boolean {
   return getRoomStates()[slug]?.joined ?? false;
 }
 
-export function joinRoom(slug: string): FocusRoom | undefined {
+export function joinRoom(slug: string, bypassLock = false): FocusRoom | undefined {
   const room = focusRooms.find((r) => r.slug === slug);
-  if (!room || room.locked) return undefined;
+  if (!room || (room.locked && !bypassLock)) return undefined;
   const states = getRoomStates();
   if (!states[slug]?.joined) {
     states[slug] = { joined: true };

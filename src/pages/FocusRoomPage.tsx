@@ -17,6 +17,7 @@ import { AchievementPanel } from "@/components/AchievementPanel";
 import { MatchmakingScreen } from "@/components/matching/MatchmakingScreen";
 import { WaitingScreen } from "@/components/matching/WaitingScreen";
 import { VideoCallRoom } from "@/components/room/VideoCallRoom";
+import { DeepWorkChallenge } from "@/components/deepwork/DeepWorkChallenge";
 import { checkAndUnlockAchievements, type Achievement } from "@/lib/achievements";
 import {
   getRoomBySlug, joinRoom, leaveRoom, isJoinedInRoom, focusRooms, type FocusRoom,
@@ -97,11 +98,14 @@ export const FocusRoomPage = () => {
     return () => clearInterval(id);
   }, [joined]);
 
+  // Premium members can enter locked (premium-only) rooms.
+  const canJoin = !!room && (!room.locked || isPremium);
+
   const handleJoin = useCallback(() => {
-    if (!slug || !room || room.locked) return;
-    const updated = joinRoom(slug);
+    if (!slug || !room || (room.locked && !isPremium)) return;
+    const updated = joinRoom(slug, isPremium);
     if (updated) { setRoom({ ...updated }); setJoined(true); setSessionStatus("Focus session started"); }
-  }, [slug, room]);
+  }, [slug, room, isPremium]);
 
   const handleLeave = useCallback(() => {
     if (!slug) return;
@@ -302,8 +306,8 @@ export const FocusRoomPage = () => {
               {joined ? (
                 <Button variant="glass" size="sm" onClick={handleLeave}><LogOut className="w-3 h-3 mr-1.5" />Leave</Button>
               ) : (
-                <Button variant="hero" size="sm" onClick={handleJoin} disabled={room.locked}>
-                  {room.locked ? <><Sparkles className="w-3 h-3 mr-1.5" />Premium only</> : <><Play className="w-3 h-3 mr-1.5" />Join room</>}
+                <Button variant="hero" size="sm" onClick={handleJoin} disabled={!canJoin}>
+                  {!canJoin ? <><Sparkles className="w-3 h-3 mr-1.5" />Premium only</> : <><Play className="w-3 h-3 mr-1.5" />Join room</>}
                 </Button>
               )}
             </div>
@@ -320,8 +324,8 @@ export const FocusRoomPage = () => {
                 {room.tags.map(tag => (<span key={tag} className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-secondary text-muted-foreground"><Tag className="w-3 h-3" />{tag}</span>))}
                 <span className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-secondary text-muted-foreground"><Users className="w-3 h-3" />{room.active} focusers</span>
               </div>
-              <Button variant="hero" size="lg" onClick={handleJoin} disabled={room.locked}>
-                {room.locked ? <><Sparkles className="w-4 h-4 mr-2" />Unlock with Premium</> : <><Play className="w-4 h-4 mr-2" />Join Focus Room</>}
+              <Button variant="hero" size="lg" onClick={handleJoin} disabled={!canJoin}>
+                {!canJoin ? <><Sparkles className="w-4 h-4 mr-2" />Unlock with Premium</> : <><Play className="w-4 h-4 mr-2" />Join Focus Room</>}
               </Button>
               <div className="mt-10">
                 <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">Timer modes available</p>
@@ -349,6 +353,17 @@ export const FocusRoomPage = () => {
                   </div>
                   <FocusTimer modes={room.timerModes} onSessionComplete={handleSessionComplete} onPhaseChange={handlePhaseChange} />
                 </motion.div>
+
+                {/* Verified Deep Work Challenge — Premium Deep Work Lab only */}
+                {room.slug === "premium-deep-work-lab" && (
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }}>
+                    <DeepWorkChallenge
+                      roomSlug={room.slug}
+                      roomName={room.name}
+                      onRewardEarned={(s) => { setStats(s); setStreak(getFocusStreak()); }}
+                    />
+                  </motion.div>
+                )}
 
                 {/* Webcam grid */}
                 {showCamera && (
