@@ -104,7 +104,13 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: false, // we surface an in-app "update available" prompt instead
+        // skipWaiting must be true: with it false, phones that keep the PWA
+        // alive in the background never close their last "tab", so the new
+        // service worker waits forever and users stay on stale bundles for
+        // weeks (payment features invisible, old bugs immortal). The in-app
+        // update prompt stays as a nicety, but activation no longer depends
+        // on it.
+        skipWaiting: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {

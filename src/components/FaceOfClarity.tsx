@@ -224,9 +224,8 @@ export const FaceOfClarity = () => {
       });
       rzp.open();
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Couldn't start the payment. Please try again."
-      );
+      const msg = (error as { message?: string })?.message;
+      setSubmitError(msg || "Couldn't start the payment. Please try again.");
     } finally {
       // The Razorpay modal is full-screen, so releasing the button here is
       // safe; the handler/dismiss/failed callbacks manage the final state.
@@ -276,10 +275,12 @@ export const FaceOfClarity = () => {
         setQueueStatus(null);
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "";
+      // Supabase errors are plain objects (PostgrestError), NOT Error
+      // instances — read .message structurally or the mapping never fires.
+      const msg = (error as { message?: string })?.message ?? "";
       setSubmitError(
-        /row-level security/i.test(msg)
-          ? "A featuring fee is now required — please refresh the page and try again."
+        /row-level security|violates/i.test(msg)
+          ? "A ₹" + (payCfg.amountPaise / 100).toFixed(0) + " featuring fee is now required — refresh the page, sign in, and try again."
           : msg || "Couldn't submit right now. Please try again."
       );
     } finally {
