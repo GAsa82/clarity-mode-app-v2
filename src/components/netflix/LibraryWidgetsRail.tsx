@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Crown, ExternalLink, Headphones, Pause, Play, Sparkles, Star, TrendingUp, Upload, Check, X, AlertTriangle } from "lucide-react";
 import type { ClaritySession } from "@/lib/clarity-content";
@@ -78,6 +79,10 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
   // (featuring fee) flow with dedupe + Razorpay, per the admin CMS config.
   const face = useFaceSubmit();
   const { payCfg, submitted, submitting, submitError, queueStatus, paidTxnId } = face;
+  const navigate = useNavigate();
+  // Paid flow requires an account — send signed-out users to login instead
+  // of letting the pay button silently refuse.
+  const needsSignIn = payCfg.enabled && !face.user;
 
   useEffect(() => {
     getApprovedFaces().then(setApproved);
@@ -350,18 +355,24 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
                     </button>
                     <button
                       type="button"
-                      onClick={handleSubmit}
+                      onClick={needsSignIn ? () => navigate("/login?redirect=/") : handleSubmit}
                       disabled={submitting}
-                      className="text-[9px] px-2 py-1 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
+                      className="text-[10px] px-3 py-1.5 min-h-8 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
                     >
                       {submitting
                         ? "Processing…"
-                        : payCfg.enabled
-                          ? `Pay ₹${(payCfg.amountPaise / 100).toFixed(0)} & submit`
-                          : "Submit"}
+                        : needsSignIn
+                          ? `Sign in & pay ₹${(payCfg.amountPaise / 100).toFixed(0)}`
+                          : payCfg.enabled
+                            ? `Pay ₹${(payCfg.amountPaise / 100).toFixed(0)} & submit`
+                            : "Submit"}
                     </button>
                   </div>
-                  {submitError && <p className="text-[9px] text-destructive mt-1">{submitError}</p>}
+                  {submitError && (
+                    <p className="text-[11px] font-medium text-destructive mt-2 px-2 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20">
+                      {submitError}
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowRules(!showRules)}
