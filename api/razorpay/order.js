@@ -1,5 +1,6 @@
 import Razorpay from "razorpay";
 import { getVerifiedUserId } from "../_auth.js";
+import { getPaymentTestOverride } from "./purchase.js";
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,
@@ -24,11 +25,15 @@ export default async function handler(req, res) {
   const { plan } = req.body;
   if (!AMOUNTS[plan]) return res.status(400).json({ error: "Invalid plan" });
 
+  // Admin-controlled ₹1 test mode (site_settings.payment_test_mode) —
+  // recorded in the order notes so verify.js accepts the test amount.
+  const testAmount = await getPaymentTestOverride().catch(() => null);
+
   try {
     const order = await razorpay.orders.create({
-      amount:   AMOUNTS[plan],
+      amount:   testAmount ?? AMOUNTS[plan],
       currency: "INR",
-      notes:    { userId, plan },
+      notes:    { userId, plan, testMode: testAmount != null ? "true" : "" },
     });
 
     return res.json({

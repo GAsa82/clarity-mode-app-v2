@@ -124,11 +124,40 @@ export const FaceOfClarity = () => {
         return;
       }
 
+      // One active application per user: block if they already have one under
+      // review or live; reuse an unpaid draft from an earlier attempt.
+      const { data: mine } = await supabase
+        .from("face_submissions")
+        .select("id, status, payment_status")
+        .eq("user_id", user.id)
+        .in("status", ["pending", "approved"]);
+      const activeApp = (mine ?? []).find(
+        (m) => m.status === "approved" || m.payment_status !== "pending_payment"
+      );
+      if (activeApp) {
+        setSubmitError(
+          activeApp.status === "approved"
+            ? "You're already featured as a Clarity Member! One active application per member — a new one can be submitted after the current feature ends."
+            : "You already have an application under review. Hang tight — you can submit a new one after it's reviewed."
+        );
+        return;
+      }
+      const unpaidDraft = (mine ?? []).find((m) => m.payment_status === "pending_payment");
+      if (unpaidDraft) submissionIdRef.current = unpaidDraft.id;
+
       // Reuse the submission from a cancelled/failed attempt; never duplicate.
       if (!submissionIdRef.current) {
-        submissionIdRef.current = await submitFaceForPayment(
-          username, image!, user.id, user.email ?? "", payCfg.amountPaise
-        );
+        try {
+          submissionIdRef.current = await submitFaceForPayment(
+            username, image!, user.id, user.email ?? "", payCfg.amountPaise
+          );
+        } catch (e) {
+          if ((e as { code?: string })?.code === "23505") {
+            setSubmitError("You already have an active application. One per member!");
+            return;
+          }
+          throw e;
+        }
       }
       const submissionId = submissionIdRef.current;
 

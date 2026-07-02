@@ -1,6 +1,88 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, ShoppingBag } from "lucide-react";
+import { Search, ShoppingBag, FlaskConical, Save } from "lucide-react";
+import { getSetting, setSetting } from "@/lib/site-settings";
+
+type PaymentTestMode = { enabled: boolean; amountPaise: number };
+
+/**
+ * Global ₹1 test mode — while ON, every paid flow on the site (store
+ * products, old books, memberships, Member of the Day) charges this amount
+ * instead of its list price. Enforced server-side.
+ */
+function PaymentTestModeCard() {
+  const [cfg, setCfg] = useState<PaymentTestMode>({ enabled: false, amountPaise: 100 });
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    getSetting<PaymentTestMode>("payment_test_mode")
+      .then((v) => { if (v) setCfg({ enabled: !!v.enabled, amountPaise: v.amountPaise || 100 }); })
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await setSetting("payment_test_mode", cfg, "Global payment test mode — overrides ALL prices");
+    setSaving(false);
+    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div className={`mb-6 rounded-2xl border p-4 ${cfg.enabled ? "border-amber-400/40 bg-amber-400/5" : "border-border bg-card"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FlaskConical className={`w-4 h-4 ${cfg.enabled ? "text-amber-400" : "text-muted-foreground"}`} />
+          <span className="text-sm font-medium">Payment Test Mode</span>
+          {cfg.enabled && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-400 border border-amber-400/20">
+              ACTIVE — every price overridden to ₹{(cfg.amountPaise / 100).toFixed(0)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              checked={cfg.enabled}
+              onChange={(e) => setCfg((c) => ({ ...c, enabled: e.target.checked }))}
+              className="accent-amber-400 w-4 h-4"
+            />
+            {cfg.enabled ? "ON" : "OFF"}
+          </label>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">₹</span>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={Math.round(cfg.amountPaise / 100)}
+              onChange={(e) => {
+                const rupees = Math.max(1, Math.min(100, Number(e.target.value) || 1));
+                setCfg((c) => ({ ...c, amountPaise: rupees * 100 }));
+              }}
+              className="w-16 px-2 py-1.5 rounded-lg bg-background border border-border text-sm focus:outline-none focus:border-primary/50"
+            />
+          </div>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50 transition"
+          >
+            <Save className="w-3.5 h-3.5" /> {saved ? "Saved ✓" : saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground mt-2">
+        Overrides every checkout on the site — store products, old books, Premium memberships, and the Member of the
+        Day fee — to the test amount. Enforced server-side; the browser can't opt out. <span className="font-medium text-amber-400">Turn OFF before real sales.</span>
+      </p>
+    </div>
+  );
+}
 
 type Order = {
   id: string;
@@ -64,6 +146,8 @@ export default function OrdersAdmin() {
           {orders.filter((o) => o.status === "completed").length} completed · ₹{(total / 100).toLocaleString("en-IN")} revenue
         </p>
       </div>
+
+      <PaymentTestModeCard />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">

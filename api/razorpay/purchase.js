@@ -23,6 +23,20 @@ const PRODUCT_CATALOG = {
   "focus-like-a-machine":   229900,
 };
 
+/**
+ * Global ₹1 payment test mode (site_settings.payment_test_mode).
+ * When enabled, EVERY paid flow charges the test amount so the complete
+ * pipeline can be verified with real transactions at minimal cost.
+ * Returns the override amount in paise, or null when test mode is off.
+ */
+export async function getPaymentTestOverride() {
+  const { data } = await supabase
+    .from("site_settings").select("value").eq("key", "payment_test_mode").maybeSingle();
+  const cfg = data?.value;
+  if (!cfg?.enabled) return null;
+  return Math.max(100, Math.round(Number(cfg.amountPaise) || 100)); // Razorpay min ₹1
+}
+
 /** Resolve the authoritative price (paise) for an item, or null if unknown. */
 async function resolveItemPrice(itemType, itemId) {
   if (itemType === "product") return PRODUCT_CATALOG[itemId] ?? null;
@@ -67,7 +81,10 @@ export default async function handler(req, res) {
     const priced = await resolveItemPrice(item_type, item_id);
     if (!priced) return res.status(400).json({ error: "Unknown item" });
 
-    let finalAmount = priced;
+    // Admin-controlled ₹1 test mode overrides every price (still server-side).
+    const testAmount = await getPaymentTestOverride();
+
+    let finalAmount = testAmount ?? priced;
     let appliedCoupon = null;
 
     if (couponCode && couponCode.trim()) {
@@ -101,7 +118,11 @@ export default async function handler(req, res) {
       const order = await razorpay.orders.create({
         amount: finalAmount,
         currency: "INR",
-        notes: { userId, item_type, item_id, item_title: item_title ?? "", coupon: appliedCoupon ?? "" },
+        notes: {
+          userId, item_type, item_id, item_title: item_title ?? "",
+          coupon: appliedCoupon ?? "",
+          testMode: testAmount != null ? "true" : "",
+        },
       });
 
       await supabase.from("orders").insert({

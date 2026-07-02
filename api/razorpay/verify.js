@@ -45,10 +45,16 @@ export default async function handler(req, res) {
   // order's own notes/amount prove WHAT was paid for. Trusting a client-sent
   // plan would let a ₹999 monthly payment activate a ₹7399 annual plan.
   let plan;
+  let paidAmount;
   try {
     const order = await razorpay.orders.fetch(razorpay_order_id);
     plan = order?.notes?.plan;
-    if (!AMOUNTS[plan] || order.amount !== AMOUNTS[plan])
+    paidAmount = order?.amount;
+    if (!AMOUNTS[plan]) return res.status(400).json({ error: "Order/plan mismatch" });
+    // Orders created under admin ₹1 test mode carry testMode in their notes
+    // (set server-side at creation) — only those may differ from list price.
+    const isTestOrder = order.notes?.testMode === "true";
+    if (!isTestOrder && order.amount !== AMOUNTS[plan])
       return res.status(400).json({ error: "Order/plan mismatch" });
     if (order.notes?.userId && order.notes.userId !== userId)
       return res.status(403).json({ error: "Order belongs to a different account" });
@@ -80,7 +86,7 @@ export default async function handler(req, res) {
 
     const { error: payError } = await supabase.from("payments").insert({
       user_id:             userId,
-      amount:              AMOUNTS[plan],
+      amount:              paidAmount ?? AMOUNTS[plan],
       currency:            "INR",
       provider:            "razorpay",
       provider_payment_id: razorpay_payment_id,
