@@ -4,11 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { Users, Hash, Monitor, Headphones, Lock, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { focusRooms, type FocusRoom } from "@/lib/focus-rooms";
+import { useSubscription } from "@/hooks/useSubscription";
 
-const FocusRoomCard = ({ room, index }: { room: FocusRoom; index: number }) => {
+const FocusRoomCard = ({ room, index, isPremium }: { room: FocusRoom; index: number; isPremium: boolean }) => {
   const [hovered, setHovered] = useState(false);
   const navigate = useNavigate();
   const fillPercent = Math.round((room.active / room.capacity) * 100);
+  const canEnter = !room.locked || isPremium;
 
   return (
     <motion.div
@@ -46,12 +48,7 @@ const FocusRoomCard = ({ room, index }: { room: FocusRoom; index: number }) => {
               </div>
             </div>
           </div>
-          {room.locked ? (
-            <Button variant="glass" size="sm" className="text-[10px] px-3 py-1 h-auto" disabled>
-              <Lock className="w-2.5 h-2.5 mr-1" />
-              Unlock
-            </Button>
-          ) : (
+          {canEnter ? (
             <Button
               variant={hovered ? "hero" : "glass"}
               size="sm"
@@ -60,6 +57,16 @@ const FocusRoomCard = ({ room, index }: { room: FocusRoom; index: number }) => {
             >
               <Play className="w-2.5 h-2.5 mr-1" />
               Join
+            </Button>
+          ) : (
+            <Button
+              variant="glass"
+              size="sm"
+              className="text-[10px] px-3 py-1 h-auto"
+              onClick={() => navigate("/pricing")}
+            >
+              <Lock className="w-2.5 h-2.5 mr-1" />
+              Unlock
             </Button>
           )}
         </div>
@@ -108,6 +115,7 @@ const FocusRoomCard = ({ room, index }: { room: FocusRoom; index: number }) => {
 
 export const FocusRooms = () => {
   const [totalActive, setTotalActive] = useState(0);
+  const { isPremium } = useSubscription();
 
   useEffect(() => {
     setTotalActive(focusRooms.reduce((sum, r) => sum + r.active, 0));
@@ -210,7 +218,7 @@ export const FocusRooms = () => {
         {/* Room grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {focusRooms.map((room, i) => (
-            <FocusRoomCard key={room.id} room={room} index={i} />
+            <FocusRoomCard key={room.id} room={room} index={i} isPremium={isPremium} />
           ))}
         </div>
 
