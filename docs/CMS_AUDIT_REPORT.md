@@ -375,3 +375,48 @@ site fail safe for launch instead of leaving a money-losing path live.
 - **Verified**: production build passes with the gate in place (Stripe hidden);
   the Razorpay subscription path and the §11-fixed Store one-time checkout are
   unchanged and remain the live revenue paths.
+
+## §14 Update — Vault removed + Supabase security-advisor hardening
+
+**Vault removed (commit `5ef6747`, verified live).** Per the owner's decision,
+all cross-site redirection to Breakthrough Protocol was deleted — `vault-config`,
+`VaultContext` (the `window.location.href` redirect), the transition, and the
+VaultUnavailable page/route are gone; the nav "Vault" item, footer Ecosystem
+link, and the homepage hero's external CTA (now → `/research`) are removed.
+Confirmed on the live bundle: no "vault" text, no `breakthrough-protocol.../vault`
+path. Clarity is now fully self-contained. (SSO was considered and dropped — see
+memory `cross-app-login-architecture`.)
+
+**Ran the Supabase security advisor and fixed the real items**
+(migration `20260702_launch_security_hardening.sql`). Went from ~30 lints to ~10.
+
+Fixed:
+- **`coaching_sessions` open INSERT (real fraud/DoS)** — the policy let any anon
+  POST a `payment_status='paid'` row: a free fake booking, or mass-inserts to
+  occupy every slot and DoS the paid coaching calendar. Dropped it; legit
+  bookings insert server-side via the service role. ✅
+- **`coaching_followups` open INSERT** — server-seeded only; dropped. ✅
+- **`newsletter_subscribers` open INSERT** — real signups go through
+  `/api/subscribe` (service role); dropped the raw anon INSERT so junk emails
+  can't be bulk-inserted straight into the list (protects sender reputation).
+  Table is now server-only (advisor shows a benign INFO "no policy"). ✅
+- **11 functions with mutable `search_path`** — pinned to `= public` (matches
+  the already-pinned helpers; all reference only public objects). ✅
+- **`handle_new_user()` RPC-callable** — revoked EXECUTE from anon/authenticated;
+  it's a signup trigger, which still fires (triggers ignore caller EXECUTE). ✅
+
+Accepted / deferred (documented, not blockers):
+- **SECURITY DEFINER RPC-executable**: `is_premium`, `get_user_plan`,
+  `is_admin_user` MUST stay executable — RLS policies call them. `face_payment_required`
+  is a harmless boolean; `increment_match_count` is used by matchmaking. Left as-is.
+- **`confessions` / `confession_reactions` / `confession_replies` open anon INSERT**:
+  an unused, UI-less feature whose policy names ("Anyone can post a confession")
+  suggest deliberate anonymous design. Left as-is — **before building a
+  confessions UI, add auth and/or rate-limiting** or it's a public spam endpoint.
+- **`cms-media` public bucket allows listing**: low-severity info-disclosure
+  (filename enumeration). Left untouched to avoid any risk to media serving on
+  launch; tighten the bucket SELECT policy later if desired.
+
+**Owner action (dashboard only, can't be done from code):**
+- **Enable Leaked Password Protection** — Supabase → Authentication → Policies →
+  turn on "Leaked password protection" (checks HaveIBeenPwned). One toggle.
