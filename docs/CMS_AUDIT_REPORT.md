@@ -420,3 +420,36 @@ Accepted / deferred (documented, not blockers):
 **Owner action (dashboard only, can't be done from code):**
 - **Enable Leaked Password Protection** — Supabase → Authentication → Policies →
   turn on "Leaked password protection" (checks HaveIBeenPwned). One toggle.
+
+## §15 Update — live smoke test + performance advisor
+
+**Live smoke test (all pass).** Every public route returns HTTP 200 on the live
+deployment: `/`, `/pricing`, `/research`, `/insights`, `/about`, `/contact`,
+`/coaching`, `/login`, and the three payment-processor-required legal pages
+`/privacy`, `/terms`, `/refunds`. (It's an SPA so 200 = shell serves; the legal
+routes are real lazy-loaded pages that build cleanly.) Razorpay business accounts
+require Terms/Privacy/Refunds/Contact to be publicly reachable — they are.
+
+**Performance advisor: 131 lints, triaged for a pre-launch (~0 traffic) DB.**
+- ✅ **Fixed — 11 `unindexed_foreign_keys`**: added covering indexes
+  (`20260702_fk_covering_indexes.sql`) on audit_logs.user_id,
+  coaching_followups.session_id, coaching_sessions.user_id,
+  coaching_testimonials.session_id, payments.subscription_id, rooms.created_by,
+  saved_sessions.content_item_id, sessions.partner_id, upload_history.diary_id,
+  and user_reports.(reported_id, room_id). Zero correctness risk; helps joins and
+  cascade deletes as data grows.
+- ⏸️ **Deferred — 57 `auth_rls_initplan` + 36 `multiple_permissive_policies`
+  (WARN)**: these are real *at-scale* optimizations (wrap `auth.uid()` in
+  `(SELECT auth.uid())`; consolidate overlapping policies), but bulk-rewriting 57
+  live RLS policies immediately before launch carries genuine access-control
+  regression risk for **zero present benefit** (no traffic). Deliberately left
+  for a dedicated, tested pass once there's real load. Not a launch blocker.
+- ⏸️ **Ignored — 27 `unused_index` (INFO)**: "unused" only because the DB has no
+  query history yet (pre-launch). Dropping them would be wrong; they'll register
+  as used once traffic arrives.
+
+**Bottom line:** Clarity is launch-ready on the axes I can verify — pages live,
+legal pages present, checkout working (Razorpay), risky USD path safely gated,
+security holes closed, FK indexes in place. Remaining items are owner-side
+toggles/keys (leaked-password protection; the §12 env vars) and at-scale perf
+tuning that should wait for real traffic.
