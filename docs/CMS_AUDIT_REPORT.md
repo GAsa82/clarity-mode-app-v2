@@ -453,3 +453,36 @@ legal pages present, checkout working (Razorpay), risky USD path safely gated,
 security holes closed, FK indexes in place. Remaining items are owner-side
 toggles/keys (leaked-password protection; the §12 env vars) and at-scale perf
 tuning that should wait for real traffic.
+
+## §16 Update — content readiness + SEO/social metadata
+
+**⚠️ Biggest real gap to "earning money": the site is nearly empty of content.**
+Live DB counts (project vajenjgxaznftlvribzl):
+- research_papers: **1** · content_items: **1** (a single session; **0** library
+  PDFs/frameworks/protocols/templates) · old_books: **0** · testimonials: **0** ·
+  coupons: **0** · approved Member-of-the-Day: 2.
+This is **not a code bug** — it's content the owner must add through the admin
+CMS (Content Studio), and per the project's real-data-only rule I did not seed
+anything. The **Store works** (its 4 products are defined in `Store.tsx`), but
+`/research` shows one paper and the Library is empty. **Action: before/at launch,
+add real research papers, library items, and ideally a few testimonials via
+`/admin`.** Empty states are handled gracefully (e.g. Testimonials shows an
+honest "No reviews yet — be among our first" card, reinforcing no-fake-reviews),
+so an empty site looks intentional rather than broken — but there's little to
+convert on until content exists.
+
+**SEO / social — mostly good, fixed one real bug:**
+- ✅ `robots.txt` allows all crawlers; `og-image.png`, favicon, apple-touch icons
+  all present and 200. Title, description, viewport, PWA/splash tags all solid.
+- ✅ **Fixed**: `og:description` and `twitter:description` still advertised the
+  **removed AI-coach feature** ("An AI coach that helps you discover emotional
+  patterns…"). Anyone sharing a link got a preview for a product that no longer
+  exists. Rewritten to match the real offering (research papers, audio sessions,
+  frameworks, protocols). (`index.html`.)
+- ⚠️ **Owner decision — domain**: `canonical`, `og:url`, and `og:image` all point
+  to `https://claritymode.com/`. If that's the real launch domain, connect it in
+  Vercel; if launching on the `*.vercel.app` URL, these tags need updating or
+  social/search will reference a domain that may not resolve. Left as-is pending
+  your confirmation.
+- ℹ️ Minor: no real `sitemap.xml` (the 200 is the SPA fallback). Optional; a
+  static sitemap would help indexing once content exists.
