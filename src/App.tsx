@@ -8,7 +8,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { AuthProvider } from "@/contexts/AuthContext";
-import { VaultProvider } from "@/contexts/VaultContext";
 import { WebsiteProvider } from "@/contexts/WebsiteContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -36,7 +35,6 @@ const CoachingPage = lazy(() => import("./pages/CoachingPage"));
 const BookingPage = lazy(() => import("./pages/coaching/BookingPage"));
 const ConfirmationPage = lazy(() => import("./pages/coaching/ConfirmationPage"));
 const ResearchPage = lazy(() => import("./pages/ResearchPage"));
-const VaultUnavailable = lazy(() => import("./pages/VaultUnavailable"));
 const FounderStudio = lazy(() => import("./pages/FounderStudio"));
 
 // Admin — core
@@ -83,7 +81,6 @@ const App = () => (
         <PWAUpdater />
         <AuthProvider>
           <BrowserRouter>
-            <VaultProvider>
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 {/* Public routes */}
@@ -103,7 +100,6 @@ const App = () => (
                 <Route path="/coaching/book" element={<BookingPage />} />
                 <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
                 <Route path="/research" element={<ResearchPage />} />
-                <Route path="/vault-unavailable" element={<VaultUnavailable />} />
 
                 {/* Founder Studio — full-screen business OS, admin-only */}
                 <Route
@@ -166,7 +162,6 @@ const App = () => (
               </Routes>
               </Suspense>
               <InstallPrompt />
-            </VaultProvider>
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>

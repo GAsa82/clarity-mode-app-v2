@@ -10,12 +10,12 @@ export type HeroContent = {
 };
 
 export const HERO_DEFAULTS: HeroContent = {
-  badge: "Premium Knowledge Vault",
+  badge: "Premium Knowledge Library",
   titleLine1: "The library your",
   titleLine2: "best mind needs.",
   subtitle:
     "Access premium research papers, frameworks, protocols, templates, and mental clarity resources designed to improve decision-making, focus, productivity, and personal growth.",
-  primaryCtaLabel: "Explore the Vault",
+  primaryCtaLabel: "Explore Research Papers",
   secondaryCtaLabel: "Browse the library →",
 };
 

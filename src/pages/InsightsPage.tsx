@@ -156,7 +156,7 @@ export default function InsightsPage() {
             <BookOpen className="w-8 h-8 text-primary mx-auto mb-3" />
             <h3 className="font-display text-xl font-light mb-2">Go deeper</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto leading-relaxed">
-              Access the full research library — papers, frameworks, protocols, and templates — in the Knowledge Vault.
+              Access the full research library — papers, frameworks, protocols, and templates — all in one place.
             </p>
             <Link
               to="/research"

@@ -8,7 +8,6 @@ type Toggle = { key: string; label: string; desc: string };
 
 const TOGGLES: Toggle[] = [
   { key: "testimonials_on_home", label: "Testimonials on Home", desc: "Show the testimonials section on the landing page" },
-  { key: "vault_enabled", label: "Vault Storefront", desc: "Show the Breakthrough Protocol Vault storefront" },
   { key: "navigator_enabled", label: "Cross-site Navigator", desc: "Show the navigator panel on all pages" },
   { key: "applications_open", label: "Applications Open", desc: "Accept new applications" },
 ];

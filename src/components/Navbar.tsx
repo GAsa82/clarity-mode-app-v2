@@ -4,7 +4,6 @@ import { Menu, X, LogOut, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoImg from "@/assets/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
-import { useVault } from "@/contexts/VaultContext";
 
 const publicLinks = [
   { href: "/", label: "Home" },
@@ -18,7 +17,6 @@ export const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { user, profile, signOut, isAdmin } = useAuth();
-  const { openVault } = useVault();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -60,13 +58,6 @@ export const Navbar = () => {
                   {l.label}
                 </a>
               ))}
-              <button
-                onClick={() => openVault()}
-                className="relative text-sm text-primary hover:text-primary/80 transition-colors font-medium"
-              >
-                Vault
-                <span className="absolute -top-1 -right-2.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              </button>
             </div>
 
             <div className="hidden md:flex items-center gap-3">
@@ -130,13 +121,6 @@ export const Navbar = () => {
                     {l.label}
                   </a>
                 ))}
-                <button
-                  onClick={() => { openVault(); setOpen(false); }}
-                  className="text-left text-base text-primary hover:text-primary/80 flex items-center gap-2"
-                >
-                  Vault
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                </button>
                 <div className="flex flex-col gap-2 pt-2 border-t border-border">
                   {user ? (
                     <>

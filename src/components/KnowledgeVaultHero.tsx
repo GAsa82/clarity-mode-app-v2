@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, BookOpen, ChevronDown, FileText, Layers, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useVault } from "@/contexts/VaultContext";
 import { getHeroContent, HERO_DEFAULTS, type HeroContent } from "@/lib/site-settings";
 
 const PILLARS = [
@@ -14,7 +14,6 @@ const PILLARS = [
 
 export const KnowledgeVaultHero = () => {
   const reduce = useReducedMotion();
-  const { openVault } = useVault();
   const [hero, setHero] = useState<HeroContent>(HERO_DEFAULTS);
 
   useEffect(() => {
@@ -75,14 +74,11 @@ export const KnowledgeVaultHero = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1 }}
           >
-            <Button
-              variant="hero"
-              size="xl"
-              className="group"
-              onClick={() => openVault()}
-            >
-              {hero.primaryCtaLabel}
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <Button asChild variant="hero" size="xl" className="group">
+              <Link to="/research">
+                {hero.primaryCtaLabel}
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </Link>
             </Button>
             <a href="/#library" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               {hero.secondaryCtaLabel}
