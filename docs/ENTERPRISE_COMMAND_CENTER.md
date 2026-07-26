@@ -1,6 +1,17 @@
 # Enterprise Command Center — Architecture & Roadmap
 
-**For:** Clarity Mode ("badly talks") + Breakthrough Protocol
+> **SUPERSEDED 2026-07-26:** the owner explicitly decided to keep Clarity Mode
+> and Breakthrough Protocol fully separate, with no shared infrastructure —
+> the opposite of this document's central thesis. The cross-project
+> federation gateway described below (§1's "FEDERATION" layer, §3 item 3, §8
+> item 1, and the "Cross-project" row in §9) was actually built and has since
+> been **removed** (`api/federation/metrics.js`, `useFederation.ts`, and the
+> "Connected Businesses" dashboard panel) — do not rebuild it. Everything else
+> in this doc that's scoped to Clarity Mode alone (Command Palette, search,
+> automation, mobile, RBAC roles, etc.) is unaffected and still a valid
+> roadmap.
+
+**For:** Clarity Mode ("badly talks") + ~~Breakthrough Protocol~~
 **Date:** 2026-07-02
 **Author's stance:** grounded in the real code in this repo, not a wish-list.
 Where something does not exist yet, it says so. Where I built it this session,

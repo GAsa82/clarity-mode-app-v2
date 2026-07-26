@@ -9,10 +9,9 @@ interface Props {
   site: Website | null;
   onAudit: () => void;
   onReport: () => void;
-  onSwitch?: () => void;
 }
 
-export function AICommandCenter({ site, onAudit, onReport, onSwitch }: Props) {
+export function AICommandCenter({ site, onAudit, onReport }: Props) {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<CommandResult | null>(null);
   const [thinking, setThinking] = useState(false);
@@ -41,9 +40,6 @@ export function AICommandCenter({ site, onAudit, onReport, onSwitch }: Props) {
         break;
       case "report":
         onReport();
-        break;
-      case "switch":
-        onSwitch?.();
         break;
     }
   };

@@ -10,8 +10,7 @@ import type { Website } from "@/contexts/WebsiteContext";
 export type CommandAction =
   | { kind: "navigate"; to: string; label: string }
   | { kind: "audit"; label: string }
-  | { kind: "report"; label: string }
-  | { kind: "switch"; label: string };
+  | { kind: "report"; label: string };
 
 export interface CommandResult {
   intent: string;
@@ -113,24 +112,6 @@ const INTENTS: Intent[] = [
         { kind: "navigate", to: "/admin/orders", label: "View orders" },
       ],
     }),
-  },
-  {
-    id: "switch",
-    keywords: ["switch", "breakthrough", "clarity", "change website", "other site", "toggle site"],
-    resolve: (input) => {
-      const wantsBreak = /break/i.test(input);
-      const wantsClarity = /clarity/i.test(input);
-      return {
-        intent: "switch",
-        title: "Switch website",
-        message: wantsBreak
-          ? "Switching to Breakthrough Protocol. All modules will re-scope to that website."
-          : wantsClarity
-          ? "Switching to Clarity Mode. All modules will re-scope to that website."
-          : "Use the website switcher at the top to move between Clarity Mode and Breakthrough Protocol.",
-        actions: [{ kind: "switch", label: "Use website switcher" }],
-      };
-    },
   },
   {
     id: "settings",

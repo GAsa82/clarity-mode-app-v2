@@ -1,0 +1,15 @@
+-- Sever the Clarity Mode CMS's connection to Breakthrough Protocol.
+--
+-- Breakthrough Protocol is a separate product on its own Supabase project
+-- (llflerfeiwhicrmunqzw) with its own codebase, its own storage, and its own
+-- payment integration. The "breakthrough-protocol" row in this project's
+-- `websites` table was a dormant multi-tenant CMS entry that had zero real
+-- effect on the actual live Breakthrough Protocol site (which never reads
+-- from this database) — it just let a Clarity admin cosmetically "manage
+-- Breakthrough Protocol content" that nothing downstream ever consumed.
+--
+-- All website_id foreign keys (content_items, testimonials, research_papers,
+-- old_books) are ON DELETE CASCADE by original design, so this also removes
+-- any content that was ever scoped to this website_id (expected: none — every
+-- real content row created this session was scoped to "clarity-mode").
+delete from public.websites where slug = 'breakthrough-protocol';

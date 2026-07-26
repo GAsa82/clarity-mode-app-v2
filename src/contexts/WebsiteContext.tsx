@@ -42,10 +42,12 @@ export function WebsiteProvider({ children }: { children: ReactNode }) {
       console.error("[WebsiteContext] Failed to load websites:", error.message, error.code, error.details);
     }
 
-    // Hardcoded fallback so the admin never shows blank if DB read fails
+    // Hardcoded fallback so the admin never shows blank if DB read fails.
+    // Clarity Mode and Breakthrough Protocol are separate products on separate
+    // Supabase projects with no shared infrastructure — this CMS manages only
+    // Clarity Mode's own content.
     const FALLBACK: Website[] = [
-      { id: "4b0f921b-85b9-4c25-9a1f-e954900af418", slug: "clarity-mode",          name: "Clarity Mode",          description: null, logo_url: null, domain: "clarity-mode-app-v2-gq26.vercel.app", brand_color: "#6366f1", accent_color: "#8b5cf6", active: true, sort: 1 },
-      { id: "47818d37-90d4-4ac0-b49d-81e2b2b945ed", slug: "breakthrough-protocol",  name: "Breakthrough Protocol", description: null, logo_url: null, domain: "breakthrough-protocol.vercel.app",       brand_color: "#7c3aed", accent_color: "#a78bfa", active: true, sort: 2 },
+      { id: "4b0f921b-85b9-4c25-9a1f-e954900af418", slug: "clarity-mode", name: "Clarity Mode", description: null, logo_url: null, domain: "clarity-mode-app-v2-gq26.vercel.app", brand_color: "#6366f1", accent_color: "#8b5cf6", active: true, sort: 1 },
     ];
 
     const sites = (data && data.length > 0 ? data : FALLBACK) as Website[];

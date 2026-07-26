@@ -196,9 +196,6 @@ export default function FounderStudio() {
     reportsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [report, current]);
 
-  const scrollToSwitcher = () =>
-    switcherRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-
   // Analytics KPIs — revenue/conversions are account-wide; traffic/downloads are per active site.
   const kpis = [
     { icon: Wallet, label: "Revenue", sub: "All-time, paid orders", color: "#10b981",
@@ -299,7 +296,7 @@ export default function FounderStudio() {
 
         {/* AI Command Center */}
         <div className="mb-8">
-          <AICommandCenter site={current} onAudit={runAudit} onReport={generateReport} onSwitch={scrollToSwitcher} />
+          <AICommandCenter site={current} onAudit={runAudit} onReport={generateReport} />
         </div>
 
         {/* Analytics KPIs */}

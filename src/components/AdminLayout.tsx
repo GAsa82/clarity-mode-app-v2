@@ -20,6 +20,8 @@ type NavItem = { to: string; icon: React.ElementType; label: string; exact?: boo
 type NavGroup = { label: string; items: NavItem[] };
 
 // ── per-site nav configs ──────────────────────────────────────────────────────
+// Clarity Mode is the only tenant this CMS manages — Breakthrough Protocol is a
+// separate product on its own Supabase project with no shared infrastructure.
 const SITE_NAV: Record<string, NavGroup[]> = {
   "clarity-mode": [
     {
@@ -29,23 +31,13 @@ const SITE_NAV: Record<string, NavGroup[]> = {
         { to: "/admin/clarity-sessions", icon: Video,         label: "Clarity Sessions" },
         { to: "/admin/testimonials",     icon: MessageSquare, label: "Testimonials" },
         { to: "/admin/face-submissions", icon: Crown,         label: "Member Submissions" },
+        { to: "/admin/research-papers",  icon: BookMarked,    label: "Research Papers" },
+        { to: "/admin/old-books",        icon: Store,         label: "Old Books" },
         { to: "/admin/library",          icon: Library,       label: "Premium Library" },
+        { to: "/admin/frameworks",       icon: Grid3X3,       label: "Frameworks" },
+        { to: "/admin/protocols",        icon: Shield,        label: "Protocols" },
         { to: "/admin/templates",        icon: FileText,      label: "Templates" },
         { to: "/admin/media",            icon: Image,         label: "Media Library" },
-      ],
-    },
-  ],
-  "breakthrough-protocol": [
-    {
-      label: "Content",
-      items: [
-        { to: "/admin/research-papers",  icon: BookMarked, label: "Research Papers" },
-        { to: "/admin/old-books",        icon: Store,      label: "Old Books" },
-        { to: "/admin/library",          icon: Library,    label: "Premium Library" },
-        { to: "/admin/frameworks",       icon: Grid3X3,    label: "Frameworks" },
-        { to: "/admin/protocols",        icon: Shield,     label: "Protocols" },
-        { to: "/admin/templates",        icon: FileText,   label: "Templates" },
-        { to: "/admin/media",            icon: Image,      label: "Media Library" },
       ],
     },
   ],
