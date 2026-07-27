@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { BookOpen, FileText, ArrowRight, Lock, Download } from "lucide-react";
+import { BookOpen, FileText, ArrowRight, Lock, Download, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { WhatsAppChat } from "@/components/WhatsAppChat";
 import { Button } from "@/components/ui/button";
+import { RichBody } from "@/components/RichBody";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +24,64 @@ type Paper = {
   visibility: string;
 };
 
+/**
+ * Papers that carry a file open it directly. Papers written straight into
+ * `abstract` (every one this pipeline has produced so far) had none — the
+ * "Read paper" link fell back to href="#" and clicking did nothing at all.
+ */
+function PaperReader({ paper, onClose }: { paper: Paper; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/85 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 320, damping: 30 }}
+        className="relative w-full max-w-3xl my-8 rounded-2xl border border-border bg-card shadow-elegant overflow-hidden"
+      >
+        {paper.cover_url && (
+          <div className="relative aspect-[1200/630] bg-secondary/40">
+            <img src={paper.cover_url} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white z-10"
+          aria-label="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <div className="p-6 md:p-10">
+          <p className="text-xs uppercase tracking-widest text-primary mb-2">
+            {CATEGORY_LABELS[paper.category] ?? paper.category}
+          </p>
+          <h2 className="font-display text-2xl md:text-3xl font-light mb-2">{paper.title}</h2>
+          {paper.author && <p className="text-sm text-muted-foreground mb-6">{paper.author}</p>}
+          {paper.abstract && <RichBody body={paper.abstract} />}
+          {(paper.pdf_url || paper.preview_url) && (
+            <Button asChild variant="hero" size="sm" className="gap-1.5 mt-6">
+              <a href={paper.pdf_url ?? paper.preview_url ?? "#"} target="_blank" rel="noopener noreferrer">
+                <Download className="w-3.5 h-3.5" />
+                Download the PDF
+              </a>
+            </Button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   decision_making: "Decision-Making",
   focus: "Focus & Deep Work",
@@ -37,6 +97,7 @@ export default function ResearchPage() {
   const { isPremium } = useSubscription();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [reading, setReading] = useState<Paper | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -121,14 +182,17 @@ export default function ResearchPage() {
                       <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3">{p.abstract}</p>
                     )}
                     {canRead(p) ? (
-                      <a
-                        href={p.pdf_url ?? p.preview_url ?? "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => setReading(p)}
                         className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
                       >
-                        <Download className="w-3 h-3" /> Read paper
-                      </a>
+                        {p.pdf_url || p.preview_url ? (
+                          <Download className="w-3 h-3" />
+                        ) : (
+                          <BookOpen className="w-3 h-3" />
+                        )}
+                        Read paper
+                      </button>
                     ) : (
                       <Link to="/pricing" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
                         <Lock className="w-3 h-3" /> Premium — unlock to read
@@ -166,6 +230,8 @@ export default function ResearchPage() {
 
       <Footer />
       <WhatsAppChat />
+
+      {reading && <PaperReader paper={reading} onClose={() => setReading(null)} />}
     </main>
   );
 }

@@ -9,6 +9,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { WhatsAppChat } from "@/components/WhatsAppChat";
 import { Button } from "@/components/ui/button";
+import { RichBody } from "@/components/RichBody";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/lib/supabase";
@@ -204,51 +205,6 @@ export default function LibraryPage() {
       <WhatsAppChat />
     </main>
   );
-}
-
-/** Renders the lightweight markdown the pipeline writes: "## Heading" and "- item". */
-function RichBody({ body }: { body: string }) {
-  const blocks = body.split("\n").filter((l) => l.trim().length > 0);
-  const out: React.ReactNode[] = [];
-  let bullets: string[] = [];
-
-  const flush = (key: string) => {
-    if (bullets.length === 0) return;
-    out.push(
-      <ul key={key} className="space-y-2 my-4">
-        {bullets.map((b, i) => (
-          <li key={i} className="flex gap-2.5 text-[15px] leading-relaxed text-muted-foreground">
-            <span className="text-primary shrink-0 mt-0.5">•</span>
-            {b}
-          </li>
-        ))}
-      </ul>
-    );
-    bullets = [];
-  };
-
-  blocks.forEach((line, i) => {
-    if (line.startsWith("## ")) {
-      flush(`u${i}`);
-      out.push(
-        <h3 key={i} className="font-display text-xl font-light mt-7 mb-2">
-          {line.slice(3)}
-        </h3>
-      );
-    } else if (line.startsWith("- ")) {
-      bullets.push(line.slice(2));
-    } else {
-      flush(`u${i}`);
-      out.push(
-        <p key={i} className="text-[15px] leading-relaxed text-muted-foreground mb-4">
-          {line}
-        </p>
-      );
-    }
-  });
-  flush("last");
-
-  return <>{out}</>;
 }
 
 function ItemReader({
