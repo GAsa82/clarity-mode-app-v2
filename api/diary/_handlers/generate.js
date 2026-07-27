@@ -1,6 +1,6 @@
 import {
   applyCors, requireAdmin, geminiConfigured, notConfigured, geminiGenerate, serviceClient,
-} from "./_shared.js";
+} from "../_shared.js";
 
 /**
  * Generate a downstream asset (PDF, audio script, template, insight, research

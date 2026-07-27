@@ -1,7 +1,7 @@
 import {
   applyCors, requireAdmin, geminiConfigured, notConfigured,
   geminiGenerate, fetchScanAsInlineData, serviceClient,
-} from "./_shared.js";
+} from "../_shared.js";
 
 /**
  * Transcribe and understand one diary page.
