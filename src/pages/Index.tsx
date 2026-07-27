@@ -24,6 +24,17 @@ const Index = () => {
     });
   }, []);
 
+  // Client-rendered content doesn't exist yet when the browser makes its one
+  // native attempt to scroll to a #hash fragment, so anchor links from other
+  // pages (Navbar/Footer's /#library, /#store, /#dashboard) land at the top
+  // instead of the section. Section order above Testimonials never changes,
+  // so no layout-shift race to guard against here.
+  useEffect(() => {
+    if (window.location.hash) {
+      document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
+    }
+  }, []);
+
   return (
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
       <Navbar />
