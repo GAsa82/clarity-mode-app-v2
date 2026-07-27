@@ -541,6 +541,53 @@ export async function getDiaryStats(): Promise<DiaryStats> {
   };
 }
 
+// ─── AI pipeline ────────────────────────────────────────────────────────────
+
+async function authedPost<T>(url: string, body: unknown): Promise<T> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("You must be signed in.");
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const json = (await res.json().catch(() => ({}))) as { error?: string; code?: string } & T;
+  if (!res.ok) {
+    const err = new Error(json.error || `Request failed (${res.status})`) as Error & { code?: string };
+    err.code = json.code;
+    throw err;
+  }
+  return json;
+}
+
+export type ProcessResult = {
+  ok: true;
+  status: DiaryStatus;
+  confidence: number;
+  statusMessage: string | null;
+};
+
+/** Run handwriting recognition + extraction on a single page. */
+export function processPage(pageId: string) {
+  return authedPost<ProcessResult>("/api/diary/process", { pageId });
+}
+
+/** Build a downstream asset from the given diary pages. */
+export function generateAsset(kind: DiaryAssetKind, pageIds: string[], instruction?: string) {
+  return authedPost<{ ok: true; asset: DiaryAsset }>("/api/diary/generate", {
+    kind,
+    pageIds,
+    instruction,
+  });
+}
+
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`;

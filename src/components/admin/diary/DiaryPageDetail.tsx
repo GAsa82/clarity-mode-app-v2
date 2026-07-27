@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  X, Save, Trash2, Archive, CheckCircle2, AlertTriangle, History, Loader2, ExternalLink, Clock,
+  X, Save, Trash2, Archive, CheckCircle2, AlertTriangle, History, Loader2, ExternalLink, Clock, Wand2,
 } from "lucide-react";
 import {
-  signDiaryPath, savePageText, setPageStatus, deletePages, getPageVersions,
+  signDiaryPath, savePageText, setPageStatus, deletePages, getPageVersions, processPage,
   formatBytes, type DiaryPage, type DiaryPageVersion, type DiaryStatus,
 } from "@/lib/diary";
 
@@ -34,6 +34,8 @@ export function DiaryPageDetail({
   const [versions, setVersions] = useState<DiaryPageVersion[]>([]);
   const [showVersions, setShowVersions] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -79,6 +81,29 @@ export function DiaryPageDetail({
       setError(e instanceof Error ? e.message : "Update failed.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const runProcessing = async () => {
+    setProcessing(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const r = await processPage(page.id);
+      setNotice(
+        r.statusMessage ??
+          `Transcribed with ${Math.round(r.confidence * 100)}% confidence.`
+      );
+      onChanged();
+    } catch (e) {
+      const err = e as Error & { code?: string };
+      setError(
+        err.code === "AI_NOT_CONFIGURED"
+          ? "Handwriting recognition isn't switched on yet — a GEMINI_API_KEY needs adding to the server environment."
+          : err.message
+      );
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -230,6 +255,18 @@ export function DiaryPageDetail({
               </div>
             )}
 
+            {page.status_message && !notice && !error && (
+              <p className="text-[11px] text-amber-400 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                {page.status_message}
+              </p>
+            )}
+
+            {notice && (
+              <p className="text-[11px] text-emerald-400 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                {notice}
+              </p>
+            )}
+
             {error && (
               <p className="text-[11px] text-destructive px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20">
                 {error}
@@ -238,6 +275,15 @@ export function DiaryPageDetail({
 
             {/* Actions */}
             <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                onClick={runProcessing}
+                disabled={processing || busy}
+                title="Read the handwriting and extract topics, lessons and ideas"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/15 text-primary border border-primary/30 text-xs font-medium hover:bg-primary/25 disabled:opacity-40 transition"
+              >
+                {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                {processing ? "Reading…" : "Read handwriting"}
+              </button>
               <button
                 onClick={save}
                 disabled={!dirty || saving}
