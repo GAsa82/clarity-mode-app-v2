@@ -11,6 +11,11 @@
   "crons": [
     { "path": "/api/keep-alive", "schedule": "0 5 * * *" }
   ],
+  "functions": {
+    "api/diary/[action].js": {
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/(.*)\\.(js|css|svg|png|jpg|jpeg|gif|webp|woff|woff2|ico)",
