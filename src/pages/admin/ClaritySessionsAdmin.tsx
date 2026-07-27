@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
+import { deleteMediaUrls } from "@/lib/media-upload";
 import { Plus, Search, Pencil, Trash2, X, Video, Sparkles } from "lucide-react";
 
 const CATEGORIES = [
@@ -133,9 +134,11 @@ export default function ClaritySessionsAdmin() {
   };
 
   const remove = async (id: string) => {
+    const session = items.find((s) => s.id === id);
     await supabase.from("content_items").delete().eq("id", id);
     setDeleteConfirm(null);
     load();
+    if (session) deleteMediaUrls([session.cover_url, session.video_url, session.audio_url]).catch(() => {});
   };
 
   const addTag = () => {

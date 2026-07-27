@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
+import { deleteMediaUrls } from "@/lib/media-upload";
 import { Plus, Search, Pencil, Trash2, X, MessageSquare, Star, Copy, Eye, EyeOff } from "lucide-react";
 
 type Testimonial = {
@@ -137,10 +138,21 @@ export default function TestimonialsAdmin() {
   };
 
   const remove = async (id: string) => {
+    const item = items.find((i) => i.id === id);
     const { error } = await supabase.from("testimonials").delete().eq("id", id);
     setDeleteConfirm(null);
     if (error) { setError(error.message); return; }
     load();
+    // "Duplicate" copies avatar_url onto a second row rather than re-uploading,
+    // so only clean up the file once nothing else references it — otherwise
+    // deleting the original would break the duplicate's photo too.
+    if (item?.avatar_url) {
+      const { count } = await supabase
+        .from("testimonials")
+        .select("id", { count: "exact", head: true })
+        .eq("avatar_url", item.avatar_url);
+      if (!count) deleteMediaUrls([item.avatar_url]).catch(() => {});
+    }
   };
 
   const F = (key: string, val: unknown) => setForm((f) => ({ ...f, [key]: val }));

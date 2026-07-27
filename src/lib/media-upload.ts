@@ -115,3 +115,8 @@ export async function deleteMediaByUrl(url: string): Promise<void> {
     body: JSON.stringify({ url }),
   }).catch(() => {});
 }
+
+/** Best-effort cleanup for every media field on a row being deleted (e.g. cover_url, video_url, pdf_url). */
+export async function deleteMediaUrls(urls: (string | null | undefined)[]): Promise<void> {
+  await Promise.all(urls.filter((u): u is string => !!u).map((u) => deleteMediaByUrl(u)));
+}

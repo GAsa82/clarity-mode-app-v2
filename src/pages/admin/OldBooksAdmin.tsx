@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
+import { deleteMediaUrls } from "@/lib/media-upload";
 import { Plus, Search, Pencil, Trash2, X, Store, Star } from "lucide-react";
 
 type Book = {
@@ -170,9 +171,11 @@ export default function OldBooksAdmin() {
   };
 
   const remove = async (id: string) => {
+    const book = books.find((b) => b.id === id);
     await supabase.from("old_books").delete().eq("id", id);
     setDeleteConfirm(null);
     load();
+    if (book) deleteMediaUrls([book.cover_url, ...(book.images ?? [])]).catch(() => {});
   };
 
   const toggleFeatured = async (b: Book) => {

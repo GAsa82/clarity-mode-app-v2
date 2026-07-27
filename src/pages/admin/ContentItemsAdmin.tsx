@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/WebsiteContext";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
+import { deleteMediaUrls } from "@/lib/media-upload";
 import { Plus, Search, Pencil, Trash2, X, FileText } from "lucide-react";
 
 type ContentItem = {
@@ -151,9 +152,13 @@ export default function ContentItemsAdmin({ type, title }: Props) {
   };
 
   const remove = async (id: string) => {
+    const item = items.find((i) => i.id === id);
     await supabase.from("content_items").delete().eq("id", id);
     setDeleteConfirm(null);
     load();
+    if (item) {
+      deleteMediaUrls([item.cover_url, item.file_url, item.preview_url, item.audio_url, item.video_url]).catch(() => {});
+    }
   };
 
   const addTag = () => {

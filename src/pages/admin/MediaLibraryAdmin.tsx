@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useWebsite } from "@/contexts/WebsiteContext";
 import { Search, Image, Headphones, Video, FileText, ExternalLink, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { deleteMediaUrls } from "@/lib/media-upload";
 
 type MediaItem = {
   id: string;
@@ -11,6 +12,7 @@ type MediaItem = {
   title: string;
   cover_url: string | null;
   file_url: string | null;
+  preview_url: string | null;
   audio_url: string | null;
   video_url: string | null;
   status: string;
@@ -45,7 +47,7 @@ export default function MediaLibraryAdmin() {
     setLoading(true);
     let query = supabase
       .from("content_items")
-      .select("id, type, title, cover_url, file_url, audio_url, video_url, status, view_count, download_count, created_at")
+      .select("id, type, title, cover_url, file_url, preview_url, audio_url, video_url, status, view_count, download_count, created_at")
       .eq("website_id", current.id)
       .order("created_at", { ascending: false });
     if (filterType !== "all") query = query.eq("type", filterType);
@@ -62,9 +64,13 @@ export default function MediaLibraryAdmin() {
   });
 
   const remove = async (id: string) => {
+    const item = items.find((i) => i.id === id);
     await supabase.from("content_items").delete().eq("id", id);
     setDeleteConfirm(null);
     load();
+    if (item) {
+      deleteMediaUrls([item.cover_url, item.file_url, item.preview_url, item.audio_url, item.video_url]).catch(() => {});
+    }
   };
 
   const fileUrl = (item: MediaItem) =>
