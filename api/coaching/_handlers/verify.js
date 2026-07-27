@@ -19,7 +19,7 @@ const TEMPLATES = {
   day1: n => `Hi ${n}! 👋 How are you feeling after yesterday's session?\n\nTake your first small action step today — momentum matters.\n\nI'm here if you need to talk through anything. — Gaurav`,
   day3: n => `Hi ${n}! 🌱 Day 3 check-in.\n\nHow's your action plan going? What's one thing you've done differently this week?\n\nReply here anytime. — Clarity Mode`,
   day5: n => `Hi ${n}! ⚡ Accountability check!\n\nWhat's one win from this week, no matter how small?\n\nYou've come further than you think. Keep going. — Gaurav`,
-  day7: n => `Hi ${n}! 🏆 This is your final 7-day support message.\n\nYou showed up, you did the work — that matters deeply.\n\nWhenever you're ready for your next breakthrough, I'm at claritymode.com/coaching\n\nThank you for trusting the process. — Gaurav, Clarity Mode`,
+  day7: n => `Hi ${n}! 🏆 This is your final 7-day support message.\n\nYou showed up, you did the work — that matters deeply.\n\nWhenever you're ready for your next breakthrough, I'm at ${ORIGIN}/coaching\n\nThank you for trusting the process. — Gaurav, Clarity Mode`,
 };
 
 function buildSessionDatetime(sessionDate, sessionTime) {
@@ -114,7 +114,12 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from:    "Clarity Mode <noreply@claritymode.com>",
+          // claritymode.com is not owned by this project (it's a parked
+          // domain-broker listing) — Resend would reject sending from an
+          // unverified domain. Falls back to Resend's own pre-verified test
+          // sender so email works immediately with just an API key; set
+          // RESEND_FROM_EMAIL once a real domain is verified in Resend.
+          from:    process.env.RESEND_FROM_EMAIL || "Clarity Mode <onboarding@resend.dev>",
           to:      clientEmail,
           subject: "✅ Breakthrough Session Confirmed — Clarity Mode",
           html: `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px;background:#0f0f1a;color:#e5e7eb;border-radius:16px">
