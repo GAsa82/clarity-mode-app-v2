@@ -254,7 +254,12 @@ export async function findDuplicate(hash: string): Promise<DiaryPage | null> {
   return (data as DiaryPage) ?? null;
 }
 
-function uploadBlob(
+/** Failures worth another attempt; a 4xx would fail identically forever. */
+class TransientUploadError extends Error {}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function putOnce(
   path: string,
   body: Blob,
   token: string,
@@ -267,18 +272,74 @@ function uploadBlob(
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
     xhr.setRequestHeader("Content-Type", contentType);
+    // Fail fast enough to retry rather than hanging on a stalled connection.
+    xhr.timeout = 120000;
+
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
         onProgress(Math.round((e.loaded / e.total) * 100));
       }
     };
-    xhr.onload = () =>
-      xhr.status >= 200 && xhr.status < 300
-        ? resolve()
-        : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
-    xhr.onerror = () => reject(new Error("Network error during upload."));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      if (xhr.status >= 500 || xhr.status === 429) {
+        return reject(new TransientUploadError(`Server error ${xhr.status}`));
+      }
+      if (xhr.status === 401 || xhr.status === 403) {
+        return reject(new Error("Your session expired — sign in again, then retry."));
+      }
+      if (xhr.status === 413) {
+        return reject(new Error("That file is too large (50MB maximum)."));
+      }
+      reject(new Error(`Upload rejected (${xhr.status}) ${xhr.responseText?.slice(0, 160) ?? ""}`));
+    };
+    // The browser withholds detail from onerror for security reasons, so it
+    // can only be treated as transient — which it usually is: a dropped
+    // connection, a sleeping laptop, a Wi-Fi handover.
+    xhr.onerror = () => reject(new TransientUploadError("Connection interrupted"));
+    xhr.ontimeout = () => reject(new TransientUploadError("Upload timed out"));
+    xhr.onabort = () => reject(new TransientUploadError("Upload aborted"));
+
     xhr.send(body);
   });
+}
+
+/**
+ * Upload with retries. A single dropped connection used to kill the whole
+ * upload permanently with an unexplained "Network error during upload" — a
+ * poor outcome for a 100KB file, and exactly what happened in practice.
+ */
+async function uploadBlob(
+  path: string,
+  body: Blob,
+  token: string,
+  contentType: string,
+  onProgress?: (pct: number) => void,
+  attempts = 3
+): Promise<void> {
+  let wait = 1500;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      await putOnce(path, body, token, contentType, onProgress);
+      return;
+    } catch (err) {
+      const transient = err instanceof TransientUploadError;
+      if (!transient) throw err;
+
+      if (!navigator.onLine) {
+        throw new Error("You're offline — reconnect and retry this upload.");
+      }
+      if (attempt === attempts) {
+        throw new Error(
+          `${(err as Error).message}. Tried ${attempts} times — check your connection and retry.`
+        );
+      }
+      onProgress?.(0); // reset the bar so the retry reads honestly
+      await sleep(wait);
+      wait *= 2;
+    }
+  }
 }
 
 export type UploadResult =
