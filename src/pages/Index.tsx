@@ -3,7 +3,7 @@ import { Navbar } from "@/components/Navbar";
 import { KnowledgeVaultHero } from "@/components/KnowledgeVaultHero";
 import { Benefits } from "@/components/Benefits";
 import { FocusRooms } from "@/components/FocusRooms";
-import { Library } from "@/components/Library";
+import { ClaritySessions } from "@/components/ClaritySessions";
 import { Store } from "@/components/Store";
 import { Dashboard } from "@/components/Dashboard";
 import { Testimonials } from "@/components/Testimonials";
@@ -27,7 +27,7 @@ const Index = () => {
 
   // Client-rendered content doesn't exist yet when the browser makes its one
   // native attempt to scroll to a #hash fragment, so anchor links from other
-  // pages (Navbar/Footer's /#library, /#store, /#dashboard) land at the top
+  // pages (Footer's /#store, /#dashboard, hero's /#sessions) land at the top
   // instead of the section. Section order above Testimonials never changes,
   // so no layout-shift race to guard against here.
   useEffect(() => {
@@ -44,7 +44,7 @@ const Index = () => {
       <FocusRooms />
       {/* Renders nothing for non-admins — the diary is private. */}
       <DiaryUploadSection />
-      <Library />
+      <ClaritySessions />
       <Store />
       <Dashboard />
       {showTestimonials && <Testimonials />}

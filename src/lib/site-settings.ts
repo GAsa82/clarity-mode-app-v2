@@ -16,7 +16,7 @@ export const HERO_DEFAULTS: HeroContent = {
   subtitle:
     "Access premium research papers, frameworks, protocols, templates, and mental clarity resources designed to improve decision-making, focus, productivity, and personal growth.",
   primaryCtaLabel: "Explore Research Papers",
-  secondaryCtaLabel: "Browse the library →",
+  secondaryCtaLabel: "Browse clarity sessions →",
 };
 
 /** Read a single jsonb setting by key. Returns null if missing. */

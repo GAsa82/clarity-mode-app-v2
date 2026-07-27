@@ -18,7 +18,7 @@ import { getWebsiteIdBySlug } from "@/lib/site-settings";
  * The public home for written and downloadable content — protocols,
  * frameworks, templates, guides and the premium library.
  *
- * The homepage "#library" section browses Clarity Sessions (video/audio);
+ * The homepage "#sessions" section browses Clarity Sessions (video/audio);
  * this page is where everything else published through the CMS actually
  * becomes visible to visitors. Without it, content routed here by the diary
  * pipeline existed only in the admin panel.

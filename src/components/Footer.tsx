@@ -58,7 +58,7 @@ export const Footer = () => {
                 {col.links.map((l) => (
                   <li key={l.label}>
                     {l.href.includes("#") ? (
-                      // Same-page anchors (e.g. /#library) need a real navigation
+                      // Same-page anchors (e.g. /#store) need a real navigation
                       // for the browser to scroll to the id when linked from a
                       // different route — <Link> alone won't do it.
                       <a href={l.href} className="text-sm hover:text-primary transition-colors">{l.label}</a>

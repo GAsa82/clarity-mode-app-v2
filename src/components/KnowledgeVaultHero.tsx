@@ -80,7 +80,7 @@ export const KnowledgeVaultHero = () => {
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
-            <a href="/#library" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <a href="/#sessions" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               {hero.secondaryCtaLabel}
             </a>
           </motion.div>
@@ -110,7 +110,7 @@ export const KnowledgeVaultHero = () => {
       {/* Scroll indicator */}
       {!reduce && (
         <motion.a
-          href="/#library"
+          href="/#sessions"
           aria-label="Scroll down"
           className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 group z-10"
           initial={{ opacity: 0, y: -8 }}
