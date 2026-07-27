@@ -105,17 +105,21 @@ export function DiaryPipelinePanel({
               {/* Retry is a sibling of the expand toggle, not a child of it —
                   nesting an interactive element inside a <button> is invalid
                   HTML and makes the inner control unreliable to click. */}
-              <div className="flex items-center gap-3 p-3.5">
+              {/* min-w-0 has to be repeated at EVERY level of a flex chain:
+                  a single missing one lets a long unbroken string (like a raw
+                  API error blob) size the row, which pushed the Retry button
+                  ~1300px off-screen and made it unclickable. */}
+              <div className="flex items-center gap-3 p-3.5 min-w-0">
                 <button
                   onClick={() => setExpanded(isOpen ? null : job.page_id)}
-                  className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                  className="flex items-center gap-3 min-w-0 flex-1 text-left overflow-hidden"
                 >
                   <JobIcon job={job} />
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 flex-1 overflow-hidden">
                     <span className="block text-sm font-medium truncate">{nameFor(job.page_id)}</span>
                     <span className="block text-[11px] text-muted-foreground truncate">
                       {job.status === "failed"
-                        ? job.last_error ?? "Failed"
+                        ? shorten(job.last_error ?? "Failed")
                         : STAGE_LABELS[job.stage as PipelineStage] ?? job.stage}
                       {job.attempts > 0 && job.status !== "done" ? ` · attempt ${job.attempts + 1}` : ""}
                     </span>
@@ -214,6 +218,15 @@ export function DiaryPipelinePanel({
       </div>
     </div>
   );
+}
+
+/**
+ * Upstream errors can be whole JSON documents. The full text stays in the
+ * expandable log; the one-line summary gets a readable extract.
+ */
+function shorten(text: string, max = 110): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length <= max ? flat : `${flat.slice(0, max)}…`;
 }
 
 function JobIcon({ job }: { job: DiaryJob }) {

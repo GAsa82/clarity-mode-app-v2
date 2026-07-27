@@ -144,7 +144,7 @@ async function step(pageId) {
 
     if (attempts >= job.max_attempts) {
       await serviceClient.from("diary_jobs").update({
-        status: "failed", locked_at: null, attempts, last_error: message, logs,
+        status: "failed", locked_at: null, attempts, last_error: message.slice(0, 500), logs,
         finished_at: new Date().toISOString(),
       }).eq("id", job.id);
       await serviceClient.from("diary_pages").update({
@@ -155,7 +155,7 @@ async function step(pageId) {
 
     // Leave it queued so the next poll retries this same stage.
     await serviceClient.from("diary_jobs").update({
-      status: "queued", locked_at: null, attempts, last_error: message, logs,
+      status: "queued", locked_at: null, attempts, last_error: message.slice(0, 500), logs,
     }).eq("id", job.id);
     return { ok: false, stage: job.stage, status: "queued", willRetry: true, error: message };
   }
