@@ -382,8 +382,17 @@ export default function DiaryAdmin() {
                           {new Date(a.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium capitalize bg-secondary text-muted-foreground shrink-0">
-                        {a.status}
+                      {/* "Approved" only means reviewed — it does not put
+                          anything on the site. Say which state this is in so
+                          approved-but-unpublished work isn't mistaken for live. */}
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${
+                          a.published_ref_id
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        {a.published_ref_id ? "Live on site" : `${a.status} · not published`}
                       </span>
                     </button>
                   );

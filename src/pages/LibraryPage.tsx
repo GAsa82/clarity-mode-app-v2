@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Shield, Grid3X3, FileText, Library as LibraryIcon, BookOpen, Download,
-  Lock, Search, Sparkles, ArrowRight, X,
+  Lock, Search, Sparkles, ArrowRight, X, Newspaper, Lightbulb,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -43,9 +43,14 @@ type Item = {
 
 /** Types this page surfaces. Sessions are deliberately excluded — they have
  *  their own Netflix-style browse on the homepage. */
-const TYPES = ["protocol", "framework", "template", "pdf", "guide", "workbook", "download"] as const;
+const TYPES = [
+  "article", "insight", "protocol", "framework",
+  "template", "pdf", "guide", "workbook", "download",
+] as const;
 
 const TYPE_META: Record<string, { label: string; plural: string; icon: React.ElementType }> = {
+  article: { label: "Article", plural: "Articles", icon: Newspaper },
+  insight: { label: "Insight", plural: "Insights", icon: Lightbulb },
   protocol: { label: "Protocol", plural: "Protocols", icon: Shield },
   framework: { label: "Framework", plural: "Frameworks", icon: Grid3X3 },
   template: { label: "Template", plural: "Templates", icon: FileText },

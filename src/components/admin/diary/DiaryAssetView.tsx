@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { X, CheckCircle2, Archive, Trash2, Copy, Check, Loader2 } from "lucide-react";
-import { setAssetStatus, deleteAssets, type DiaryAsset, type DiaryAssetStatus } from "@/lib/diary";
+import { X, CheckCircle2, Archive, Trash2, Copy, Check, Loader2, Globe, ExternalLink } from "lucide-react";
+import { setAssetStatus, deleteAssets, publishAsset, type DiaryAsset, type DiaryAssetStatus } from "@/lib/diary";
 
 const STATUS_STYLE: Record<DiaryAssetStatus, string> = {
   draft: "bg-secondary text-muted-foreground",
@@ -26,6 +26,7 @@ export function DiaryAssetView({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [publishedTo, setPublishedTo] = useState<string | null>(null);
 
   const c = asset.content as Record<string, unknown>;
   const str = (k: string) => (typeof c[k] === "string" ? (c[k] as string) : null);
@@ -155,7 +156,40 @@ export function DiaryAssetView({
           )}
         </div>
 
+        {publishedTo && (
+          <div className="px-5 pb-4">
+            <p className="flex items-center gap-2 text-[11px] text-emerald-400 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              Live on the site under {publishedTo}.
+              <a
+                href="/library"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 underline hover:no-underline"
+              >
+                View <ExternalLink className="w-3 h-3" />
+              </a>
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 px-5 py-4 border-t border-border">
+          {/* Approving only marks it reviewed. This is the step that actually
+              puts it on the public site — without it, approved work sat
+              invisible in this tab indefinitely. */}
+          <button
+            onClick={() =>
+              act(async () => {
+                const r = await publishAsset(asset);
+                setPublishedTo(r.label);
+              })
+            }
+            disabled={busy || asset.status === "published" || !!publishedTo}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-40 transition"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+            {asset.status === "published" || publishedTo ? "Published" : "Publish to site"}
+          </button>
           <button
             onClick={copy}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary text-xs font-medium hover:bg-secondary/70 transition"

@@ -559,6 +559,116 @@ export async function updateAsset(id: string, patch: Partial<DiaryAsset>): Promi
   if (error) throw error;
 }
 
+/** Where each generated kind lands on the public site. */
+const ASSET_ROUTE: Record<DiaryAssetKind, { table: "content_items" | "research_papers"; type?: string; label: string }> = {
+  article: { table: "content_items", type: "article", label: "Library (Articles)" },
+  insight: { table: "content_items", type: "insight", label: "Library (Insights)" },
+  template: { table: "content_items", type: "template", label: "Library (Templates)" },
+  pdf: { table: "content_items", type: "pdf", label: "Premium Library" },
+  audio: { table: "content_items", type: "audio", label: "Library (Audio)" },
+  research_paper: { table: "research_papers", label: "Research Papers" },
+};
+
+/** Flatten a generated asset's structured content into the markdown the reader renders. */
+function assetToBody(asset: DiaryAsset): string {
+  const c = asset.content as Record<string, unknown>;
+  const str = (k: string) => (typeof c[k] === "string" ? (c[k] as string) : "");
+  const list = (k: string) =>
+    Array.isArray(c[k]) ? (c[k] as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  const sections = Array.isArray(c.sections)
+    ? (c.sections as { heading?: string; body?: string }[])
+    : [];
+
+  const parts: string[] = [];
+  const intro = str("abstract") || str("description");
+  if (intro) parts.push(intro);
+  for (const s of sections) {
+    if (s.heading) parts.push(`## ${s.heading}`);
+    if (s.body) parts.push(s.body);
+  }
+  if (str("script")) parts.push("## Script", str("script"));
+  for (const [label, key] of [
+    ["Key points", "key_points"],
+    ["Action steps", "action_steps"],
+    ["Open questions", "open_questions"],
+  ] as const) {
+    const items = list(key);
+    if (items.length) parts.push(`## ${label}`, ...items.map((i) => `- ${i}`));
+  }
+  return parts.join("\n\n").trim();
+}
+
+/**
+ * Push a generated asset onto the public site.
+ *
+ * Approving an asset only ever changed a label — nothing carried it across to
+ * content_items, so approved work sat invisible in the Assets tab forever.
+ * This is the step that actually publishes it.
+ */
+export async function publishAsset(asset: DiaryAsset): Promise<{ table: string; id: string; label: string }> {
+  const route = ASSET_ROUTE[asset.kind];
+  const body = assetToBody(asset);
+  if (!body) throw new Error("This asset has no content to publish.");
+
+  const { data: site } = await supabase
+    .from("websites").select("id").eq("slug", "clarity-mode").maybeSingle();
+
+  // Carry the cover from the diary page this was generated from, if it has one.
+  let cover: string | null = null;
+  if (asset.source_page_ids.length) {
+    const { data: src } = await supabase
+      .from("diary_pages").select("thumbnails").eq("id", asset.source_page_ids[0]).maybeSingle();
+    const thumbs = (src?.thumbnails ?? {}) as Record<string, string>;
+    const candidate = thumbs["1200x630"];
+    // Older rows stored a storage path rather than a URL; only use real URLs.
+    if (candidate?.startsWith("http")) cover = candidate;
+  }
+
+  const summary = (asset.content as { description?: string; abstract?: string }).description
+    ?? (asset.content as { abstract?: string }).abstract
+    ?? body.slice(0, 200);
+
+  let id: string;
+  if (route.table === "research_papers") {
+    const { data, error } = await supabase.from("research_papers").insert({
+      website_id: site?.id ?? null,
+      title: asset.title,
+      author: "badly talks",
+      category: "general",
+      abstract: body,
+      visibility: "premium",
+      status: "published",
+      cover_url: cover,
+    }).select("id").single();
+    if (error) throw error;
+    id = data.id;
+  } else {
+    const { data, error } = await supabase.from("content_items").insert({
+      website_id: site?.id ?? null,
+      type: route.type,
+      title: asset.title,
+      description: summary,
+      body,
+      category: "general",
+      visibility: "premium",
+      status: "published",
+      price: 0,
+      cover_url: cover,
+      duration_sec: asset.duration_sec,
+    }).select("id").single();
+    if (error) throw error;
+    id = data.id;
+  }
+
+  const { error: linkErr } = await supabase
+    .from("diary_assets")
+    .update({ status: "published", published_ref_table: route.table, published_ref_id: id })
+    .eq("id", asset.id);
+  if (linkErr) throw linkErr;
+
+  return { table: route.table, id, label: route.label };
+}
+
 /** Delete asset rows and any rendered file they reference — no orphans in storage. */
 export async function deleteAssets(assets: Pick<DiaryAsset, "id" | "file_path">[]): Promise<void> {
   if (assets.length === 0) return;
