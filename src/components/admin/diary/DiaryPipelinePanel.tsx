@@ -102,52 +102,61 @@ export function DiaryPipelinePanel({
 
           return (
             <div key={job.id} className="rounded-2xl border border-border bg-card/60 overflow-hidden">
-              <button
-                onClick={() => setExpanded(isOpen ? null : job.page_id)}
-                className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-white/[0.02] transition-colors"
-              >
-                <JobIcon job={job} />
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{nameFor(job.page_id)}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {job.status === "failed"
-                      ? job.last_error ?? "Failed"
-                      : STAGE_LABELS[job.stage as PipelineStage] ?? job.stage}
-                    {job.attempts > 0 && job.status !== "done" ? ` · attempt ${job.attempts + 1}` : ""}
-                  </p>
-
-                  {job.status !== "done" && job.status !== "failed" && (
-                    <div className="h-1 mt-2 rounded-full bg-secondary overflow-hidden">
-                      <motion.div
-                        className="h-full rounded-full bg-primary"
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.4 }}
-                      />
-                    </div>
-                  )}
-                </div>
+              {/* Retry is a sibling of the expand toggle, not a child of it —
+                  nesting an interactive element inside a <button> is invalid
+                  HTML and makes the inner control unreliable to click. */}
+              <div className="flex items-center gap-3 p-3.5">
+                <button
+                  onClick={() => setExpanded(isOpen ? null : job.page_id)}
+                  className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                >
+                  <JobIcon job={job} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium truncate">{nameFor(job.page_id)}</span>
+                    <span className="block text-[11px] text-muted-foreground truncate">
+                      {job.status === "failed"
+                        ? job.last_error ?? "Failed"
+                        : STAGE_LABELS[job.stage as PipelineStage] ?? job.stage}
+                      {job.attempts > 0 && job.status !== "done" ? ` · attempt ${job.attempts + 1}` : ""}
+                    </span>
+                    {job.status !== "done" && job.status !== "failed" && (
+                      <span className="block h-1 mt-2 rounded-full bg-secondary overflow-hidden">
+                        <motion.span
+                          className="block h-full rounded-full bg-primary"
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.4 }}
+                        />
+                      </span>
+                    )}
+                  </span>
+                </button>
 
                 <div className="flex items-center gap-2 shrink-0">
                   {job.status === "failed" && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); doRetry(job.page_id); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); doRetry(job.page_id); } }}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary text-[11px] hover:bg-secondary/70 transition cursor-pointer"
+                    <button
+                      type="button"
+                      onClick={() => doRetry(job.page_id)}
+                      disabled={busy === job.page_id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary text-[11px] hover:bg-secondary/70 disabled:opacity-50 transition"
                     >
                       {busy === job.page_id
                         ? <Loader2 className="w-3 h-3 animate-spin" />
                         : <RotateCcw className="w-3 h-3" />}
                       Retry
-                    </span>
+                    </button>
                   )}
-                  <ChevronDown
-                    className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : job.page_id)}
+                    aria-label={isOpen ? "Hide log" : "Show log"}
+                    className="p-1 rounded-lg hover:bg-secondary transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {isOpen && (
                 <div className="border-t border-border/60 px-3.5 py-3 space-y-2 bg-background/30">
