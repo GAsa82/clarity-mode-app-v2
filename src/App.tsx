@@ -35,6 +35,7 @@ const CoachingPage = lazy(() => import("./pages/CoachingPage"));
 const BookingPage = lazy(() => import("./pages/coaching/BookingPage"));
 const ConfirmationPage = lazy(() => import("./pages/coaching/ConfirmationPage"));
 const ResearchPage = lazy(() => import("./pages/ResearchPage"));
+const LibraryPage = lazy(() => import("./pages/LibraryPage"));
 const FounderStudio = lazy(() => import("./pages/FounderStudio"));
 
 // Admin — core
@@ -101,6 +102,7 @@ const App = () => (
                 <Route path="/coaching/book" element={<BookingPage />} />
                 <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
                 <Route path="/research" element={<ResearchPage />} />
+                <Route path="/library" element={<LibraryPage />} />
 
                 {/* Founder Studio — full-screen business OS, admin-only */}
                 <Route

@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import logoImg from "@/assets/logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 
+// "Library" points at the real /library page rather than the homepage
+// #library anchor: the anchor only scrolls to the Clarity Sessions browse,
+// while protocols, frameworks and templates live on the page.
 const publicLinks = [
   { href: "/", label: "Home" },
-  { href: "/#library", label: "Library" },
+  { href: "/library", label: "Library" },
   { href: "/research", label: "Research Papers" },
   { href: "/insights", label: "Insights" },
   { href: "/pricing", label: "Pricing" },
