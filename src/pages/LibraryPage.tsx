@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Shield, Grid3X3, FileText, Library as LibraryIcon, BookOpen, Download,
-  Lock, Search, Sparkles, ArrowRight, Clock,
+  Lock, Search, Sparkles, ArrowRight, X,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -29,6 +29,8 @@ type Item = {
   type: string;
   title: string;
   description: string | null;
+  body: string | null;
+  highlights: string[];
   category: string;
   cover_url: string | null;
   file_url: string | null;
@@ -60,6 +62,7 @@ export default function LibraryPage() {
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [reading, setReading] = useState<Item | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -67,7 +70,7 @@ export default function LibraryPage() {
       let query = supabase
         .from("content_items")
         .select(
-          "id, type, title, description, category, cover_url, file_url, preview_url, visibility, tags, duration_sec, created_at"
+          "id, type, title, description, body, highlights, category, cover_url, file_url, preview_url, visibility, tags, duration_sec, created_at"
         )
         .in("type", TYPES as unknown as string[])
         .eq("status", "published")
@@ -175,6 +178,7 @@ export default function LibraryPage() {
                   index={i}
                   unlocked={item.visibility === "public" || (!!user && isPremium)}
                   signedIn={!!user}
+                  onOpen={() => setReading(item)}
                 />
               ))}
             </div>
@@ -182,9 +186,187 @@ export default function LibraryPage() {
         </div>
       </section>
 
+      {reading && (
+        <ItemReader
+          item={reading}
+          unlocked={reading.visibility === "public" || (!!user && isPremium)}
+          signedIn={!!user}
+          onClose={() => setReading(null)}
+        />
+      )}
+
       <Footer />
       <WhatsAppChat />
     </main>
+  );
+}
+
+/** Renders the lightweight markdown the pipeline writes: "## Heading" and "- item". */
+function RichBody({ body }: { body: string }) {
+  const blocks = body.split("\n").filter((l) => l.trim().length > 0);
+  const out: React.ReactNode[] = [];
+  let bullets: string[] = [];
+
+  const flush = (key: string) => {
+    if (bullets.length === 0) return;
+    out.push(
+      <ul key={key} className="space-y-2 my-4">
+        {bullets.map((b, i) => (
+          <li key={i} className="flex gap-2.5 text-[15px] leading-relaxed text-muted-foreground">
+            <span className="text-primary shrink-0 mt-0.5">•</span>
+            {b}
+          </li>
+        ))}
+      </ul>
+    );
+    bullets = [];
+  };
+
+  blocks.forEach((line, i) => {
+    if (line.startsWith("## ")) {
+      flush(`u${i}`);
+      out.push(
+        <h3 key={i} className="font-display text-xl font-light mt-7 mb-2">
+          {line.slice(3)}
+        </h3>
+      );
+    } else if (line.startsWith("- ")) {
+      bullets.push(line.slice(2));
+    } else {
+      flush(`u${i}`);
+      out.push(
+        <p key={i} className="text-[15px] leading-relaxed text-muted-foreground mb-4">
+          {line}
+        </p>
+      );
+    }
+  });
+  flush("last");
+
+  return <>{out}</>;
+}
+
+function ItemReader({
+  item,
+  unlocked,
+  signedIn,
+  onClose,
+}: {
+  item: Item;
+  unlocked: boolean;
+  signedIn: boolean;
+  onClose: () => void;
+}) {
+  const meta = TYPE_META[item.type] ?? TYPE_META.download;
+  const Icon = meta.icon;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/85 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 320, damping: 30 }}
+        className="relative w-full max-w-3xl my-8 rounded-2xl border border-border bg-card shadow-elegant overflow-hidden"
+      >
+        {item.cover_url && (
+          <div className="relative aspect-[1200/630] bg-secondary/40">
+            <img src={item.cover_url} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full glass flex items-center justify-center hover:bg-primary/20 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="p-6 md:p-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary text-[10px] uppercase tracking-wider text-muted-foreground">
+              <Icon className="w-3 h-3" />
+              {meta.label}
+            </span>
+            {item.visibility === "premium" && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/15 text-primary text-[10px] font-semibold uppercase tracking-wider">
+                <Sparkles className="w-2.5 h-2.5" />
+                Premium
+              </span>
+            )}
+          </div>
+
+          <h2 className="font-display text-2xl md:text-3xl font-light leading-snug mb-4">
+            {item.title}
+          </h2>
+
+          {unlocked ? (
+            <>
+              {item.body ? (
+                <RichBody body={item.body} />
+              ) : (
+                <p className="text-[15px] leading-relaxed text-muted-foreground">
+                  {item.description || "The full write-up is being prepared."}
+                </p>
+              )}
+
+              {item.file_url && (
+                <Button asChild variant="hero" size="sm" className="gap-1.5 mt-6">
+                  <a href={item.file_url} target="_blank" rel="noopener noreferrer">
+                    <Download className="w-3.5 h-3.5" />
+                    Download the file
+                  </a>
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Show the opening as a genuine preview, then stop. */}
+              {item.description && (
+                <p className="text-[15px] leading-relaxed text-muted-foreground mb-6">
+                  {item.description}
+                </p>
+              )}
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
+                <Lock className="w-7 h-7 text-primary/60 mx-auto mb-3" strokeWidth={1.5} />
+                <p className="text-sm font-medium mb-1">
+                  {signedIn ? "This is a Premium piece" : "Sign in to read this"}
+                </p>
+                <p className="text-xs text-muted-foreground mb-5 max-w-sm mx-auto">
+                  Full protocols, frameworks and templates are part of membership.
+                </p>
+                <Button asChild variant="hero" size="sm">
+                  <Link to={signedIn ? "/pricing" : "/login?mode=signup&redirect=/library"}>
+                    {signedIn ? "See membership" : "Create a free account"}
+                  </Link>
+                </Button>
+              </div>
+            </>
+          )}
+
+          {item.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-7 pt-5 border-t border-border">
+              {item.tags.map((tag) => (
+                <span key={tag} className="px-2.5 py-1 rounded-full bg-secondary text-[10px] text-muted-foreground">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -216,11 +398,13 @@ function ItemCard({
   index,
   unlocked,
   signedIn,
+  onOpen,
 }: {
   item: Item;
   index: number;
   unlocked: boolean;
   signedIn: boolean;
+  onOpen: () => void;
 }) {
   const meta = TYPE_META[item.type] ?? TYPE_META.download;
   const Icon = meta.icon;
@@ -232,7 +416,8 @@ function ItemCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.45, delay: Math.min(index * 0.05, 0.3) }}
-      className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 transition-colors flex flex-col"
+      onClick={onOpen}
+      className="group relative rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 transition-colors flex flex-col cursor-pointer"
     >
       <div className="relative aspect-[16/9] bg-secondary/40 overflow-hidden">
         {item.cover_url ? (
@@ -282,28 +467,17 @@ function ItemCard({
             </div>
           )}
 
+          {/* The whole card opens the reader; these buttons state what the
+              click will do rather than being separate destinations. */}
           {unlocked ? (
-            item.file_url ? (
-              <Button asChild variant="hero" size="sm" className="w-full gap-1.5">
-                <a href={item.file_url} target="_blank" rel="noopener noreferrer">
-                  <Download className="w-3.5 h-3.5" />
-                  Open
-                </a>
-              </Button>
-            ) : (
-              // Published but with nothing attached yet — say so rather than
-              // offering a button that would do nothing.
-              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                Full version coming shortly
-              </p>
-            )
+            <Button variant="hero" size="sm" className="w-full gap-1.5" onClick={onOpen}>
+              <BookOpen className="w-3.5 h-3.5" />
+              {item.file_url ? "Read & download" : "Read"}
+            </Button>
           ) : (
-            <Button asChild variant="glass" size="sm" className="w-full gap-1.5">
-              <Link to={signedIn ? "/pricing" : "/login?mode=signup&redirect=/library"}>
-                <Lock className="w-3.5 h-3.5" />
-                {signedIn ? "Unlock with Premium" : "Sign in to unlock"}
-              </Link>
+            <Button variant="glass" size="sm" className="w-full gap-1.5" onClick={onOpen}>
+              <Lock className="w-3.5 h-3.5" />
+              {signedIn ? "Unlock with Premium" : "Sign in to unlock"}
             </Button>
           )}
         </div>

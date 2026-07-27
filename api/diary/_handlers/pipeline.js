@@ -521,14 +521,29 @@ async function stagePublish(page) {
 
   const seo = page.seo ?? {};
   const desc = page.descriptions ?? {};
+  const research = page.research ?? {};
   const title = seo.title || page.summary?.slice(0, 80) || "Untitled";
+
+  // Compose a self-contained body so the published piece is readable on its
+  // own. Without this a reader who clicked through got a title and a
+  // one-liner, because everything substantial lived in the private diary row.
+  const body = [
+    desc.long || desc.medium || page.summary || "",
+    section("Key takeaways", desc.takeaways),
+    section("Highlights", desc.bullets),
+    section("How to apply this", research.applications),
+    section("Practice", research.exercises),
+    section("Questions to sit with", research.reflection_prompts),
+  ].filter(Boolean).join("\n\n").trim();
   // Everything lands as a DRAFT: the pipeline is autonomous, but pushing the
   // owner's private diary onto the public site without a look is not a
   // decision software should make on its own.
   const common = {
     website_id: site?.id ?? null,
     title,
-    description: desc.medium || desc.short || page.summary || null,
+    description: desc.short || desc.medium || page.summary || null,
+    body: body || null,
+    highlights: arr(desc.takeaways).slice(0, 6),
     status: "draft",
     visibility: "premium",
     tags: page.tags ?? [],
@@ -542,7 +557,7 @@ async function stagePublish(page) {
       title,
       author: "badly talks",
       category: "general",
-      abstract: desc.long || desc.medium || page.summary,
+      abstract: body || desc.long || desc.medium || page.summary,
       tags: common.tags,
       visibility: "premium",
       status: "draft",
@@ -570,6 +585,13 @@ async function stagePublish(page) {
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
+
+/** Render a heading + bullet list, or nothing at all when the list is empty. */
+function section(heading, items) {
+  const list = arr(items);
+  if (list.length === 0) return "";
+  return `## ${heading}\n${list.map((i) => `- ${i}`).join("\n")}`;
+}
 
 const clamp01 = (n) => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
 const arr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()) : []);
