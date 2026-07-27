@@ -393,9 +393,14 @@ export default function DiaryAdmin() {
         <DiaryPageDetail
           page={detail}
           onClose={() => setDetail(null)}
-          onChanged={() => {
-            load();
+          // Refresh the list/stats behind the modal but leave it open — the
+          // modal re-reads its own page, so closing it here would throw the
+          // admin out of the page they were working on after every action.
+          onChanged={load}
+          onGenerate={(p) => {
+            setSelected(new Set([p.id]));
             setDetail(null);
+            setShowGenerate(true);
           }}
         />
       )}

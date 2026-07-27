@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  X, Save, Trash2, Archive, CheckCircle2, AlertTriangle, History, Loader2, ExternalLink, Clock, Wand2,
+  X, Save, Trash2, Archive, CheckCircle2, AlertTriangle, History, Loader2, ExternalLink, Clock, Wand2, Sparkles,
 } from "lucide-react";
 import {
-  signDiaryPath, savePageText, setPageStatus, deletePages, getPageVersions, processPage,
+  signDiaryPath, savePageText, setPageStatus, deletePages, getPageVersions, processPage, getPage,
   formatBytes, type DiaryPage, type DiaryPageVersion, type DiaryStatus,
 } from "@/lib/diary";
 
@@ -18,18 +18,25 @@ const STATUS_STYLE: Record<DiaryStatus, string> = {
 };
 
 export function DiaryPageDetail({
-  page,
+  page: initialPage,
   onClose,
   onChanged,
+  onGenerate,
 }: {
   page: DiaryPage;
   onClose: () => void;
   onChanged: () => void;
+  onGenerate?: (page: DiaryPage) => void;
 }) {
+  // The modal owns a live copy of the page: after "Read handwriting" the row
+  // changes server-side, and the parent's list prop would otherwise leave this
+  // view showing pre-processing state until it was closed and reopened.
+  const [page, setPage] = useState(initialPage);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [text, setText] = useState(page.corrected_text ?? page.ocr_text ?? "");
-  const [summary, setSummary] = useState(page.summary ?? "");
+  const [text, setText] = useState(initialPage.corrected_text ?? initialPage.ocr_text ?? "");
+  const [summary, setSummary] = useState(initialPage.summary ?? "");
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [versions, setVersions] = useState<DiaryPageVersion[]>([]);
   const [showVersions, setShowVersions] = useState(false);
@@ -40,9 +47,21 @@ export function DiaryPageDetail({
 
   useEffect(() => {
     // Private bucket — the full-resolution scan needs a fresh signed URL.
-    signDiaryPath(page.image_path).then(setImageUrl);
-    getPageVersions(page.id).then(setVersions);
-  }, [page.id, page.image_path]);
+    signDiaryPath(initialPage.image_path).then(setImageUrl);
+    getPageVersions(initialPage.id).then(setVersions);
+  }, [initialPage.id, initialPage.image_path]);
+
+  /** Re-read this page from the database and re-seed the editor from it. */
+  const refresh = async () => {
+    const fresh = await getPage(initialPage.id);
+    if (fresh) {
+      setPage(fresh);
+      setText(fresh.corrected_text ?? fresh.ocr_text ?? "");
+      setSummary(fresh.summary ?? "");
+      setVersions(await getPageVersions(fresh.id));
+    }
+    onChanged();
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -62,8 +81,9 @@ export function DiaryPageDetail({
     setError(null);
     try {
       await savePageText(page, { corrected_text: text, summary: summary || null });
-      onChanged();
-      setVersions(await getPageVersions(page.id));
+      await refresh();
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed.");
     } finally {
@@ -76,7 +96,7 @@ export function DiaryPageDetail({
     setError(null);
     try {
       await setPageStatus([page.id], status);
-      onChanged();
+      await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed.");
     } finally {
@@ -92,9 +112,9 @@ export function DiaryPageDetail({
       const r = await processPage(page.id);
       setNotice(
         r.statusMessage ??
-          `Transcribed with ${Math.round(r.confidence * 100)}% confidence.`
+          `Read at ${Math.round(r.confidence * 100)}% confidence — saved automatically.`
       );
-      onChanged();
+      await refresh();
     } catch (e) {
       const err = e as Error & { code?: string };
       setError(
@@ -282,15 +302,47 @@ export function DiaryPageDetail({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/15 text-primary border border-primary/30 text-xs font-medium hover:bg-primary/25 disabled:opacity-40 transition"
               >
                 {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                {processing ? "Reading…" : "Read handwriting"}
+                {processing ? "Reading…" : page.corrected_text ? "Re-read handwriting" : "Read handwriting"}
               </button>
+              {/* Reading a page only transcribes it. Turning it into a PDF,
+                  article, etc. is a separate step — and previously the only
+                  route to it was closing this modal and hunting through the
+                  Library, which nobody would guess. */}
+              {onGenerate && (
+                <button
+                  onClick={() => onGenerate(page)}
+                  disabled={busy || processing || !text.trim()}
+                  title={
+                    text.trim()
+                      ? "Turn this page into a PDF, article, template…"
+                      : "Read the handwriting first — generation needs page text"
+                  }
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-40 transition"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Generate…
+                </button>
+              )}
+              {/* A plain disabled "Save" reads as broken when there is simply
+                  nothing to save, so say which of the two it is. */}
               <button
                 onClick={save}
                 disabled={!dirty || saving}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-40 transition"
+                title={dirty ? "Save your edits" : "Nothing to save — this page is already stored"}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium transition ${
+                  dirty
+                    ? "bg-primary text-primary-foreground hover:opacity-90"
+                    : "bg-secondary text-muted-foreground cursor-default"
+                } disabled:opacity-100`}
               >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                {saving ? "Saving…" : "Save"}
+                {saving ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : dirty || justSaved ? (
+                  <Save className="w-3.5 h-3.5" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                )}
+                {saving ? "Saving…" : justSaved ? "Saved" : dirty ? "Save changes" : "Saved"}
               </button>
               <button
                 onClick={() => changeStatus("processed")}
