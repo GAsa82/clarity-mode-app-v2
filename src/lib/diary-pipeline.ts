@@ -62,8 +62,21 @@ async function call(body: Record<string, unknown>) {
     err.code = json.code;
     throw err;
   }
-  return json as { ok: boolean; stage: PipelineStage; status?: string; done?: boolean; error?: string; note?: string };
+  return json as StepResult;
 }
+
+type StepResult = {
+  ok: boolean;
+  stage: PipelineStage;
+  status?: string;
+  done?: boolean;
+  error?: string;
+  note?: string;
+  rateLimited?: boolean;
+  retryAfterMs?: number;
+};
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const enqueuePage = (pageId: string) => call({ pageId, action: "enqueue" });
 export const retryPage = (pageId: string) => call({ pageId, action: "retry" });
@@ -147,7 +160,8 @@ export async function runPipeline(
   onProgress?: ProgressFn,
   opts: { maxSteps?: number } = {}
 ): Promise<{ ok: boolean; stage: PipelineStage; error?: string }> {
-  const maxSteps = opts.maxSteps ?? 40;
+  // Generous, because rate-limit waits consume iterations without progress.
+  const maxSteps = opts.maxSteps ?? 80;
 
   await enqueuePage(pageId);
   onProgress?.({ stage: "ocr" });
@@ -185,6 +199,19 @@ export async function runPipeline(
     }
 
     const result = await stepPage(pageId);
+
+    // The free tier is rate limited; the server tells us how long to wait.
+    // Honour it instead of hammering, and don't count it as a failure.
+    if (result.rateLimited) {
+      const waitMs = Math.min(result.retryAfterMs ?? 30000, 60000);
+      onProgress?.({
+        stage: result.stage,
+        note: `Rate limited — resuming in ${Math.ceil(waitMs / 1000)}s`,
+      });
+      await sleep(waitMs);
+      continue;
+    }
+
     onProgress?.({ stage: result.stage, note: result.note, error: result.error });
 
     if (result.done) return { ok: true, stage: "done" };
@@ -200,7 +227,9 @@ export async function runPipeline(
 export async function runPipelineBatch(
   pageIds: string[],
   onProgress?: (pageId: string, info: { stage: PipelineStage; note?: string; error?: string }) => void,
-  concurrency = 2
+  // Serial by default: the AI provider is rate limited per minute, so running
+  // pages in parallel just converts throughput into 429s.
+  concurrency = 1
 ): Promise<Record<string, { ok: boolean; error?: string }>> {
   const results: Record<string, { ok: boolean; error?: string }> = {};
   const queue = [...pageIds];

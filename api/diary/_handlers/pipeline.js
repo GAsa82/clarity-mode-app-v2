@@ -19,11 +19,18 @@ import {
  * see markThumbnails below.)
  */
 
+// analyze/seo/research used to be three separate LLM calls. Against a
+// rate-limited free tier that meant 5 AI requests per page, so a handful of
+// pages exhausted the per-minute quota instantly. They're now one 'enrich'
+// call — 3 requests per page, and more coherent output since the model sees
+// everything at once. The retired names still map forward so any job queued
+// before this change finishes rather than stalling.
 const NEXT_STAGE = {
-  ocr: "analyze",
-  analyze: "seo",
-  research: "embed",
-  seo: "research",
+  ocr: "enrich",
+  analyze: "enrich",
+  seo: "enrich",
+  research: "enrich",
+  enrich: "embed",
   embed: "publish",
   publish: "done",
 };
@@ -113,10 +120,13 @@ async function step(pageId) {
   try {
     let note = "";
     switch (job.stage) {
+      // The three retired stage names all run the merged step, so a job
+      // queued before the merge completes instead of hitting "unknown stage".
       case "ocr":      note = await stageOcr(page); break;
-      case "analyze":  note = await stageAnalyze(page); break;
-      case "seo":      note = await stageSeo(page); break;
-      case "research": note = await stageResearch(page); break;
+      case "analyze":
+      case "seo":
+      case "research":
+      case "enrich":   note = await stageEnrich(page); break;
       case "embed":    note = await stageEmbed(page); break;
       case "publish":  note = await stagePublish(page); break;
       default: throw new Error(`Unknown stage ${job.stage}`);
@@ -139,8 +149,26 @@ async function step(pageId) {
     return { ok: true, stage: next, status: "queued", previous: job.stage, note };
   } catch (err) {
     const message = err?.message ?? "Stage failed.";
-    const attempts = job.attempts + 1;
     const logs = [...(job.logs ?? []), logLine(job.stage, `Error: ${message}`, Date.now() - started)];
+
+    // A rate limit is a "come back later", not a failure. Burning an attempt
+    // on it would mean three quota errors in a row permanently killing a job
+    // that was only ever going to need a short wait.
+    if (err?.code === "RATE_LIMITED") {
+      await serviceClient.from("diary_jobs").update({
+        status: "queued", locked_at: null, last_error: message.slice(0, 500), logs,
+      }).eq("id", job.id);
+      return {
+        ok: false,
+        stage: job.stage,
+        status: "queued",
+        rateLimited: true,
+        retryAfterMs: err.retryAfterMs ?? 30000,
+        error: message,
+      };
+    }
+
+    const attempts = job.attempts + 1;
 
     if (attempts >= job.max_attempts) {
       await serviceClient.from("diary_jobs").update({
@@ -271,9 +299,14 @@ async function stageOcr(page) {
   return `Transcribed ${r.corrected_text.length} chars at ${Math.round(confidence * 100)}%.`;
 }
 
-const ANALYZE_SCHEMA = {
+// One schema covering understanding + SEO + research material. Combining them
+// is not just a cost saving: the SEO title is better when written by the same
+// pass that decided the topics, and the research prompts stay consistent with
+// the summary instead of drifting.
+const ENRICH_SCHEMA = {
   type: "object",
   properties: {
+    // understanding
     summary: { type: "string" },
     entry_date: { type: "string" },
     emotion: { type: "string" },
@@ -287,6 +320,7 @@ const ANALYZE_SCHEMA = {
     keywords: { type: "array", items: { type: "string" } },
     categories: { type: "array", items: { type: "string" } },
     tags: { type: "array", items: { type: "string" } },
+    // extractions
     lessons: { type: "array", items: { type: "string" } },
     ideas: { type: "array", items: { type: "string" } },
     business_ideas: { type: "array", items: { type: "string" } },
@@ -299,8 +333,31 @@ const ANALYZE_SCHEMA = {
     stories: { type: "array", items: { type: "string" } },
     research_notes: { type: "array", items: { type: "string" } },
     patterns: { type: "array", items: { type: "string" } },
+    // seo
+    seo_title: { type: "string" },
+    seo_description: { type: "string" },
+    seo_keywords: { type: "array", items: { type: "string" } },
+    slug: { type: "string" },
+    og_title: { type: "string" },
+    og_description: { type: "string" },
+    twitter_title: { type: "string" },
+    twitter_description: { type: "string" },
+    short_description: { type: "string" },
+    medium_description: { type: "string" },
+    long_description: { type: "string" },
+    bullet_highlights: { type: "array", items: { type: "string" } },
+    key_takeaways: { type: "array", items: { type: "string" } },
+    // research material
+    insights: { type: "array", items: { type: "string" } },
+    mental_models: { type: "array", items: { type: "string" } },
+    questions: { type: "array", items: { type: "string" } },
+    reflection_prompts: { type: "array", items: { type: "string" } },
+    journal_prompts: { type: "array", items: { type: "string" } },
+    exercises: { type: "array", items: { type: "string" } },
+    applications: { type: "array", items: { type: "string" } },
+    checklist: { type: "array", items: { type: "string" } },
   },
-  required: ["summary", "topics", "primary_category"],
+  required: ["summary", "topics", "primary_category", "seo_title", "seo_description", "slug"],
 };
 
 const CATEGORIES = [
@@ -308,24 +365,50 @@ const CATEGORIES = [
   "finance", "health", "technology", "life", "relationships", "diary",
 ];
 
-async function stageAnalyze(page) {
+const RESEARCH_KEYS = [
+  "insights", "lessons", "frameworks", "mental_models", "action_items",
+  "questions", "reflection_prompts", "journal_prompts", "exercises",
+  "applications", "checklist",
+];
+
+/**
+ * Understand the page, write its SEO metadata, and build its research
+ * material — in a single model call.
+ */
+async function stageEnrich(page) {
   const text = page.corrected_text ?? page.ocr_text ?? "";
+  if (!text.trim()) throw new Error("No page text to work from.");
+
   const r = await geminiGenerate({
     systemInstruction:
-      "You analyse a person's diary page. Every field must be grounded in the text provided — " +
-      "never invent content. An empty array is the correct answer when a category isn't present; " +
-      "do not pad. Quotations must appear verbatim in the text.",
-    schema: ANALYZE_SCHEMA,
-    temperature: 0.3,
+      "You analyse a person's own diary page and prepare it for publication.\n\n" +
+      "ABSOLUTE RULES:\n" +
+      "- Ground every field in the supplied text. Never introduce facts, statistics, studies, " +
+      "citations, events or quotations that are not in it.\n" +
+      "- Quotations must appear verbatim in the text.\n" +
+      "- An empty array is the correct answer when a category isn't present. Do not pad.\n" +
+      "- Titles must read naturally, never keyword-stuffed.",
+    schema: ENRICH_SCHEMA,
+    temperature: 0.45,
     parts: [{
       text:
-        `Analyse this diary page.\n\nprimary_category must be exactly one of: ${CATEGORIES.join(", ")}.\n` +
-        `entry_date only if a full date is written on the page, else empty.\n` +
-        `reading_min = realistic minutes to read.\n\n---\n${text}`,
+        `Analyse and prepare this page.\n\n` +
+        `primary_category must be exactly one of: ${CATEGORIES.join(", ")}.\n` +
+        `entry_date only if a full date is written on the page, otherwise empty.\n` +
+        `reading_min = realistic minutes to read.\n` +
+        `seo_title <= 60 chars. seo_description 140-158 chars. slug lowercase-hyphenated <= 60.\n` +
+        `og/twitter titles <= 60, descriptions <= 200.\n` +
+        `short_description ~1 sentence, medium ~3 sentences, long ~2 paragraphs.\n\n` +
+        `---\n${text}`,
     }],
   });
 
-  await serviceClient.from("diary_pages").update({
+  const slug = await uniqueSlug(slugish(r.slug || r.seo_title || "diary-entry"), page.id);
+  const site = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
+  const research = Object.fromEntries(RESEARCH_KEYS.map((k) => [k, arr(r[k])]));
+
+  const { error } = await serviceClient.from("diary_pages").update({
+    // understanding
     summary: r.summary || null,
     entry_date: parseDate(r.entry_date),
     emotion: r.emotion || null,
@@ -345,54 +428,7 @@ async function stageAnalyze(page) {
       quotes: arr(r.quotes), action_items: arr(r.action_items), stories: arr(r.stories),
       research_notes: arr(r.research_notes), patterns: arr(r.patterns),
     },
-  }).eq("id", page.id);
-
-  return `Category ${slugish(r.primary_category)}, ${arr(r.topics).length} topics.`;
-}
-
-const SEO_SCHEMA = {
-  type: "object",
-  properties: {
-    seo_title: { type: "string" },
-    seo_description: { type: "string" },
-    seo_keywords: { type: "array", items: { type: "string" } },
-    slug: { type: "string" },
-    og_title: { type: "string" },
-    og_description: { type: "string" },
-    twitter_title: { type: "string" },
-    twitter_description: { type: "string" },
-    short_description: { type: "string" },
-    medium_description: { type: "string" },
-    long_description: { type: "string" },
-    bullet_highlights: { type: "array", items: { type: "string" } },
-    key_takeaways: { type: "array", items: { type: "string" } },
-  },
-  required: ["seo_title", "seo_description", "slug", "short_description"],
-};
-
-async function stageSeo(page) {
-  const text = page.corrected_text ?? page.ocr_text ?? "";
-  const r = await geminiGenerate({
-    systemInstruction:
-      "You write SEO metadata and marketing copy for a piece of writing. Ground everything in the " +
-      "supplied text — never invent claims, statistics or quotations. Titles must read naturally, " +
-      "not keyword-stuffed.",
-    schema: SEO_SCHEMA,
-    temperature: 0.5,
-    parts: [{
-      text:
-        "Write SEO metadata for this piece.\n" +
-        "seo_title ≤ 60 chars. seo_description 140–158 chars. slug = lowercase-hyphenated, ≤ 60 chars.\n" +
-        "og/twitter titles ≤ 60, descriptions ≤ 200.\n" +
-        "short_description ~1 sentence, medium ~3 sentences, long ~2 paragraphs.\n\n" +
-        `Summary: ${page.summary ?? ""}\nTopics: ${(page.topics ?? []).join(", ")}\n\n---\n${text}`,
-    }],
-  });
-
-  const slug = await uniqueSlug(slugish(r.slug || r.seo_title || "diary-entry"), page.id);
-  const site = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
-
-  await serviceClient.from("diary_pages").update({
+    // seo
     slug,
     seo: {
       title: r.seo_title,
@@ -400,13 +436,16 @@ async function stageSeo(page) {
       keywords: arr(r.seo_keywords),
       canonical: site ? `${site}/insights/${slug}` : null,
       robots: "index, follow",
-      og: { title: r.og_title || r.seo_title, description: r.og_description || r.seo_description, type: "article" },
+      og: {
+        title: r.og_title || r.seo_title,
+        description: r.og_description || r.seo_description,
+        type: "article",
+      },
       twitter: {
         card: "summary_large_image",
         title: r.twitter_title || r.seo_title,
         description: r.twitter_description || r.seo_description,
       },
-      // Emitted as-is into a <script type="application/ld+json"> tag.
       jsonld: {
         "@context": "https://schema.org",
         "@type": "Article",
@@ -425,47 +464,13 @@ async function stageSeo(page) {
       bullets: arr(r.bullet_highlights),
       takeaways: arr(r.key_takeaways),
     },
+    research,
   }).eq("id", page.id);
 
-  return `SEO ready — /${slug}`;
-}
+  if (error) throw new Error(error.message);
 
-const RESEARCH_SCHEMA = {
-  type: "object",
-  properties: {
-    insights: { type: "array", items: { type: "string" } },
-    lessons: { type: "array", items: { type: "string" } },
-    frameworks: { type: "array", items: { type: "string" } },
-    mental_models: { type: "array", items: { type: "string" } },
-    action_items: { type: "array", items: { type: "string" } },
-    questions: { type: "array", items: { type: "string" } },
-    reflection_prompts: { type: "array", items: { type: "string" } },
-    journal_prompts: { type: "array", items: { type: "string" } },
-    exercises: { type: "array", items: { type: "string" } },
-    applications: { type: "array", items: { type: "string" } },
-    checklist: { type: "array", items: { type: "string" } },
-  },
-};
-
-async function stageResearch(page) {
-  const text = page.corrected_text ?? page.ocr_text ?? "";
-  const r = await geminiGenerate({
-    systemInstruction:
-      "You expand a person's own notes into practical study material. Everything must be traceable " +
-      "to the supplied text — never introduce outside facts, studies or citations. Empty arrays are " +
-      "correct when the material doesn't support a category.",
-    schema: RESEARCH_SCHEMA,
-    temperature: 0.6,
-    parts: [{ text: `Build reflection and application material from this page.\n\n---\n${text}` }],
-  });
-
-  const research = Object.fromEntries(
-    Object.keys(RESEARCH_SCHEMA.properties).map((k) => [k, arr(r[k])])
-  );
-  const count = Object.values(research).reduce((n, v) => n + v.length, 0);
-
-  await serviceClient.from("diary_pages").update({ research }).eq("id", page.id);
-  return `${count} research items.`;
+  const items = Object.values(research).reduce((n, v) => n + v.length, 0);
+  return `${slugish(r.primary_category)} · ${arr(r.topics).length} topics · ${items} research items · /${slug}`;
 }
 
 async function stageEmbed(page) {

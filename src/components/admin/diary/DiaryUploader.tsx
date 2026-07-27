@@ -85,7 +85,7 @@ export function DiaryUploader({
             patch(item.key, {
               state: run.ok ? "done" : "error",
               stage: run.stage,
-              message: run.ok ? "Published" : run.error,
+              message: run.ok ? "Published" : friendlyError(run.error),
             });
             onUploaded(); // refresh counters as each page lands
           }
@@ -319,6 +319,22 @@ export function DiaryUploader({
       )}
     </div>
   );
+}
+
+/**
+ * Upstream errors arrive as raw JSON documents. Give the common ones a plain
+ * explanation and truncate the rest — the full text is in the Pipeline log.
+ */
+function friendlyError(error?: string): string {
+  if (!error) return "Failed";
+  if (/rate limit|quota|429/i.test(error)) {
+    return "AI rate limit reached — wait a minute and retry from the Pipeline tab";
+  }
+  if (/unreadable|flagged for review/i.test(error)) {
+    return "Couldn't read this page — open it and type the text in";
+  }
+  const flat = error.replace(/\s+/g, " ").trim();
+  return flat.length > 120 ? `${flat.slice(0, 120)}…` : flat;
 }
 
 function StateIcon({ state }: { state: QueueState }) {

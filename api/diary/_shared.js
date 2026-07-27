@@ -66,6 +66,67 @@ export async function requireAdmin(req, res) {
   return userId;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Distinguishes "slow down" from "genuinely broken" for the caller. */
+export class RateLimitError extends Error {
+  constructor(message, retryAfterMs) {
+    super(message);
+    this.name = "RateLimitError";
+    this.code = "RATE_LIMITED";
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+/**
+ * Gemini answers a rate-limit with 429 and a RetryInfo detail telling you
+ * exactly how long to wait. Honour it rather than guessing — and never retry
+ * a 4xx that isn't 429, because a bad request will fail identically forever.
+ */
+async function fetchWithBackoff(url, init, { attempts = 4 } = {}) {
+  let waitMs = 2000;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const res = await fetch(url, init);
+    if (res.ok) return res;
+
+    const body = await res.text().catch(() => "");
+    const isRetryable = res.status === 429 || res.status === 503 || res.status >= 500;
+    if (!isRetryable || attempt === attempts) {
+      if (res.status === 429) {
+        throw new RateLimitError(
+          "Gemini rate limit reached. The free tier allows a limited number of requests per minute — " +
+            "processing will resume automatically.",
+          extractRetryDelayMs(body) ?? waitMs
+        );
+      }
+      throw new Error(`Gemini ${res.status}: ${body.slice(0, 300)}`);
+    }
+
+    const suggested = extractRetryDelayMs(body);
+    await sleep(suggested ?? waitMs);
+    waitMs = Math.min(waitMs * 2, 30000); // capped exponential backoff
+  }
+
+  throw new Error("Gemini: retries exhausted.");
+}
+
+/** Pull `retryDelay: "12s"` out of the RetryInfo detail Google returns on 429. */
+function extractRetryDelayMs(body) {
+  try {
+    const json = JSON.parse(body);
+    for (const detail of json?.error?.details ?? []) {
+      if (typeof detail.retryDelay === "string") {
+        const seconds = parseFloat(detail.retryDelay.replace("s", ""));
+        if (Number.isFinite(seconds)) return Math.ceil(seconds * 1000) + 500;
+      }
+    }
+  } catch {
+    // Non-JSON error body — fall back to the caller's schedule.
+  }
+  return null;
+}
+
 /** Consistent 503 so the UI can explain exactly what's missing. */
 export function notConfigured(res) {
   return res.status(503).json({
@@ -96,16 +157,11 @@ export async function geminiGenerate({ parts, schema, systemInstruction, tempera
     body.systemInstruction = { parts: [{ text: systemInstruction }] };
   }
 
-  const res = await fetch(url, {
+  const res = await fetchWithBackoff(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini ${res.status}: ${detail.slice(0, 300)}`);
-  }
 
   const json = await res.json();
 
@@ -134,7 +190,7 @@ export async function geminiEmbed(text) {
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBED_MODEL}:embedContent` +
     `?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithBackoff(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -144,10 +200,6 @@ export async function geminiEmbed(text) {
     }),
   });
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini embed ${res.status}: ${detail.slice(0, 200)}`);
-  }
   const json = await res.json();
   const values = json?.embedding?.values;
   if (!Array.isArray(values)) throw new Error("Gemini embed returned no vector.");
