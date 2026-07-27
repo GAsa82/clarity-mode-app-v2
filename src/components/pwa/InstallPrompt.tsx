@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Share, Plus, X } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
@@ -14,8 +15,14 @@ export const InstallPrompt = () => {
     useInstallPrompt();
   const [visible, setVisible] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
+  const { pathname } = useLocation();
 
-  const eligible = (canInstall || isIOSInstallable) && !isInstalled && !recentlyDismissed;
+  // Fixed to the viewport bottom, so on admin/founder screens it sits on top
+  // of in-flow page content (e.g. form submit buttons) with nothing reserving
+  // space for it. Those are workspaces, not install-worthy moments — skip them.
+  const isWorkspaceRoute = pathname.startsWith("/admin") || pathname.startsWith("/founder");
+
+  const eligible = (canInstall || isIOSInstallable) && !isInstalled && !recentlyDismissed && !isWorkspaceRoute;
 
   useEffect(() => {
     if (!eligible) {
