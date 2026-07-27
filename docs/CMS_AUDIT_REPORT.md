@@ -702,3 +702,68 @@ through Founder Studio with:
   Clarity has none) — a real gap, needs a new table, scoped as future work
 - The dead Railway/WhatsApp notification service — redeploy if still wanted,
   otherwise `server/index.js` is safe to delete as dead code
+
+## §19 Update — full Content Studio + Founder Studio admin/user parity pass
+
+Logged in as the test admin (`clarity.qa.test.2026@gmail.com`) and exercised
+every Content Studio content type plus every Founder Studio panel end to end,
+cross-checking each claim against Supabase directly rather than trusting the
+UI alone.
+
+### Real bug found and fixed
+- **PWA install banner blocked admin form submit buttons.** `InstallPrompt`
+  is mounted globally (`src/App.tsx`) and sits fixed to the viewport bottom;
+  no page reserved space for it, so on `/admin/*` forms it visually
+  overlapped in-flow submit buttons (reproduced live: the Research Papers
+  "Create Paper" button became unclickable — Playwright's actionability
+  check reported the click intercepted by the banner's card). Root cause
+  was exposure, not the pointer-events logic (outer wrapper was already
+  correctly `pointer-events-none`, inner card `pointer-events-auto`). Fixed
+  by hiding the banner on `/admin` and `/founder` routes — those are admin
+  workspaces, not install-worthy moments for a visitor.
+  (`src/components/pwa/InstallPrompt.tsx`, commit `f7a2fdf`, deployed and
+  verified live.)
+
+### Verified working end to end (admin write → DB → user-facing read)
+- **Research Papers**: create with real cover-image upload → real Supabase
+  Storage URL → real DB row (`cover_url`, `status: draft` correctly
+  defaulted) → cleaned up (row + storage object both deleted, confirmed via
+  direct storage REST DELETE).
+- **Testimonials**: full create → update → delete cycle. `Published`
+  correctly defaults to `false`; content never touched the public site;
+  table left exactly as found (0 rows).
+- **Face Submissions / "Member of the Day"**: this page carries **real
+  production data** — 3 real face submissions and 2 real Razorpay
+  transactions (1 completed, 1 stuck in `pending_payment` since 7/3, three+
+  weeks with no expiry/cleanup — minor hygiene gap, not urgent). Did not
+  touch any of it. Ran the page's own "Run verification report" tool
+  (read-only) — all 6 integrity checks passed (orders stored, gateway refs
+  present, submissions marked paid, no duplicate transactions, no
+  payment-bypass, analytics reads the same `orders` table).
+- **Founder Studio**: AI Command Center quick actions are honest — clicking
+  "Audit website" explains what it will do and requires an explicit "Run
+  audit now" confirmation rather than silently acting or pretending to be
+  an autonomous AI. Re-running the audit, Health Center, and Maintenance
+  Reports history all worked with zero console errors. Current score:
+  **95/100, Grade A, 0 critical, 2 warnings** (no published testimonials,
+  no media assets yet — both accurate, not bugs).
+- All 11 Content Studio admin pages + user-facing `/research` and `/`
+  re-checked: zero console errors, content shown matches DB exactly (no
+  drafts or deleted test rows leaking through).
+
+### Confirmed still relevant from earlier sections
+- The global ₹1 `payment_test_mode` override (§16/§17) is still **ON** —
+  it's why Member of the Day's real ₹1 transactions above show ₹1 instead
+  of its own configured ₹2 fee. Same owner-only switch as before
+  (Admin → Orders), now with a real live feature depending on it.
+
+### Left as-is, flagged rather than deleted (owner call)
+- Two pre-existing draft-only test fixtures from day one, deterministic
+  UUIDs suggesting a deliberate seed rather than accidental clutter, never
+  published so never publicly visible:
+  - `research_papers` id `00000000-0000-0000-0000-00000000b002` — "QA Test
+    — SAP Report"
+  - `content_items` id `00000000-0000-0000-0000-00000000b001` — "QA Test —
+    Screen Recording"
+  Say the word and they're gone; leaving them untouched by default since
+  they're harmless and might be intentional fixtures.
