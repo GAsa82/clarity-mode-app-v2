@@ -330,6 +330,7 @@ export default function ClaritySessionsAdmin() {
                 onChange={(url) => F("video_url", url)}
                 folder="video"
                 accept="video/*"
+                maxSizeMB={2048}
                 placeholder="https://… (mp4, YouTube, Vimeo, or upload a file)"
               />
 

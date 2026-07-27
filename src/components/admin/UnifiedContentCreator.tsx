@@ -215,7 +215,7 @@ export default function UnifiedContentCreator({
 
               {picked.media === "video" && (
                 <MediaUploadField label="Video" value={form.video_url} onChange={(url) => F("video_url", url)}
-                  folder="video" accept="video/*" placeholder="https://… (mp4) or upload a file" />
+                  folder="video" accept="video/*" maxSizeMB={2048} placeholder="https://… (mp4) or upload a file" />
               )}
               {picked.media === "audio" && (
                 <MediaUploadField label="Audio File" value={form.audio_url} onChange={(url) => F("audio_url", url)}
