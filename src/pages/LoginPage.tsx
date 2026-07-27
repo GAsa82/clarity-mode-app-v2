@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,10 @@ import logoImg from "@/assets/logo.png";
 type Mode = "login" | "signup" | "forgot";
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<Mode>("login");
+  const [searchParams] = useSearchParams();
+  // PremiumGate and PricingPage deliberately link here with ?mode=signup so a
+  // logged-out visitor lands straight on the signup tab instead of "Sign in".
+  const [mode, setMode] = useState<Mode>(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -21,7 +24,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || "/";
+  // PricingPage passes ?redirect=/pricing so a mid-checkout signup returns the
+  // user to where they were, instead of dropping them on the homepage.
+  const from = (location.state as any)?.from?.pathname || searchParams.get("redirect") || "/";
 
   // If already logged in, redirect
   if (user) {
