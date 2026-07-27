@@ -491,17 +491,17 @@ async function stageEmbed(page) {
  * would add cost and nondeterminism for a decision the analysis already made.
  */
 const ROUTE = {
-  psychology:       { table: "content_items", type: "protocol",  label: "Protocols" },
-  business:         { table: "content_items", type: "framework", label: "Frameworks" },
-  productivity:     { table: "content_items", type: "framework", label: "Frameworks" },
-  mindset:          { table: "content_items", type: "protocol",  label: "Protocols" },
-  self_improvement: { table: "content_items", type: "protocol",  label: "Protocols" },
-  finance:          { table: "content_items", type: "framework", label: "Frameworks" },
-  health:           { table: "content_items", type: "protocol",  label: "Protocols" },
-  technology:       { table: "research_papers", label: "Research Papers" },
-  life:             { table: "content_items", type: "pdf", label: "Premium Library" },
-  relationships:    { table: "content_items", type: "pdf", label: "Premium Library" },
-  diary:            { table: null, label: "Diary only" },
+  psychology:       { table: "content_items", type: "protocol",  label: "Protocols",       visibility: "public" },
+  business:         { table: "content_items", type: "framework", label: "Frameworks",      visibility: "public" },
+  productivity:     { table: "content_items", type: "framework", label: "Frameworks",      visibility: "public" },
+  mindset:          { table: "content_items", type: "protocol",  label: "Protocols",       visibility: "public" },
+  self_improvement: { table: "content_items", type: "protocol",  label: "Protocols",       visibility: "public" },
+  finance:          { table: "content_items", type: "framework", label: "Frameworks",      visibility: "public" },
+  health:           { table: "content_items", type: "protocol",  label: "Protocols",       visibility: "public" },
+  technology:       { table: "research_papers",                  label: "Research Papers", visibility: "public" },
+  life:             { table: "content_items", type: "pdf",       label: "Premium Library", visibility: "premium" },
+  relationships:    { table: "content_items", type: "pdf",       label: "Premium Library", visibility: "premium" },
+  diary:            { table: null,                               label: "Diary only" },
 };
 
 async function stagePublish(page) {
@@ -545,7 +545,11 @@ async function stagePublish(page) {
     body: body || null,
     highlights: arr(desc.takeaways).slice(0, 6),
     status: "draft",
-    visibility: "premium",
+    // Per-destination, not a blanket "premium" — that paywalled every piece
+    // the diary produced, including the written ones whose whole job is to be
+    // read by someone who hasn't paid yet. Only the Premium Library route
+    // stays gated.
+    visibility: route.visibility ?? "public",
     tags: page.tags ?? [],
     cover_url: (page.thumbnails ?? {})["1200x630"] ?? null,
   };
@@ -559,7 +563,7 @@ async function stagePublish(page) {
       category: "general",
       abstract: body || desc.long || desc.medium || page.summary,
       tags: common.tags,
-      visibility: "premium",
+      visibility: common.visibility,
       status: "draft",
       cover_url: common.cover_url,
     }).select("id").single();

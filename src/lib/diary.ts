@@ -559,14 +559,25 @@ export async function updateAsset(id: string, patch: Partial<DiaryAsset>): Promi
   if (error) throw error;
 }
 
-/** Where each generated kind lands on the public site. */
-const ASSET_ROUTE: Record<DiaryAssetKind, { table: "content_items" | "research_papers"; type?: string; label: string }> = {
-  article: { table: "content_items", type: "article", label: "Library (Articles)" },
-  insight: { table: "content_items", type: "insight", label: "Library (Insights)" },
-  template: { table: "content_items", type: "template", label: "Library (Templates)" },
-  pdf: { table: "content_items", type: "pdf", label: "Premium Library" },
-  audio: { table: "content_items", type: "audio", label: "Library (Audio)" },
-  research_paper: { table: "research_papers", label: "Research Papers" },
+/**
+ * Where each generated kind lands on the public site, and who can see it.
+ *
+ * Visibility is per-kind rather than a blanket "premium", which is what this
+ * was and it paywalled everything the diary produced. Readable text is the
+ * draw — it has to be readable without an account or it does no work. What
+ * stays gated is the downloadable deliverables: the PDF route is literally
+ * the Premium Library, and audio is a produced file rather than a page.
+ */
+const ASSET_ROUTE: Record<
+  DiaryAssetKind,
+  { table: "content_items" | "research_papers"; type?: string; label: string; visibility: "public" | "premium" }
+> = {
+  article: { table: "content_items", type: "article", label: "Library (Articles)", visibility: "public" },
+  insight: { table: "content_items", type: "insight", label: "Library (Insights)", visibility: "public" },
+  template: { table: "content_items", type: "template", label: "Library (Templates)", visibility: "public" },
+  pdf: { table: "content_items", type: "pdf", label: "Premium Library", visibility: "premium" },
+  audio: { table: "content_items", type: "audio", label: "Library (Audio)", visibility: "premium" },
+  research_paper: { table: "research_papers", label: "Research Papers", visibility: "public" },
 };
 
 /** Flatten a generated asset's structured content into the markdown the reader renders. */
@@ -636,7 +647,7 @@ export async function publishAsset(asset: DiaryAsset): Promise<{ table: string; 
       author: "badly talks",
       category: "general",
       abstract: body,
-      visibility: "premium",
+      visibility: route.visibility,
       status: "published",
       cover_url: cover,
     }).select("id").single();
@@ -650,7 +661,7 @@ export async function publishAsset(asset: DiaryAsset): Promise<{ table: string; 
       description: summary,
       body,
       category: "general",
-      visibility: "premium",
+      visibility: route.visibility,
       status: "published",
       price: 0,
       cover_url: cover,
