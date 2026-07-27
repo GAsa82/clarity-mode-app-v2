@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { DIARY_BUCKET, getPage, type DiaryPage } from "@/lib/diary";
+import { getPage, type DiaryPage } from "@/lib/diary";
 import { renderThumbnails } from "@/lib/diary-thumbnail";
 
 /**
@@ -95,9 +95,18 @@ export async function listJobs(): Promise<DiaryJob[]> {
 
 // ─── Thumbnails ─────────────────────────────────────────────────────────────
 
-async function uploadBlob(path: string, blob: Blob, token: string, contentType: string) {
+/**
+ * Generated covers go to the PUBLIC cms-media bucket, not the private diary
+ * one. They're designed graphics containing only the AI-written title and
+ * topic chips — none of the handwriting — and they exist precisely to be used
+ * as cover images on published content, which a private object can never be.
+ * The scans themselves stay in diary-private.
+ */
+const COVER_BUCKET = "cms-media";
+
+async function uploadBlob(bucket: string, path: string, blob: Blob, token: string, contentType: string) {
   const res = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/${DIARY_BUCKET}/${path}`,
+    `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/${bucket}/${path}`,
     {
       method: "POST",
       headers: {
@@ -132,12 +141,18 @@ export async function generateThumbnails(page: DiaryPage): Promise<number> {
 
   const map: Record<string, string> = {};
   for (const t of rendered) {
-    const path = `thumbnails/${page.id}/${t.key}.${t.ext}`;
-    await uploadBlob(path, t.blob, token, t.mime);
+    const path = `diary-covers/${page.id}/${t.key}.${t.ext}`;
+    await uploadBlob(COVER_BUCKET, path, t.blob, token, t.mime);
+
+    // Store the resolved public URL, not the storage path — these end up in
+    // cover_url on published content and get rendered directly in an <img>.
+    const { data } = supabase.storage.from(COVER_BUCKET).getPublicUrl(path);
+    const url = data.publicUrl;
+
     // WebP is the preferred source for each size; png/jpeg stay addressable
     // under their own keys for anything that can't take WebP.
-    if (t.ext === "webp") map[t.key] = path;
-    map[`${t.key}.${t.ext}`] = path;
+    if (t.ext === "webp") map[t.key] = url;
+    map[`${t.key}.${t.ext}`] = url;
   }
 
   const { error } = await supabase.from("diary_pages").update({ thumbnails: map }).eq("id", page.id);
