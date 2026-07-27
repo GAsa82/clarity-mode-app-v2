@@ -157,10 +157,19 @@ export async function runHealthAudit(site: Website): Promise<HealthReport> {
   );
 
   // ---- Content (scoped to this website) --------------------------------------
-  const [published, testimonials, media, downloadsRow, viewsRow] = await Promise.all([
+  // "Published content" must count every real content table, not just
+  // content_items — otherwise a site with real, live research papers or old
+  // book listings still gets flagged "no published content" (found live: the
+  // dashboard kept reporting this as critical after 6 research papers were
+  // published, because the check only ever looked at content_items).
+  const [publishedItems, publishedPapers, availableBooks, testimonials, media, downloadsRow, viewsRow, papersDownloadsRow, papersViewsRow] = await Promise.all([
     safeCount("content_items", (q) =>
       q.eq("website_id", site.id).eq("status", "published")
     ),
+    safeCount("research_papers", (q) =>
+      q.eq("website_id", site.id).eq("status", "published")
+    ),
+    safeCount("old_books", (q) => q.eq("website_id", site.id).gt("available", 0)),
     safeCount("testimonials", (q) => q.eq("website_id", site.id).eq("published", true)),
     safeCount("content_items", (q) =>
       q.eq("website_id", site.id).in("type", ["audio", "video", "pdf", "download"])
@@ -174,6 +183,12 @@ export async function runHealthAudit(site: Website): Promise<HealthReport> {
     isSupabaseReady()
       ? supabase.from("content_items").select("view_count").eq("website_id", site.id)
       : Promise.resolve({ data: null }),
+    isSupabaseReady()
+      ? supabase.from("research_papers").select("download_count").eq("website_id", site.id)
+      : Promise.resolve({ data: null }),
+    isSupabaseReady()
+      ? supabase.from("research_papers").select("view_count").eq("website_id", site.id)
+      : Promise.resolve({ data: null }),
   ]);
 
   const sum = (rows: any, key: string): number =>
@@ -181,8 +196,15 @@ export async function runHealthAudit(site: Website): Promise<HealthReport> {
       ? rows.data.reduce((acc: number, r: any) => acc + (r?.[key] ?? 0), 0)
       : 0;
 
-  const totalDownloads = sum(downloadsRow, "download_count");
-  const totalViews = sum(viewsRow, "view_count");
+  const totalDownloads = sum(downloadsRow, "download_count") + sum(papersDownloadsRow, "download_count");
+  const totalViews = sum(viewsRow, "view_count") + sum(papersViewsRow, "view_count");
+
+  // Only report "database offline" if every table failed — a single failed
+  // query shouldn't mask real published content in the others.
+  const published =
+    publishedItems === null && publishedPapers === null && availableBooks === null
+      ? null
+      : (publishedItems ?? 0) + (publishedPapers ?? 0) + (availableBooks ?? 0);
 
   if (published === null) {
     push({
