@@ -43,6 +43,14 @@ const SITE_NAV: Record<string, NavGroup[]> = {
   ],
 };
 
+// The Diary is the platform's knowledge engine and sits above the per-site
+// content nav — it's the source everything else can be generated from, and it
+// is never website-scoped because it's the owner's personal diary.
+const KNOWLEDGE_NAV: NavGroup = {
+  label: "Knowledge",
+  items: [{ to: "/admin/diary", icon: Brain, label: "Diary" }],
+};
+
 // Always-visible groups
 const UNIVERSAL_NAV: NavGroup[] = [
   {
@@ -205,7 +213,7 @@ export default function AdminLayout() {
   }, []);
 
   const siteNav = current ? (SITE_NAV[current.slug] ?? []) : [];
-  const allGroups = [...siteNav, ...UNIVERSAL_NAV];
+  const allGroups = [KNOWLEDGE_NAV, ...siteNav, ...UNIVERSAL_NAV];
 
   const sidebar = (
     <aside

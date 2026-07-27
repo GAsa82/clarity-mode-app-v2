@@ -54,6 +54,7 @@ const SiteContentAdmin = lazy(() => import("./pages/admin/SiteContentAdmin"));
 const MediaLibraryAdmin = lazy(() => import("./pages/admin/MediaLibraryAdmin"));
 const CreateWebsiteAdmin = lazy(() => import("./pages/admin/CreateWebsiteAdmin"));
 const FaceSubmissionsAdmin = lazy(() => import("./pages/admin/FaceSubmissionsAdmin"));
+const DiaryAdmin = lazy(() => import("./pages/admin/DiaryAdmin"));
 
 // Admin — system
 const AnalyticsPage = lazy(() => import("./pages/admin/AnalyticsPage"));
@@ -144,6 +145,9 @@ const App = () => (
                   <Route path="templates" element={<ContentItemsAdmin type="template" title="Templates" />} />
                   <Route path="clarity-sessions" element={<ClaritySessionsAdmin />} />
                   <Route path="media" element={<MediaLibraryAdmin />} />
+
+                  {/* Diary — admin-only personal knowledge engine */}
+                  <Route path="diary" element={<DiaryAdmin />} />
 
                   {/* Website content */}
                   <Route path="site-content" element={<SiteContentAdmin />} />
