@@ -21,7 +21,11 @@ export const DIARY_BUCKET = "diary-private";
 // Flash is the right default here: strong handwriting vision, fast enough for
 // batch page processing, and comfortably inside the free tier for personal use.
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-export const GEMINI_EMBED_MODEL = process.env.GEMINI_EMBED_MODEL || "text-embedding-004";
+// text-embedding-004 was retired from v1beta (404s), so this is the current
+// model. It defaults to 3072 dims but supports Matryoshka truncation, and we
+// ask for 768 to match the diary_pages.embedding vector(768) column.
+export const GEMINI_EMBED_MODEL = process.env.GEMINI_EMBED_MODEL || "gemini-embedding-001";
+export const GEMINI_EMBED_DIMS = 768;
 
 export function geminiConfigured() {
   return Boolean(process.env.GEMINI_API_KEY);
@@ -136,6 +140,7 @@ export async function geminiEmbed(text) {
     body: JSON.stringify({
       model: `models/${GEMINI_EMBED_MODEL}`,
       content: { parts: [{ text: text.slice(0, 8000) }] },
+      outputDimensionality: GEMINI_EMBED_DIMS,
     }),
   });
 
@@ -146,7 +151,13 @@ export async function geminiEmbed(text) {
   const json = await res.json();
   const values = json?.embedding?.values;
   if (!Array.isArray(values)) throw new Error("Gemini embed returned no vector.");
-  return values;
+
+  // Only the full 3072-dim output is unit length; a Matryoshka-truncated
+  // vector comes back un-normalised (measured L2 ≈ 0.59 at 768). Cosine
+  // distance assumes unit vectors, so normalise before storing or every
+  // similarity score would be skewed by magnitude rather than direction.
+  const norm = Math.sqrt(values.reduce((sum, v) => sum + v * v, 0));
+  return norm > 0 ? values.map((v) => v / norm) : values;
 }
 
 /** Pull a page scan out of private storage and encode it for the vision call. */
