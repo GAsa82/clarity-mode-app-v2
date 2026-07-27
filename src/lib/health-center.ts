@@ -418,9 +418,11 @@ export async function runHealthAudit(site: Website): Promise<HealthReport> {
         }
   );
 
-  // Image alt coverage across whatever is currently rendered.
+  // Image alt coverage across whatever is currently rendered. alt="" is a
+  // deliberate, correct WCAG pattern for decorative images (tells screen
+  // readers to skip them) — only a genuinely absent attribute is a real gap.
   const imgs = typeof document !== "undefined" ? Array.from(document.images) : [];
-  const missingAlt = imgs.filter((img) => !img.getAttribute("alt")).length;
+  const missingAlt = imgs.filter((img) => img.getAttribute("alt") === null).length;
   if (imgs.length > 0) {
     push(
       missingAlt === 0
