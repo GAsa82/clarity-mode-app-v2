@@ -486,3 +486,131 @@ convert on until content exists.
   your confirmation.
 - ℹ️ Minor: no real `sitemap.xml` (the 200 is the SPA fallback). Optional; a
   static sitemap would help indexing once content exists.
+
+## §17 Update — full production-readiness pass + severed the Breakthrough Protocol connection
+
+Prompted by an explicit directive: (1) keep Clarity Mode and Breakthrough
+Protocol fully separate with no shared infrastructure, and (2) run the same
+full-depth production-readiness engagement on Clarity that was just completed
+on Breakthrough Protocol (build health, live Playwright testing, security,
+SEO, final report).
+
+### Connection severance (commit `edc4e1c`)
+Beyond the earlier Vault-redirect removal (§14, commit `5ef6747`), found and
+removed a much deeper architectural connection a plain grep for "vault"
+wouldn't catch:
+- **`api/federation/metrics.js` + `src/hooks/useFederation.ts`** — a
+  cross-project federation gateway that, the moment `BP_SUPABASE_URL` +
+  `BP_SUPABASE_SERVICE_ROLE_KEY` were added to Vercel, would connect directly
+  to Breakthrough Protocol's Supabase project using its service-role key (full
+  DB read access) to pull cross-business metrics into Clarity's admin
+  dashboard. Confirmed those env vars were never set in production (dormant),
+  but the architecture, UI ("Connected Businesses" panel), and a whole roadmap
+  doc (`docs/ENTERPRISE_COMMAND_CENTER.md`) were built around it as the
+  top-priority next step. All removed; the roadmap doc annotated as superseded
+  rather than rewritten (its non-federation content is still valid).
+- **The "breakthrough-protocol" row in `WebsiteContext`'s website list** — a
+  second CMS "tenant" that let a Clarity admin cosmetically manage
+  "Breakthrough Protocol content" that no live BP page has ever read (BP is a
+  fully separate deployed app on its own Supabase project). Merged its
+  non-BP-specific nav items (Research Papers, Old Books, Frameworks,
+  Protocols — real content types Clarity's own `/research` page actually uses)
+  into Clarity's single remaining nav group so they stay reachable from the
+  sidebar. A DB-side migration to delete the actual `websites` row
+  (`20260726_remove_breakthrough_protocol_tenant.sql`) is written but
+  **not yet applied** — the Supabase MCP session lost its access token
+  mid-engagement (see below) and stayed unauthorized even after the project
+  was resumed; needs an MCP reconnect or manual application via the SQL editor.
+- The AI Command Center's "switch website" intent (promised "Switching to
+  Breakthrough Protocol") — removed end-to-end including the now-dead
+  `kind: "switch"` action plumbing.
+- Verified: `tsc --noEmit` clean, production build clean, zero remaining
+  `breakthrough` references in `src`/`api` besides Clarity's own unrelated
+  "Breakthrough Session" coaching-product copy (correctly left alone).
+
+### 🔴 Live incident found and resolved: Supabase project was paused
+Mid-engagement, Playwright testing the actual production site showed every
+Supabase-backed feature failing (`net::ERR_NAME_NOT_RESOLVED`) — hero content,
+Member of the Day, everything. Cross-validated via two independent public
+DNS-over-HTTPS resolvers (Google + Cloudflare) that
+`vajenjgxaznftlvribzl.supabase.co` returned NXDOMAIN — confirmed real, not a
+local network artifact. Root cause: almost certainly Supabase's free-tier
+auto-pause (no API activity for ~1 week); this conversation had a genuine
+~24-day gap between turns, consistent with that. This also fully explains
+why the Supabase MCP tools (`execute_sql`, `get_advisors`, `apply_migration`,
+`list_tables`) were failing with "Unauthorized" all session — not an expired
+token, but the underlying project being unreachable. **User resumed the
+project**; re-verified live via Playwright — zero console errors, Member of
+the Day and Clarity Members now show real data, daily quote rotates. **Residual
+issue**: the Supabase MCP tool connection itself is still returning
+"Unauthorized" even with the project confirmed back online (verified via
+direct HTTP: 401, not DNS failure) — needs a fresh MCP server connection,
+likely a Claude Code-side reconnect, to run the pending advisors/migration.
+**Recommend upgrading off the free tier** if this app is going to production —
+an auto-pause is a full outage with no warning.
+
+### Build/test/lint health (current, not the Jul-14-era snapshot)
+- ✅ `tsc --noEmit` clean · production build clean · `vitest run` 12/12 passing
+  (2 test files — thin coverage vs. Breakthrough Protocol's ~13, worth
+  building out over time, not a launch blocker).
+- ⚠️ ESLint: 95 errors (mostly `no-explicit-any`, same low-priority profile as
+  the Breakthrough Protocol audit) + 21 warnings (`react-hooks/exhaustive-deps`
+  — spot-checked several, all false positives from intentional "run once on
+  mount" patterns or precise primitive deps the linter can't verify
+  statically, e.g. `SiteContentAdmin.tsx`'s `[current?.slug]`). Deferred as
+  code-quality cleanup, not correctness bugs.
+- Vercel runtime errors: **zero** in the last 7 days on the actual production
+  project (`prj_xdGTrLl1qLMcVNB2FXmsvLhTgicQ` — note this differs from
+  Breakthrough Protocol's project ID; both share the same Vercel team).
+
+### 🐛 Real bug found + fixed via live Playwright testing (commit `86bc823`)
+**`LoginPage.tsx` silently ignored `?mode=signup` and `?redirect=` query
+params** — both hardcoded to `"login"` mode and `"/"` post-auth redirect
+respectively, with zero URL-reading code at all. Three live call sites
+(`PremiumGate.tsx`, and both "Pay" buttons on `PricingPage.tsx`) deliberately
+navigate to `/login?mode=signup&redirect=/pricing` expecting the visitor to
+land on Sign Up and bounce back to Pricing after auth. Real effect: a visitor
+clicking "Pay via UPI/Card" while logged out saw "Sign in" instead of "Create
+account" (extra click to find Sign Up), then landed on the homepage after
+signing up instead of back on `/pricing` to finish subscribing — friction at
+the exact moment of purchase intent. Fixed by reading both from
+`useSearchParams()`. Verified live end-to-end: `?mode=signup` now renders
+"Create your account" correctly; a real test signup succeeded (email
+confirmation required — could not verify the post-confirmation `/pricing`
+redirect without inbox access, but the code path is now symmetric with
+`ProtectedRoute`'s working `state.from` mechanism).
+
+### Live smoke test — all clean
+Homepage, `/research`, `/pricing`, `/store`, `/insights`, `/about`,
+`/contact`, `/privacy`, `/terms`, `/refunds`, `/dashboard`, `/coaching` all
+return 200 with zero console errors. Real signup flow works end-to-end up to
+email confirmation.
+
+### Two testing blockers — same categories as the Breakthrough Protocol audit
+- **No admin credentials** available in this session → could not test the
+  admin dashboard, Content Studio, media uploads, order management, or any
+  admin-only workflow live via Playwright. Everything admin-related in this
+  report is verified by code reading + the live database checks done earlier
+  in this session (§1–§16), not fresh browser automation.
+- **Email confirmation required on signup** (unlike Breakthrough Protocol,
+  which auto-signs-in) → could not complete a full authenticated user journey
+  (dashboard-as-new-user, a real purchase, verifying the `/pricing` redirect
+  post-login) without access to a real inbox.
+
+### Not yet done from the original mega-prompt scope
+Diary Intelligence (this repo doesn't have that module — it's Breakthrough
+Protocol-specific per the dedicated skill description), exhaustive per-button/
+per-modal Playwright coverage of every admin screen, and a full accessibility
+audit (axe/contrast/keyboard-nav sweep) — flagging honestly rather than
+claiming coverage that wasn't done.
+
+### Updated bottom line
+Clarity Mode is in strong shape: the connection to Breakthrough Protocol is
+now fully severed at the code level (one DB migration pending your Supabase
+MCP reconnect or manual application), a real conversion-funnel bug was found
+and fixed live, the site survived and recovered from a real infrastructure
+incident during this engagement, and every publicly reachable page is healthy.
+Remaining gaps are either owner-only actions (Supabase tier, admin
+credentials for deeper testing, the `claritymode.com` domain decision from
+§16) or lower-priority code-quality items (ESLint `any` cleanup, thin test
+coverage) — nothing found this round blocks launch.
