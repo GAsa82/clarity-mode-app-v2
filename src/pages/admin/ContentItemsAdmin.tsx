@@ -12,6 +12,7 @@ type ContentItem = {
   type: string;
   title: string;
   description: string | null;
+  body: string | null;
   category: string;
   cover_url: string | null;
   file_url: string | null;
@@ -29,7 +30,9 @@ type ContentItem = {
 };
 
 type Props = {
-  type: "framework" | "protocol" | "template" | "guide" | "workbook" | "audio" | "video" | "pdf" | "download";
+  type:
+    | "framework" | "protocol" | "template" | "guide" | "workbook"
+    | "audio" | "video" | "pdf" | "download" | "article" | "insight";
   title: string;
 };
 
@@ -43,12 +46,15 @@ const TYPE_LABELS: Record<string, string> = {
   video: "Video",
   pdf: "PDF",
   download: "Download",
+  article: "Article",
+  insight: "Insight",
 };
 
 const EMPTY = (type: string): Omit<ContentItem, "id" | "view_count" | "download_count" | "created_at"> => ({
   type,
   title: "",
   description: "",
+  body: "",
   category: "general",
   cover_url: "",
   file_url: "",
@@ -111,6 +117,7 @@ export default function ContentItemsAdmin({ type, title }: Props) {
       type: item.type,
       title: item.title,
       description: item.description ?? "",
+      body: item.body ?? "",
       category: item.category,
       cover_url: item.cover_url ?? "",
       file_url: item.file_url ?? "",
@@ -134,6 +141,7 @@ export default function ContentItemsAdmin({ type, title }: Props) {
       ...form,
       website_id: current?.id ?? null,
       description: form.description || null,
+      body: form.body || null,
       cover_url: form.cover_url || null,
       file_url: form.file_url || null,
       preview_url: form.preview_url || null,
@@ -317,6 +325,23 @@ export default function ContentItemsAdmin({ type, title }: Props) {
               <div>
                 <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Description</label>
                 <textarea value={form.description ?? ""} onChange={(e) => F("description", e.target.value)} rows={3} placeholder="Brief description" className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 resize-none" />
+              </div>
+
+              {/* The body is what readers actually see on /library. Without an
+                  editor here, anything the diary pipeline published could be
+                  renamed but never corrected. */}
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Full text</label>
+                <textarea
+                  value={form.body ?? ""}
+                  onChange={(e) => F("body", e.target.value)}
+                  rows={14}
+                  placeholder={"The full piece shown on the site.\n\nUse ## for a heading and - for a bullet."}
+                  className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm leading-relaxed focus:outline-none focus:border-primary/50 resize-y font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {(form.body ?? "").length.toLocaleString()} characters · &ldquo;## Heading&rdquo; and &ldquo;- bullet&rdquo; are rendered
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

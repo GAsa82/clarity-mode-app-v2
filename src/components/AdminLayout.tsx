@@ -6,7 +6,7 @@ import {
   BookMarked, Store, Library, Grid3X3, Shield, FileText, Image,
   BarChart3, ClipboardList, Settings, Menu, X, LogOut, Sparkles,
   Video, MessageSquare, ChevronDown, Globe, Plus, Check, Zap,
-  BookOpen, Brain, Upload, Crown, ScanFace,
+  BookOpen, Brain, Upload, Crown, ScanFace, Newspaper, Lightbulb,
 } from "lucide-react";
 import { Search, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +31,8 @@ const SITE_NAV: Record<string, NavGroup[]> = {
         { to: "/admin/clarity-sessions", icon: Video,         label: "Clarity Sessions" },
         { to: "/admin/testimonials",     icon: MessageSquare, label: "Testimonials" },
         { to: "/admin/face-submissions", icon: Crown,         label: "Member Submissions" },
+        { to: "/admin/articles",         icon: Newspaper,     label: "Articles" },
+        { to: "/admin/insights",         icon: Lightbulb,     label: "Insights" },
         { to: "/admin/research-papers",  icon: BookMarked,    label: "Research Papers" },
         { to: "/admin/old-books",        icon: Store,         label: "Old Books" },
         { to: "/admin/library",          icon: Library,       label: "Premium Library" },
