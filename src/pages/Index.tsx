@@ -12,6 +12,7 @@ import { Creator } from "@/components/Creator";
 import { Newsletter } from "@/components/Newsletter";
 import { Footer } from "@/components/Footer";
 import { WhatsAppChat } from "@/components/WhatsAppChat";
+import { DiaryUploadSection } from "@/components/DiaryUploadSection";
 import { getSetting } from "@/lib/site-settings";
 
 const Index = () => {
@@ -41,6 +42,8 @@ const Index = () => {
       <KnowledgeVaultHero />
       <Benefits />
       <FocusRooms />
+      {/* Renders nothing for non-admins — the diary is private. */}
+      <DiaryUploadSection />
       <Library />
       <Store />
       <Dashboard />

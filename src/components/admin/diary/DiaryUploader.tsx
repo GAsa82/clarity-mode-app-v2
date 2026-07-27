@@ -4,8 +4,9 @@ import {
   UploadCloud, FileImage, X, RotateCcw, CheckCircle2, AlertTriangle, Copy, Loader2, FolderUp,
 } from "lucide-react";
 import { uploadDiaryPage, formatBytes, type DiaryPage } from "@/lib/diary";
+import { runPipeline, STAGE_LABELS, type PipelineStage } from "@/lib/diary-pipeline";
 
-type QueueState = "queued" | "uploading" | "done" | "duplicate" | "error";
+type QueueState = "queued" | "uploading" | "processing" | "done" | "duplicate" | "error";
 
 type QueueItem = {
   key: string;
@@ -14,6 +15,8 @@ type QueueItem = {
   progress: number;
   message?: string;
   duplicateOf?: DiaryPage;
+  pageId?: string;
+  stage?: PipelineStage;
 };
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
@@ -21,7 +24,14 @@ const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/
 // Directory picking is a non-standard attribute pair React's types don't model.
 const DIRECTORY_PROPS = { webkitdirectory: "", directory: "" } as Record<string, string>;
 
-export function DiaryUploader({ onUploaded }: { onUploaded: () => void }) {
+export function DiaryUploader({
+  onUploaded,
+  autoRun = true,
+}: {
+  onUploaded: () => void;
+  /** Upload only, leaving pages `pending`, when false. */
+  autoRun?: boolean;
+}) {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -61,7 +71,24 @@ export function DiaryUploader({ onUploaded }: { onUploaded: () => void }) {
         });
 
         if (result.ok) {
-          patch(item.key, { state: "done", progress: 100 });
+          if (!autoRun) {
+            patch(item.key, { state: "done", progress: 100 });
+          } else {
+            // The whole point of the module: uploading is the only manual act.
+            patch(item.key, { state: "processing", progress: 100, pageId: result.page.id });
+            const run = await runPipeline(result.page.id, (info) =>
+              patch(item.key, {
+                stage: info.stage,
+                message: info.error ?? STAGE_LABELS[info.stage],
+              })
+            );
+            patch(item.key, {
+              state: run.ok ? "done" : "error",
+              stage: run.stage,
+              message: run.ok ? "Published" : run.error,
+            });
+            onUploaded(); // refresh counters as each page lands
+          }
         } else if ("duplicateOf" in result) {
           patch(item.key, {
             state: "duplicate",
@@ -126,7 +153,9 @@ export function DiaryUploader({ onUploaded }: { onUploaded: () => void }) {
   const clearFinished = () =>
     commit((q) => q.filter((it) => it.state !== "done" && it.state !== "duplicate"));
 
-  const active = queue.filter((it) => it.state === "uploading" || it.state === "queued").length;
+  const active = queue.filter(
+    (it) => it.state === "uploading" || it.state === "queued" || it.state === "processing"
+  ).length;
   const done = queue.filter((it) => it.state === "done").length;
 
   return (
@@ -154,7 +183,9 @@ export function DiaryUploader({ onUploaded }: { onUploaded: () => void }) {
         />
         <p className="text-sm font-medium mb-1">Drop diary pages here</p>
         <p className="text-xs text-muted-foreground mb-5">
-          JPEG, PNG, WEBP, HEIC or PDF scans · up to 50MB each · duplicates detected automatically
+          {autoRun
+            ? "Upload is the only step — reading, analysis, SEO, thumbnails and publishing all run automatically."
+            : "JPEG, PNG, WEBP, HEIC or PDF scans · up to 50MB each · duplicates detected automatically"}
         </p>
 
         <div className="flex flex-wrap gap-2 justify-center">
@@ -241,6 +272,11 @@ export function DiaryUploader({ onUploaded }: { onUploaded: () => void }) {
                         />
                       </div>
                     )}
+                    {item.state === "processing" && (
+                      <div className="h-1 mt-1.5 rounded-full bg-secondary overflow-hidden">
+                        <div className="h-full w-1/3 rounded-full bg-primary animate-pulse" />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
@@ -287,7 +323,8 @@ export function DiaryUploader({ onUploaded }: { onUploaded: () => void }) {
 
 function StateIcon({ state }: { state: QueueState }) {
   const cls = "w-4 h-4 shrink-0";
-  if (state === "uploading") return <Loader2 className={`${cls} text-primary animate-spin`} />;
+  if (state === "uploading" || state === "processing")
+    return <Loader2 className={`${cls} text-primary animate-spin`} />;
   if (state === "done") return <CheckCircle2 className={`${cls} text-emerald-400`} />;
   if (state === "duplicate") return <Copy className={`${cls} text-amber-400`} />;
   if (state === "error") return <AlertTriangle className={`${cls} text-destructive`} />;

@@ -85,6 +85,41 @@ export type DiaryPage = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+
+  // Populated by the autonomous pipeline.
+  seo: DiarySeo;
+  descriptions: DiaryDescriptions;
+  research: Record<string, string[]>;
+  /** size key (e.g. "1200x630", "800x800.png") → storage path in the private bucket */
+  thumbnails: Record<string, string>;
+  intent: string | null;
+  tone: string | null;
+  audience: string | null;
+  difficulty: string | null;
+  reading_min: number | null;
+  slug: string | null;
+  auto_publish: boolean;
+  published_to_table: string | null;
+  published_to_id: string | null;
+};
+
+export type DiarySeo = {
+  title?: string;
+  description?: string;
+  keywords?: string[];
+  canonical?: string | null;
+  robots?: string;
+  og?: { title?: string; description?: string; type?: string };
+  twitter?: { card?: string; title?: string; description?: string };
+  jsonld?: Record<string, unknown>;
+};
+
+export type DiaryDescriptions = {
+  short?: string;
+  medium?: string;
+  long?: string;
+  bullets?: string[];
+  takeaways?: string[];
 };
 
 export type DiaryCollection = {
@@ -127,11 +162,15 @@ export type DiaryPageVersion = {
   created_at: string;
 };
 
+// `embedding` is deliberately excluded — 768 floats per row would bloat every
+// list response for data only the database needs.
 const PAGE_COLUMNS =
   "id, collection_id, image_path, thumbnail_path, original_filename, file_size_bytes, mime_type, " +
   "content_hash, page_number, entry_date, status, status_message, processing_started_at, processed_at, " +
   "confidence, ocr_text, corrected_text, summary, topics, keywords, categories, tags, emotion, " +
-  "extracted, version, created_by, created_at, updated_at";
+  "extracted, version, created_by, created_at, updated_at, " +
+  "seo, descriptions, research, thumbnails, intent, tone, audience, difficulty, reading_min, slug, " +
+  "auto_publish, published_to_table, published_to_id";
 
 // ─── Signed URLs ────────────────────────────────────────────────────────────
 

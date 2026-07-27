@@ -12,8 +12,9 @@ import { DiaryUploader } from "@/components/admin/diary/DiaryUploader";
 import { DiaryPageDetail } from "@/components/admin/diary/DiaryPageDetail";
 import { DiaryGenerateDialog } from "@/components/admin/diary/DiaryGenerateDialog";
 import { DiaryAssetView } from "@/components/admin/diary/DiaryAssetView";
+import { DiaryPipelinePanel } from "@/components/admin/diary/DiaryPipelinePanel";
 
-type Tab = "overview" | "inbox" | "library" | "assets";
+type Tab = "overview" | "inbox" | "pipeline" | "library" | "assets";
 
 const ASSET_ICON: Record<DiaryAssetKind, React.ElementType> = {
   pdf: FileText,
@@ -137,6 +138,7 @@ export default function DiaryAdmin() {
         {([
           ["overview", "Overview", LayoutGrid],
           ["inbox", "Inbox", Inbox],
+          ["pipeline", "Pipeline", RefreshCw],
           ["library", "Library", Search],
           ["assets", "Assets", Sparkles],
         ] as const).map(([key, label, Icon]) => (
@@ -229,6 +231,9 @@ export default function DiaryAdmin() {
           )}
         </div>
       )}
+
+      {/* ── Pipeline ── */}
+      {tab === "pipeline" && <DiaryPipelinePanel pages={pages} onChanged={load} />}
 
       {/* ── Library ── */}
       {tab === "library" && (

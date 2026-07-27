@@ -11,10 +11,12 @@
 // later reaches for process.env here.
 import processPage from "./_handlers/process.js";
 import generateAsset from "./_handlers/generate.js";
+import pipeline from "./_handlers/pipeline.js";
 
 const handlers = {
   process: processPage,
   generate: generateAsset,
+  pipeline,
 };
 
 export default function handler(req, res) {
