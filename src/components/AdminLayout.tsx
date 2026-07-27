@@ -333,8 +333,13 @@ export default function AdminLayout() {
         )}
       </AnimatePresence>
 
-      {/* Main content */}
-      <div className="flex-1 lg:pl-56 flex flex-col min-h-screen">
+      {/* Main content.
+          min-w-0 is load-bearing: flex items default to min-width:auto, so
+          without it any page whose content is wider than the viewport (a long
+          unbroken string, a wide table) stretches this column instead of
+          being clipped or truncated — pushing everything to its right off
+          screen and out of reach of the pointer. */}
+      <div className="flex-1 min-w-0 lg:pl-56 flex flex-col min-h-screen">
         {/* Top bar */}
         <header
           className="sticky top-0 z-30 flex items-center gap-3 px-4 md:px-6 h-14 shrink-0"
@@ -395,7 +400,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
