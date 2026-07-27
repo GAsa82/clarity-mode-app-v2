@@ -18,8 +18,13 @@ export const ContentCard = ({ session, onSelect }: ContentCardProps) => {
       transition={{ type: "spring", stiffness: 400, damping: 28 }}
     >
       <div className="relative aspect-[2/3] rounded-md overflow-hidden bg-slate-950 shadow-card-soft ring-1 ring-white/5 transition-shadow duration-500 group-hover:shadow-glow group-hover:ring-primary/40">
-        <div className={`absolute inset-0 bg-gradient-to-br ${session.accent}`} />
+        {session.cover_url ? (
+          <img src={session.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <div className={`absolute inset-0 bg-gradient-to-br ${session.accent}`} />
+        )}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(215_90%_62%/0.35),transparent_55%)]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
         <motion.div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
           style={{
