@@ -448,6 +448,32 @@ export async function listAssets(kind?: DiaryAssetKind): Promise<DiaryAsset[]> {
   return (data ?? []) as DiaryAsset[];
 }
 
+export async function setAssetStatus(ids: string[], status: DiaryAssetStatus): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await supabase.from("diary_assets").update({ status }).in("id", ids);
+  if (error) throw error;
+}
+
+export async function updateAsset(id: string, patch: Partial<DiaryAsset>): Promise<void> {
+  const { error } = await supabase.from("diary_assets").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+/** Delete asset rows and any rendered file they reference — no orphans in storage. */
+export async function deleteAssets(assets: Pick<DiaryAsset, "id" | "file_path">[]): Promise<void> {
+  if (assets.length === 0) return;
+  const { error } = await supabase
+    .from("diary_assets")
+    .delete()
+    .in("id", assets.map((a) => a.id));
+  if (error) throw error;
+
+  const paths = assets.map((a) => a.file_path).filter(Boolean) as string[];
+  if (paths.length) {
+    await supabase.storage.from(DIARY_BUCKET).remove(paths).catch(() => {});
+  }
+}
+
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 
 export type DiaryStats = {
