@@ -30,7 +30,7 @@ export const ContentCard = ({ session, onSelect }: ContentCardProps) => {
 
         {/* Animated shimmer on hover */}
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1.2s] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </div>
 
         {session.premium && (
