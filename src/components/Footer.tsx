@@ -25,9 +25,30 @@ export const Footer = () => {
             </div>
           </div>
           {[
-            { title: "Product", links: ["Library", "Store", "Dashboard", "Pricing"] },
-            { title: "Company", links: ["About", "Contact"] },
-            { title: "Legal", links: ["Privacy", "Terms", "Refunds"] },
+            {
+              title: "Product",
+              links: [
+                { label: "Library", href: "/#library" },
+                { label: "Store", href: "/#store" },
+                { label: "Dashboard", href: "/#dashboard" },
+                { label: "Pricing", href: "/pricing" },
+              ],
+            },
+            {
+              title: "Company",
+              links: [
+                { label: "About", href: "/about" },
+                { label: "Contact", href: "/contact" },
+              ],
+            },
+            {
+              title: "Legal",
+              links: [
+                { label: "Privacy", href: "/privacy" },
+                { label: "Terms", href: "/terms" },
+                { label: "Refunds", href: "/refunds" },
+              ],
+            },
           ].map((col) => (
             <div key={col.title}>
               <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
@@ -35,8 +56,15 @@ export const Footer = () => {
               </p>
               <ul className="space-y-3">
                 {col.links.map((l) => (
-                  <li key={l}>
-                    <Link to={`/${l.toLowerCase()}`} className="text-sm hover:text-primary transition-colors">{l}</Link>
+                  <li key={l.label}>
+                    {l.href.includes("#") ? (
+                      // Same-page anchors (e.g. /#library) need a real navigation
+                      // for the browser to scroll to the id when linked from a
+                      // different route — <Link> alone won't do it.
+                      <a href={l.href} className="text-sm hover:text-primary transition-colors">{l.label}</a>
+                    ) : (
+                      <Link to={l.href} className="text-sm hover:text-primary transition-colors">{l.label}</Link>
+                    )}
                   </li>
                 ))}
               </ul>
