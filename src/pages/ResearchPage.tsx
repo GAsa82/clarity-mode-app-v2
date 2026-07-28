@@ -69,14 +69,22 @@ function PaperReader({ paper, onClose }: { paper: Paper; onClose: () => void }) 
           <h2 className="font-display text-2xl md:text-3xl font-light mb-2">{paper.title}</h2>
           {paper.author && <p className="text-sm text-muted-foreground mb-6">{paper.author}</p>}
           {paper.abstract && <RichBody body={paper.abstract} />}
-          {(paper.pdf_url || paper.preview_url) && (
-            <Button asChild variant="hero" size="sm" className="gap-1.5 mt-6">
-              <a href={paper.pdf_url ?? paper.preview_url ?? "#"} target="_blank" rel="noopener noreferrer">
-                <Download className="w-3.5 h-3.5" />
-                Download the PDF
-              </a>
-            </Button>
-          )}
+          {(paper.pdf_url || paper.preview_url) && (() => {
+            const url = paper.pdf_url ?? paper.preview_url ?? "#";
+            // "Download the PDF" is only honest when the link is actually a
+            // PDF file — public-domain sources (Project Gutenberg etc.) link
+            // to a page offering several formats, not a direct download, and
+            // the button shouldn't promise something that isn't what happens.
+            const isDirectPdf = /\.pdf(\?|#|$)/i.test(url);
+            return (
+              <Button asChild variant="hero" size="sm" className="gap-1.5 mt-6">
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                  <Download className="w-3.5 h-3.5" />
+                  {isDirectPdf ? "Download the PDF" : "Read the full text ↗"}
+                </a>
+              </Button>
+            );
+          })()}
         </div>
       </motion.div>
     </div>
