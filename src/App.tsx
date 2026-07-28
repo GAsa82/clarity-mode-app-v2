@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,6 +14,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PWAUpdater } from "@/components/pwa/PWAUpdater";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SkipToContent } from "@/components/SkipToContent";
 import { syncCanonical } from "@/lib/seo";
 import { trackPageview } from "@/lib/analytics";
 
@@ -108,8 +110,16 @@ const AnalyticsTracker = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    {/* framer-motion is this app's dominant animation system (motion.div
+        with whileInView/animate throughout) and completely bypasses the
+        prefers-reduced-motion CSS rule already in index.css, which only
+        covers 3 plain CSS animation classes. reducedMotion="user" makes
+        every motion.* component in the tree respect the OS preference —
+        one place instead of touching every animated component. */}
+    <MotionConfig reducedMotion="user">
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       <TooltipProvider>
+        <SkipToContent />
         <Toaster />
         <Sonner />
         <PWAUpdater />
@@ -214,6 +224,7 @@ const App = () => (
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
+    </MotionConfig>
   </QueryClientProvider>
 );
 

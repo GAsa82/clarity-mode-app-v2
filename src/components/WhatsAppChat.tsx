@@ -153,6 +153,7 @@ export const WhatsAppChat = () => {
                   type="button"
                   onClick={handleSend}
                   disabled={!message.trim()}
+                  aria-label="Send message"
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-[#25D366] text-white disabled:opacity-40 transition-opacity"
                 >
                   <Send className="w-4 h-4" />
