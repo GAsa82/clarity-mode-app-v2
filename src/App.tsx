@@ -12,6 +12,7 @@ import { WebsiteProvider } from "@/contexts/WebsiteContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PWAUpdater } from "@/components/pwa/PWAUpdater";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { syncCanonical } from "@/lib/seo";
 import { trackPageview } from "@/lib/analytics";
 
@@ -116,6 +117,7 @@ const App = () => (
           <BrowserRouter>
               <CanonicalSync />
               <AnalyticsTracker />
+              <ErrorBoundary>
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 {/* Public routes */}
@@ -206,6 +208,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </Suspense>
+              </ErrorBoundary>
               <InstallPrompt />
           </BrowserRouter>
         </AuthProvider>
