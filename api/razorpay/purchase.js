@@ -2,6 +2,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { getVerifiedUserId } from "../_auth.js";
 import { serviceClient as supabase, anonClient, serviceKeyOk } from "../_supabase.js";
+import { applyCouponDiscount } from "./_pricing.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -141,11 +142,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "This coupon has reached its usage limit" });
       }
 
-      const discount =
-        coupon.type === "percent"
-          ? Math.round(finalAmount * (coupon.value / 100))
-          : Math.round(coupon.value * 100); // fixed value is entered in rupees; amount is in paise
-      finalAmount = Math.max(100, finalAmount - discount); // never discount below ₹1
+      finalAmount = applyCouponDiscount(finalAmount, coupon);
       appliedCoupon = code;
     }
 
