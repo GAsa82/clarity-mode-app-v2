@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Shield, Grid3X3, FileText, Library as LibraryIcon, BookOpen, Download,
@@ -14,6 +14,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/lib/supabase";
 import { getWebsiteIdBySlug } from "@/lib/site-settings";
+import { useSEO, SITE_ORIGIN } from "@/lib/seo";
+
+function excerpt(text: string, max = 155): string {
+  const flat = text.replace(/^##\s+/gm, "").replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
+}
 
 /**
  * The public home for written and downloadable content — protocols,
@@ -64,6 +70,8 @@ const TYPE_META: Record<string, { label: string; plural: string; icon: React.Ele
 export default function LibraryPage() {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
+  const { id: routeId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<string>("all");
@@ -89,6 +97,23 @@ export default function LibraryPage() {
     })();
   }, []);
 
+  // Deep-link support: /library/:id opens straight to that item, so shared
+  // and search-indexed links land on the piece itself, not the grid.
+  useEffect(() => {
+    if (!routeId || !loaded) return;
+    const match = items.find((i) => i.id === routeId);
+    if (match) setReading(match);
+  }, [routeId, loaded, items]);
+
+  const openReader = (item: Item) => {
+    setReading(item);
+    navigate(`/library/${item.id}`);
+  };
+  const closeReader = () => {
+    setReading(null);
+    navigate("/library");
+  };
+
   const counts = useMemo(
     () =>
       items.reduce<Record<string, number>>((acc, i) => {
@@ -113,6 +138,30 @@ export default function LibraryPage() {
 
   // Only offer type tabs that actually have content behind them.
   const availableTypes = TYPES.filter((t) => counts[t] > 0);
+
+  useSEO(
+    reading
+      ? {
+          title: `${reading.title} — Library | badly talks`,
+          description: reading.description ?? (reading.body ? excerpt(reading.body) : undefined),
+          path: `/library/${reading.id}`,
+          image: reading.cover_url ?? undefined,
+          type: "article",
+          jsonLd: {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: reading.title,
+            articleSection: TYPE_META[reading.type]?.label ?? reading.type,
+            description: reading.description ?? (reading.body ? excerpt(reading.body) : undefined),
+            url: `${SITE_ORIGIN}/library/${reading.id}`,
+          },
+        }
+      : {
+          title: "The Library — badly talks",
+          description: "Protocols, frameworks, templates and articles — systems built from real practice, not theory.",
+          path: "/library",
+        }
+  );
 
   return (
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
@@ -184,7 +233,7 @@ export default function LibraryPage() {
                   index={i}
                   unlocked={item.visibility === "public" || (!!user && isPremium)}
                   signedIn={!!user}
-                  onOpen={() => setReading(item)}
+                  onOpen={() => openReader(item)}
                 />
               ))}
             </div>
@@ -197,7 +246,7 @@ export default function LibraryPage() {
           item={reading}
           unlocked={reading.visibility === "public" || (!!user && isPremium)}
           signedIn={!!user}
-          onClose={() => setReading(null)}
+          onClose={closeReader}
         />
       )}
 

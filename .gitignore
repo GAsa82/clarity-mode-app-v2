@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Regenerated on every build by scripts/generate-sitemap.mjs
+/public/sitemap.xml
+
 # PWA dev service-worker output
 dev-dist
 

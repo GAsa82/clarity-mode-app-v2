@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BookOpen, FileText, ArrowRight, Lock, Download, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -11,6 +11,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/lib/supabase";
 import { getWebsiteIdBySlug } from "@/lib/site-settings";
+import { useSEO, SITE_ORIGIN } from "@/lib/seo";
+
+/** Plain-text excerpt for meta descriptions — strips the "## " headings RichBody understands. */
+function excerpt(text: string, max = 155): string {
+  const flat = text.replace(/^##\s+/gm, "").replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
+}
 
 type Paper = {
   id: string;
@@ -95,6 +102,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function ResearchPage() {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
+  const { id: routeId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [reading, setReading] = useState<Paper | null>(null);
@@ -114,12 +123,54 @@ export default function ResearchPage() {
     })();
   }, []);
 
+  // Deep-link support: /research/:id opens straight to that paper, so a
+  // shared or search-indexed link lands on the actual piece, not the list.
+  useEffect(() => {
+    if (!routeId || !loaded) return;
+    const match = papers.find((p) => p.id === routeId);
+    if (match) setReading(match);
+  }, [routeId, loaded, papers]);
+
+  const openReader = (p: Paper) => {
+    setReading(p);
+    navigate(`/research/${p.id}`);
+  };
+  const closeReader = () => {
+    setReading(null);
+    navigate("/research");
+  };
+
   const categoryCounts = papers.reduce<Record<string, number>>((acc, p) => {
     acc[p.category] = (acc[p.category] ?? 0) + 1;
     return acc;
   }, {});
 
   const canRead = (p: Paper) => p.visibility === "public" || (!!user && isPremium);
+
+  useSEO(
+    reading
+      ? {
+          title: `${reading.title} — Research | badly talks`,
+          description: reading.abstract ? excerpt(reading.abstract) : undefined,
+          path: `/research/${reading.id}`,
+          image: reading.cover_url ?? undefined,
+          type: "article",
+          jsonLd: {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: reading.title,
+            author: reading.author ? { "@type": "Organization", name: reading.author } : undefined,
+            articleSection: CATEGORY_LABELS[reading.category] ?? reading.category,
+            description: reading.abstract ? excerpt(reading.abstract) : undefined,
+            url: `${SITE_ORIGIN}/research/${reading.id}`,
+          },
+        }
+      : {
+          title: "Research Library — badly talks",
+          description: "Research papers, frameworks, protocols, and templates on decision-making, focus, productivity, and mental clarity.",
+          path: "/research",
+        }
+  );
 
   return (
     <main className="relative z-0 min-h-screen bg-transparent overflow-x-hidden">
@@ -183,7 +234,7 @@ export default function ResearchPage() {
                     )}
                     {canRead(p) ? (
                       <button
-                        onClick={() => setReading(p)}
+                        onClick={() => openReader(p)}
                         className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
                       >
                         {p.pdf_url || p.preview_url ? (
@@ -231,7 +282,7 @@ export default function ResearchPage() {
       <Footer />
       <WhatsAppChat />
 
-      {reading && <PaperReader paper={reading} onClose={() => setReading(null)} />}
+      {reading && <PaperReader paper={reading} onClose={closeReader} />}
     </main>
   );
 }

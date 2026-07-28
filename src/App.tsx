@@ -1,7 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,6 +12,7 @@ import { WebsiteProvider } from "@/contexts/WebsiteContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PWAUpdater } from "@/components/pwa/PWAUpdater";
+import { syncCanonical } from "@/lib/seo";
 
 // Landing + auth load eagerly for instant first paint on mobile.
 import Index from "./pages/Index";
@@ -74,6 +75,21 @@ const RouteFallback = () => (
 
 const queryClient = new QueryClient();
 
+/**
+ * index.html ships one static canonical tag pointing at "/" — every route
+ * inherited it, telling search engines every other page is a duplicate of
+ * the homepage. This keeps it in sync with the actual URL on every
+ * navigation; pages with richer needs (title/description/OG) layer useSEO
+ * on top of this.
+ */
+const CanonicalSync = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    syncCanonical(pathname);
+  }, [pathname]);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
@@ -83,6 +99,7 @@ const App = () => (
         <PWAUpdater />
         <AuthProvider>
           <BrowserRouter>
+              <CanonicalSync />
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 {/* Public routes */}
@@ -102,7 +119,9 @@ const App = () => (
                 <Route path="/coaching/book" element={<BookingPage />} />
                 <Route path="/coaching/confirmation" element={<ConfirmationPage />} />
                 <Route path="/research" element={<ResearchPage />} />
+                <Route path="/research/:id" element={<ResearchPage />} />
                 <Route path="/library" element={<LibraryPage />} />
+                <Route path="/library/:id" element={<LibraryPage />} />
 
                 {/* Founder Studio — full-screen business OS, admin-only */}
                 <Route

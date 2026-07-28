@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://clarity-mode-app-v2-gq26.vercel.app/sitemap.xml
