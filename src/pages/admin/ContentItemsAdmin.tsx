@@ -50,6 +50,14 @@ const TYPE_LABELS: Record<string, string> = {
   insight: "Insight",
 };
 
+// Found live in the admin UI: every new item defaulted to "premium"
+// regardless of type — the exact same silently-paywalled-by-default bug
+// already fixed for the diary pipeline (fix(diary): everything the diary
+// published was paywalled to every visitor), just in this form instead.
+// Written/educational content is the pitch and has to be readable to do
+// that job; actual downloadable deliverables are the paid product.
+const PREMIUM_BY_DEFAULT = new Set(["pdf", "download", "audio", "video"]);
+
 const EMPTY = (type: string): Omit<ContentItem, "id" | "view_count" | "download_count" | "created_at"> => ({
   type,
   title: "",
@@ -62,7 +70,7 @@ const EMPTY = (type: string): Omit<ContentItem, "id" | "view_count" | "download_
   audio_url: "",
   video_url: "",
   price: 0,
-  visibility: "premium",
+  visibility: PREMIUM_BY_DEFAULT.has(type) ? "premium" : "public",
   status: "draft",
   tags: [],
   duration_sec: null,
