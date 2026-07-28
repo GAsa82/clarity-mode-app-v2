@@ -13,6 +13,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PWAUpdater } from "@/components/pwa/PWAUpdater";
 import { syncCanonical } from "@/lib/seo";
+import { trackPageview } from "@/lib/analytics";
 
 // Landing + auth load eagerly for instant first paint on mobile.
 import Index from "./pages/Index";
@@ -90,6 +91,20 @@ const CanonicalSync = () => {
   return null;
 };
 
+/**
+ * GA4's snippet (index.html) is loaded with send_page_view: false — a
+ * client-routed SPA never triggers GA's automatic pageview beyond the very
+ * first load, so every route change has to be reported by hand or GA never
+ * sees a visitor go anywhere past the landing page.
+ */
+const AnalyticsTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageview(location.pathname + location.search);
+  }, [location.pathname, location.search]);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
@@ -100,6 +115,7 @@ const App = () => (
         <AuthProvider>
           <BrowserRouter>
               <CanonicalSync />
+              <AnalyticsTracker />
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 {/* Public routes */}

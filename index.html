@@ -6,6 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
     <title>badly talks — Clear mind. Strong self. Focused life.</title>
 
+    <!-- GA4. send_page_view is off here because this is a client-routed SPA —
+         the initial load and every route change afterward both fire through
+         src/lib/analytics.ts, so nothing is double-counted or missed. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TPS2LSFE82"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      window.gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', 'G-TPS2LSFE82', { send_page_view: false });
+    </script>
+
     <!-- PWA: installable app (manifest link is injected by vite-plugin-pwa) -->
     <meta name="theme-color" content="#080b12" />
     <meta name="color-scheme" content="dark" />
