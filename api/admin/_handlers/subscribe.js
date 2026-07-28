@@ -1,9 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Moved from the standalone api/subscribe.js so it could share a Vercel
+// function slot with set-role.js — Hobby caps deployments at 12 functions.
+// Logic is unchanged; only the file location and import paths moved.
+import { serviceClient as supabase } from "../../_supabase.js";
 
 const ORIGIN = process.env.VITE_SITE_URL || "https://clarity-mode-app-v2-gq26.vercel.app";
 

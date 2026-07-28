@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { getVerifiedUserId } from "../_auth.js";
+import { requireAdmin } from "../_auth.js";
+
+export { requireAdmin };
 
 /**
  * Shared plumbing for the Diary processing pipeline.
@@ -41,29 +43,6 @@ export function applyCors(req, res, methods = "POST, OPTIONS") {
     return true;
   }
   return false;
-}
-
-/**
- * The diary is the owner's private notebook — only admins may touch it.
- * Mirrors the guard used by the R2 media endpoints.
- */
-export async function requireAdmin(req, res) {
-  const userId = await getVerifiedUserId(req);
-  if (!userId) {
-    res.status(401).json({ error: "Sign in required." });
-    return null;
-  }
-  const { data } = await serviceClient
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (data?.role !== "admin") {
-    res.status(403).json({ error: "Admin access required." });
-    return null;
-  }
-  return userId;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

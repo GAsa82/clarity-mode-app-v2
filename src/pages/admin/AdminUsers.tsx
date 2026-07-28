@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Search, Users, UserCheck, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Search, Users, UserCheck, Shield, Loader2 } from "lucide-react";
 
 type Profile = {
   id: string;
@@ -12,39 +14,76 @@ type Profile = {
 };
 
 export default function AdminUsers() {
+  const { user, session } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const load = async () => {
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("id, email, name, role, created_at")
+      .order("created_at", { ascending: false });
+
+    if (!profileData) { setLoading(false); return; }
+
+    const { data: subData } = await supabase
+      .from("subscriptions")
+      .select("user_id, plan, status")
+      .eq("status", "active");
+
+    const subMap = Object.fromEntries(
+      (subData ?? []).map((s: { user_id: string; plan: string; status: string }) => [s.user_id, s])
+    );
+
+    setProfiles(
+      profileData.map((p) => ({
+        ...p,
+        subscription: subMap[p.id] ?? null,
+      }))
+    );
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const load = async () => {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id, email, name, role, created_at")
-        .order("created_at", { ascending: false });
-
-      if (!profileData) { setLoading(false); return; }
-
-      const { data: subData } = await supabase
-        .from("subscriptions")
-        .select("user_id, plan, status")
-        .eq("status", "active");
-
-      const subMap = Object.fromEntries(
-        (subData ?? []).map((s: { user_id: string; plan: string; status: string }) => [s.user_id, s])
-      );
-
-      setProfiles(
-        profileData.map((p) => ({
-          ...p,
-          subscription: subMap[p.id] ?? null,
-        }))
-      );
-      setLoading(false);
-    };
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const setRole = async (target: Profile, role: "user" | "admin") => {
+    const verb = role === "admin" ? "make" : "remove";
+    const confirmed = window.confirm(
+      role === "admin"
+        ? `Give ${target.email} admin access? They'll be able to manage all content, users, orders and site settings.`
+        : `Remove admin access from ${target.email}?`
+    );
+    if (!confirmed) return;
+
+    setUpdatingId(target.id);
+    try {
+      const res = await fetch("/api/admin/set-role", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ userId: target.id, role }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        toast.error(body.error || `Couldn't ${verb} ${target.email} an admin.`);
+        return;
+      }
+      toast.success(role === "admin" ? `${target.email} is now an admin.` : `Admin access removed from ${target.email}.`);
+      setProfiles((prev) => prev.map((p) => (p.id === target.id ? { ...p, role } : p)));
+    } catch {
+      toast.error("Network error — please try again.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   const filtered = profiles.filter((p) => {
     const q = search.toLowerCase();
@@ -141,15 +180,43 @@ export default function AdminUsers() {
                     {planBadge(p) ?? <span className="text-xs text-muted-foreground">Free</span>}
                   </td>
                   <td className="px-4 py-3">
-                    {p.role === "admin" ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-primary bg-primary/10 rounded-full px-2 py-0.5">
-                        <Shield className="w-3 h-3" /> Admin
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <UserCheck className="w-3 h-3" /> User
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {p.role === "admin" ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                          <Shield className="w-3 h-3" /> Admin
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <UserCheck className="w-3 h-3" /> User
+                        </span>
+                      )}
+                      {updatingId === p.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                      ) : p.role === "admin" ? (
+                        p.id === user?.id ? (
+                          <span
+                            className="text-[10px] text-muted-foreground/50"
+                            title="You can't remove your own admin access — have another admin do it."
+                          >
+                            (you)
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setRole(p, "user")}
+                            className="text-[10px] text-muted-foreground hover:text-destructive underline underline-offset-2 transition-colors"
+                          >
+                            Remove admin
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          onClick={() => setRole(p, "admin")}
+                          className="text-[10px] text-primary/70 hover:text-primary underline underline-offset-2 transition-colors"
+                        >
+                          Make admin
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground">{fmt(p.created_at)}</td>
                 </tr>
