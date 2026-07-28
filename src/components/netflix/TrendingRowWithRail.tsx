@@ -1,7 +1,17 @@
+import { lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import type { ClaritySession } from "@/lib/clarity-content";
 import { ContentRow } from "./ContentRow";
-import { LibraryWidgetsRail } from "./LibraryWidgetsRail";
+
+// LibraryWidgetsRail pulls in the face-verification/WebAuthn stack (its
+// "Member of the Day" submission widget), which has nothing to do with
+// first paint. This is the ONE eagerly-loaded page in the app (Index.tsx,
+// for instant mobile first paint per its own comment) — bundling that
+// weight into the critical path directly worked against that goal. Lazy
+// here moves it into its own chunk instead of the ~495KB main bundle.
+const LibraryWidgetsRail = lazy(() =>
+  import("./LibraryWidgetsRail").then((m) => ({ default: m.LibraryWidgetsRail }))
+);
 
 type TrendingRowWithRailProps = {
   title: string;
@@ -30,7 +40,9 @@ export const TrendingRowWithRail = ({ title, sessions, onSelect }: TrendingRowWi
             hideTitle={false}
           />
         </div>
-        <LibraryWidgetsRail trendingSessions={sessions} onSelect={onSelect} />
+        <Suspense fallback={null}>
+          <LibraryWidgetsRail trendingSessions={sessions} onSelect={onSelect} />
+        </Suspense>
       </div>
     </motion.div>
   );

@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
+import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
 
 // https://vitejs.dev/config/
@@ -167,6 +168,17 @@ export default defineConfig(({ mode }) => ({
         type: "module",
       },
     }),
+    // Gated behind --mode analyze (not an env var — those need cross-env on
+    // Windows, and this repo doesn't have it) so normal builds don't pay for
+    // it. Run `npm run build:analyze` to see what's actually inside each
+    // chunk before deciding what, if anything, is worth splitting further.
+    mode === "analyze" &&
+      visualizer({
+        filename: "dist/stats.html",
+        gzipSize: true,
+        brotliSize: true,
+        template: "treemap",
+      }),
   ].filter(Boolean),
   resolve: {
     alias: {
