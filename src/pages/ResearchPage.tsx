@@ -11,13 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/lib/supabase";
 import { getWebsiteIdBySlug } from "@/lib/site-settings";
-import { useSEO, SITE_ORIGIN } from "@/lib/seo";
-
-/** Plain-text excerpt for meta descriptions — strips the "## " headings RichBody understands. */
-function excerpt(text: string, max = 155): string {
-  const flat = text.replace(/^##\s+/gm, "").replace(/\s+/g, " ").trim();
-  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
-}
+import { useSEO, SITE_ORIGIN, excerpt } from "@/lib/seo";
 
 type Paper = {
   id: string;

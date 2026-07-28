@@ -68,6 +68,16 @@ export function useSEO({ title, description, path, image, type = "website", json
   });
 }
 
+/**
+ * Plain-text meta-description excerpt — strips the "## " headings RichBody
+ * understands and truncates to a sane length. Was identical copy-pasted
+ * code in both ResearchPage.tsx and LibraryPage.tsx.
+ */
+export function excerpt(text: string, max = 155): string {
+  const flat = text.replace(/^##\s+/gm, "").replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
+}
+
 /** Keeps the canonical tag correct on every route, even ones that don't call useSEO directly. */
 export function syncCanonical(pathname: string) {
   let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
