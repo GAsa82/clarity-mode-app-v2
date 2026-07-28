@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { captureError } from "@/lib/sentry";
 
 /**
  * Every lazy-loaded route in this app (~25 of them, src/App.tsx) had no
@@ -33,12 +34,14 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     if (isChunkLoadError(error) && !sessionStorage.getItem(RELOAD_FLAG)) {
       // Reload at most once per session — if the chunk is still missing
-      // after a fresh load, looping would just spin forever.
+      // after a fresh load, looping would just spin forever. Not reported
+      // to Sentry: expected, self-healing, and would be pure noise.
       sessionStorage.setItem(RELOAD_FLAG, "1");
       window.location.reload();
       return;
     }
     console.error("[ErrorBoundary] caught:", error, info.componentStack);
+    captureError(error, { contexts: { react: { componentStack: info.componentStack } } });
   }
 
   private reset = () => {

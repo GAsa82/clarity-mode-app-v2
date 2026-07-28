@@ -2,6 +2,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { initNative } from "./lib/native";
+import { initSentry } from "./lib/sentry";
+
+initSentry();
 
 // Force dark mode by default for the Clarity Mode aesthetic
 document.documentElement.classList.add("dark");

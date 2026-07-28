@@ -47,6 +47,11 @@ export default defineConfig(({ mode }) => ({
           ],
           charts: ["recharts"],
           animations: ["framer-motion"],
+          // Only ever pulled in via a dynamic import (src/lib/sentry.ts) —
+          // naming it explicitly avoids it sharing Rollup's generic "index"
+          // name with the real entry chunk, which made the two impossible
+          // to tell apart at a glance in build output.
+          sentry: ["@sentry/react"],
         },
       },
     },
