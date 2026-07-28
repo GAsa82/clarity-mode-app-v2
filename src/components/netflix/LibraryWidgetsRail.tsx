@@ -12,6 +12,19 @@ import {
 } from "@/lib/face-submissions";
 import { useFaceSubmit } from "@/hooks/useFaceSubmit";
 
+// Found during a production audit, not fixed here — needs real data this
+// codebase doesn't have access to:
+// 1. All three products share this one Amazon short-link. Clicking "How to
+//    Win Friends" or "7 Habits" sends the visitor to whatever this single
+//    URL actually resolves to (almost certainly Atomic Habits), not the
+//    book they clicked. Needs a real, distinct Amazon Associates link per
+//    title from whoever owns that account.
+// 2. `price` below is a static snapshot and will silently drift wrong as
+//    Amazon's price changes — there's no live pricing feed here. Numeric
+//    star ratings were removed for the same reason (see git history):
+//    unverifiable without live Amazon access, differ by edition, and go
+//    stale immediately, which is exactly what "no fabricated ratings" rules
+//    out even when the number was accurate at write time.
 const AFFILIATE_URL = "https://amzn.to/49piiUZ";
 
 const affiliateProducts = [
@@ -19,7 +32,6 @@ const affiliateProducts = [
     name: "Atomic Habits",
     subtitle: "James Clear — Tiny Changes, Remarkable Results",
     price: "$16.99",
-    rating: 4.8,
     image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=120&h=120&fit=crop&auto=format",
     url: AFFILIATE_URL,
   },
@@ -27,7 +39,6 @@ const affiliateProducts = [
     name: "The 7 Habits of Highly Effective People",
     subtitle: "Stephen R. Covey — Powerful Lessons in Personal Change",
     price: "$14.99",
-    rating: 4.7,
     image: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=120&h=120&fit=crop&auto=format",
     url: AFFILIATE_URL,
   },
@@ -35,7 +46,6 @@ const affiliateProducts = [
     name: "How to Win Friends & Influence People",
     subtitle: "Dale Carnegie — The Classic Guide to Interpersonal Skills",
     price: "$11.99",
-    rating: 4.6,
     image: "https://images.unsplash.com/photo-1526243741027-444d633d7365?w=120&h=120&fit=crop&auto=format",
     url: AFFILIATE_URL,
   },
@@ -491,8 +501,6 @@ export const LibraryWidgetsRail = ({ trendingSessions, onSelect }: LibraryWidget
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate">{product.subtitle}</p>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <Star className="w-2.5 h-2.5 fill-primary text-primary" />
-                    <span className="text-[10px] text-muted-foreground">{product.rating}</span>
                     <span className="text-[10px] text-muted-foreground ml-auto">{product.price}</span>
                   </div>
                 </div>
